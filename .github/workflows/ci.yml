@@ -81,7 +81,7 @@ jobs:
           path: target/release/ql_rcon
 
   minimal_build:
-    name: build & test with minimal versions
+    name: build with minimal versions
     runs-on: [ ubuntu-latest, windows-latest, macos-latest ]
     needs: [ check, clippy ]
     steps:
