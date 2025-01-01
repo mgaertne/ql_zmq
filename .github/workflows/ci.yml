@@ -35,8 +35,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
       - run: cargo build --release --verbose
       - name: Provide build artifacts
         uses: actions/upload-artifact@v4
@@ -53,8 +51,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
       - run: cargo build --release --verbose
       - name: Provide build artifacts
         uses: actions/upload-artifact@v4
@@ -71,8 +67,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
       - run: cargo build --release --verbose
       - name: Provide build artifacts
         uses: actions/upload-artifact@v4
@@ -89,6 +83,4 @@ jobs:
         uses: actions/checkout@v4
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
       - run: cargo build -Z minimal-versions --verbose

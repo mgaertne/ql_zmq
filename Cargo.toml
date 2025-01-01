@@ -1,5 +1,3 @@
-cargo-features = ["profile-rustflags"]
-
 [package]
 name = "ql_rcon"
 version = "0.1.0"
@@ -12,9 +10,6 @@ strip = "symbols"
 opt-level = "z"
 lto = "fat"
 codegen-units = 1
-
-[profile.release.build-override]
-rustflags = ["-Zlocation-detail=none"]
 
 [dependencies]
 zmq = { version = ">=0.10", default-features = false }
