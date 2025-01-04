@@ -1,17 +1,17 @@
-use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
+use crate::{cmd_line::CommandLineOptions, CONTINUE_RUNNING};
 
-use std::{
+use core::{
     ops::Deref,
     sync::atomic::{AtomicBool, Ordering},
 };
 
 use anyhow::Result;
 
-use crossbeam_channel::{Receiver, Sender};
+use async_std::channel::{Receiver, Sender};
 
 use uuid::Uuid;
 
-use zmq::{Context, DONTWAIT, Message, POLLIN, Socket, SocketEvent, SocketType};
+use zmq::{Context, Message, Socket, SocketEvent, SocketType};
 
 pub struct MultipartMessage {
     event_id: u16,
@@ -163,12 +163,14 @@ fn trim_ql_msg(msg: &str) -> String {
         .replace('\u{0019}', "")
 }
 
-pub(crate) fn run_zmq(
+pub(crate) async fn run_zmq(
     args: CommandLineOptions,
     zmq_receiver: Receiver<String>,
     display_sender: Sender<String>,
 ) -> Result<()> {
-    display_sender.send(format!("ZMQ connecting to {}...", &args.host))?;
+    display_sender
+        .send(format!("ZMQ connecting to {}...", &args.host))
+        .await?;
 
     let zmq_context = Context::new();
     let socket = create_socket(&zmq_context, &args.host, &args.password, &args.identity)?;
@@ -177,12 +179,12 @@ pub(crate) fn run_zmq(
 
     let first = AtomicBool::new(true);
 
-    while let Ok(event) = socket.poll(POLLIN, 100) {
+    while let Ok(event) = socket.poll(zmq::POLLIN, 100) {
         if !CONTINUE_RUNNING.load(Ordering::SeqCst) {
             break;
         }
 
-        match monitor_socket.recv_multipart(DONTWAIT) {
+        match monitor_socket.recv_multipart(zmq::DONTWAIT) {
             Ok(zmq_msg) => {
                 let event_id = zmq_msg.get_event_id();
 
@@ -190,10 +192,14 @@ pub(crate) fn run_zmq(
                     SocketEvent::CONNECTED => {
                         if first.load(Ordering::SeqCst) {
                             first.store(false, Ordering::SeqCst);
-                            display_sender.send("ZMQ registering with the server.".to_string())?;
+                            display_sender
+                                .send("ZMQ registering with the server.".to_string())
+                                .await?;
                         }
-                        if let Err(e) = socket.send("register", DONTWAIT) {
-                            display_sender.send(format!("error registering with ZMQ: {e:?}."))?;
+                        if let Err(e) = socket.send("register", zmq::DONTWAIT) {
+                            display_sender
+                                .send(format!("error registering with ZMQ: {e:?}."))
+                                .await?;
                         }
                     }
                     SocketEvent::CONNECT_DELAYED | SocketEvent::CONNECT_RETRIED => {
@@ -201,7 +207,9 @@ pub(crate) fn run_zmq(
                     }
                     SocketEvent::HANDSHAKE_SUCCEEDED => {
                         first.store(true, Ordering::SeqCst);
-                        display_sender.send(format!("ZMQ connected to {}.", &args.host))?;
+                        display_sender
+                            .send(format!("ZMQ connected to {}.", &args.host))
+                            .await?;
                     }
                     SocketEvent::HANDSHAKE_FAILED_AUTH
                     | SocketEvent::CLOSED
@@ -211,35 +219,43 @@ pub(crate) fn run_zmq(
                     SocketEvent::DISCONNECTED => {
                         if first.load(Ordering::SeqCst) {
                             first.store(false, Ordering::SeqCst);
-                            display_sender.send("Reconnecting ZMQ...".to_string())?;
+                            display_sender
+                                .send("Reconnecting ZMQ...".to_string())
+                                .await?;
                         }
                         if let Err(e) = socket.connect(&args.host) {
-                            display_sender.send(format!("error reconnecting: {e:?}."))?;
+                            display_sender
+                                .send(format!("error reconnecting: {e:?}."))
+                                .await?;
                         }
                     }
                     socket_event => {
-                        display_sender.send(format!(
-                            "{:#06x?} {:?}",
-                            socket_event.to_raw(),
-                            socket_event
-                        ))?;
+                        display_sender
+                            .send(format!(
+                                "{:#06x?} {:?}",
+                                socket_event.to_raw(),
+                                socket_event
+                            ))
+                            .await?;
                     }
                 }
             }
             Err(zmq::Error::EAGAIN) => (),
             Err(e) => {
-                display_sender.send(format!("zmq error: {:?}", e))?;
+                display_sender.send(format!("zmq error: {:?}", e)).await?;
             }
         }
 
         loop {
             match zmq_receiver.try_recv() {
                 Ok(line) => {
-                    socket.send(&line, DONTWAIT)?;
+                    socket.send(&line, zmq::DONTWAIT)?;
                 }
                 Err(err) => {
-                    if err.is_disconnected() {
-                        display_sender.send("receiver disconnected".to_string())?;
+                    if err.is_closed() {
+                        display_sender
+                            .send("receiver disconnected".to_string())
+                            .await?;
                         CONTINUE_RUNNING.store(false, Ordering::SeqCst);
                     }
                     break;
@@ -251,9 +267,9 @@ pub(crate) fn run_zmq(
             continue;
         }
 
-        while let Ok(zmq_msg) = socket.recv_msg(DONTWAIT) {
+        while let Ok(zmq_msg) = socket.recv_msg(zmq::DONTWAIT) {
             if let Some(zmq_str) = zmq_msg.as_str() {
-                display_sender.send(trim_ql_msg(zmq_str))?;
+                display_sender.send(trim_ql_msg(zmq_str)).await?;
             }
         }
     }
@@ -261,7 +277,7 @@ pub(crate) fn run_zmq(
     drop(zmq_receiver);
 
     if CONTINUE_RUNNING.load(Ordering::SeqCst) {
-        display_sender.send("Exiting ZMQ...".to_string())?;
+        display_sender.send("Exiting ZMQ...".to_string()).await?;
     }
 
     monitor_socket.disconnect()?;

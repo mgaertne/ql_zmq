@@ -1,16 +1,16 @@
-use crate::{CONTINUE_RUNNING, CommandLineOptions};
+use crate::{CommandLineOptions, CONTINUE_RUNNING};
 
 use anyhow::Result;
+
+use alloc::sync::Arc;
+use core::{sync::atomic::Ordering, time::Duration};
 
 use std::{
     io::{IsTerminal, Write},
     path::PathBuf,
-    sync::Arc,
-    sync::atomic::Ordering,
-    time::Duration,
 };
 
-use crossbeam_channel::{Receiver, Sender};
+use async_std::channel::{Receiver, Sender};
 
 use linefeed::{Completer, Completion, DefaultTerminal, Interface, Prompter, ReadResult, Signal};
 
@@ -156,7 +156,7 @@ fn terminal_buffer(color_choice: &ColorChoice) -> Buffer {
     }
 }
 
-pub(crate) fn run_terminal(
+pub(crate) async fn run_terminal(
     args: CommandLineOptions,
     zmq_sender: Sender<String>,
     display_receiver: Receiver<String>,
@@ -164,7 +164,7 @@ pub(crate) fn run_terminal(
     let terminal = terminal(&args)?;
 
     while CONTINUE_RUNNING.load(Ordering::SeqCst) {
-        display_receiver.try_iter().try_for_each(|line| {
+        while let Ok(line) = display_receiver.try_recv() {
             let mut buffer = terminal_buffer(&args.color);
             write_formatted_ql_colors(&mut buffer, &line)?;
             terminal.lock_writer_erase().and_then(|mut writer| {
@@ -174,9 +174,7 @@ pub(crate) fn run_terminal(
                     String::from_utf8(buffer.into_inner()).unwrap()
                 )
             })?;
-
-            Ok::<(), anyhow::Error>(())
-        })?;
+        }
 
         match terminal.read_line_step(Some(Duration::from_millis(250))) {
             Ok(None) => continue,
@@ -210,7 +208,7 @@ pub(crate) fn run_terminal(
                     break;
                 }
 
-                if zmq_sender.send(line).is_err() {
+                if zmq_sender.send(line).await.is_err() {
                     break;
                 }
             }
@@ -245,7 +243,7 @@ pub(crate) fn run_terminal(
     drop(zmq_sender);
     CONTINUE_RUNNING.store(false, Ordering::SeqCst);
 
-    display_receiver.try_iter().try_for_each(|line| {
+    while let Ok(line) = display_receiver.try_recv() {
         let mut buffer = terminal_buffer(&args.color);
         write_formatted_ql_colors(&mut buffer, &line)?;
         terminal.lock_writer_erase().and_then(|mut writer| {
@@ -255,9 +253,7 @@ pub(crate) fn run_terminal(
                 String::from_utf8(buffer.into_inner()).unwrap()
             )
         })?;
-
-        Ok::<(), anyhow::Error>(())
-    })?;
+    }
 
     drop(display_receiver);
 
