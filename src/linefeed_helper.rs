@@ -14,7 +14,7 @@ use async_std::channel::{Receiver, Sender};
 
 use linefeed::{Completer, Completion, DefaultTerminal, Interface, Prompter, ReadResult, Signal};
 
-use simple_home_dir::home_dir;
+use directories::UserDirs;
 
 use termcolor::{Buffer, Color, ColorChoice, ColorSpec, WriteColor};
 
@@ -103,7 +103,8 @@ fn write_formatted_ql_colors(buffer: &mut Buffer, text: &str) -> Result<()> {
 }
 
 fn get_history_file(args: &CommandLineOptions) -> Option<PathBuf> {
-    home_dir().map(|mut home_dir| {
+    UserDirs::new().map(|user_dirs| {
+        let mut home_dir = user_dirs.home_dir().to_path_buf();
         match &args.host.strip_prefix("tcp://") {
             None => home_dir.push(".ql_rcon.history"),
             Some(hostname) => home_dir.push(format!(
@@ -114,7 +115,6 @@ fn get_history_file(args: &CommandLineOptions) -> Option<PathBuf> {
         home_dir
     })
 }
-
 fn terminal(args: &CommandLineOptions) -> Result<Interface<DefaultTerminal>> {
     let editor = Interface::new(env!("CARGO_PKG_NAME"))?;
 
