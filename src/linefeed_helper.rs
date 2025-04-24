@@ -232,10 +232,10 @@ pub(crate) async fn run_terminal(
                 break;
             }
             Ok(Some(ReadResult::Signal(signal))) => {
-                writeln!(terminal, "received signal: {:?}", signal)?;
+                writeln!(terminal, "received signal: {signal:?}")?;
             }
             Err(err) => {
-                writeln!(terminal, "I/O error: {:?}", err)?;
+                writeln!(terminal, "I/O error: {err:?}")?;
             }
         };
     }

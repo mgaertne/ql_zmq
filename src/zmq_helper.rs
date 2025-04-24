@@ -242,7 +242,7 @@ pub(crate) async fn run_zmq(
             }
             Err(zmq::Error::EAGAIN) => (),
             Err(e) => {
-                display_sender.send(format!("zmq error: {:?}", e)).await?;
+                display_sender.send(format!("zmq error: {e:?}")).await?;
             }
         }
 
