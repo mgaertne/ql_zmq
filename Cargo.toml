@@ -17,8 +17,7 @@ codegen-units = 1
 rustflags = ["-Zlocation-detail=none"]
 
 [dependencies]
-async-std = { version = ">=1.13", default-features = false, features = ["default", "attributes", "async-global-executor", "async-io", "std", "futures-io", "futures-core", "futures-channel", "std"] }
-futures = { version = ">=0.3.31", default-features = false, features = ["async-await", "executor", "std"] }
+tokio = { version = ">=1.45", default-features = false, features = ["default", "macros", "rt-multi-thread", "sync"] }
 zmq = { version = ">=0.10", default-features = false }
 clap = { version = ">=4.5", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
 anyhow = { version = ">=1.0", default-features = false }

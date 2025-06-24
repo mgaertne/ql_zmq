@@ -1,22 +1,17 @@
-use crate::{CommandLineOptions, CONTINUE_RUNNING};
-
-use anyhow::Result;
-
 use alloc::sync::Arc;
 use core::{sync::atomic::Ordering, time::Duration};
-
 use std::{
     io::{IsTerminal, Write},
     path::PathBuf,
 };
 
-use async_std::channel::{Receiver, Sender};
-
-use linefeed::{Completer, Completion, DefaultTerminal, Interface, Prompter, ReadResult, Signal};
-
+use anyhow::Result;
 use directories::UserDirs;
-
+use linefeed::{Completer, Completion, DefaultTerminal, Interface, Prompter, ReadResult, Signal};
 use termcolor::{Buffer, Color, ColorChoice, ColorSpec, WriteColor};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+
+use crate::{CONTINUE_RUNNING, CommandLineOptions};
 
 struct HistoryCompleter {}
 
@@ -158,8 +153,8 @@ fn terminal_buffer(color_choice: &ColorChoice) -> Buffer {
 
 pub(crate) async fn run_terminal(
     args: CommandLineOptions,
-    zmq_sender: Sender<String>,
-    display_receiver: Receiver<String>,
+    zmq_sender: UnboundedSender<String>,
+    mut display_receiver: UnboundedReceiver<String>,
 ) -> Result<()> {
     let terminal = terminal(&args)?;
 
@@ -208,7 +203,7 @@ pub(crate) async fn run_terminal(
                     break;
                 }
 
-                if zmq_sender.send(line).await.is_err() {
+                if zmq_sender.send(line).is_err() {
                     break;
                 }
             }

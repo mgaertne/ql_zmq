@@ -1,5 +1,4 @@
 use clap::Parser;
-
 use termcolor::ColorChoice;
 
 /// Verbose QuakeLive server statistics
