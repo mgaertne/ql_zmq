@@ -158,7 +158,7 @@ pub(crate) async fn run_terminal(
 ) -> Result<()> {
     let terminal = terminal(&args)?;
 
-    while CONTINUE_RUNNING.load(Ordering::SeqCst) {
+    while CONTINUE_RUNNING.load(Ordering::Acquire) {
         while let Ok(line) = display_receiver.try_recv() {
             let mut buffer = terminal_buffer(&args.color);
             write_formatted_ql_colors(&mut buffer, &line)?;
@@ -174,7 +174,7 @@ pub(crate) async fn run_terminal(
         match terminal.read_line_step(Some(Duration::from_millis(250))) {
             Ok(None) => continue,
             Ok(Some(ReadResult::Input(line))) => {
-                if !CONTINUE_RUNNING.load(Ordering::SeqCst) {
+                if !CONTINUE_RUNNING.load(Ordering::Acquire) {
                     break;
                 }
 
@@ -236,7 +236,7 @@ pub(crate) async fn run_terminal(
     }
 
     drop(zmq_sender);
-    CONTINUE_RUNNING.store(false, Ordering::SeqCst);
+    CONTINUE_RUNNING.store(false, Ordering::Release);
 
     while let Ok(line) = display_receiver.try_recv() {
         let mut buffer = terminal_buffer(&args.color);

@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
 
     let cloned_args = args.clone();
 
-    println!("Ctrl-C or 'exit' to exit rcon session");
+    display_sender.send("Ctrl-C or 'exit' to exit rcon session".to_string())?;
 
     let zmq_task = task::spawn(run_zmq(cloned_args, zmq_receiver, display_sender));
     let terminal_task = task::spawn(run_terminal(args, zmq_sender, display_receiver));
