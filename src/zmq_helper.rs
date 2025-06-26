@@ -1,4 +1,7 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    sync::atomic::{AtomicBool, Ordering},
+    task::Poll,
+};
 
 use anyhow::{Error, Result, anyhow};
 use derive_more::AsRef;
@@ -34,7 +37,6 @@ impl TryFrom<Vec<Vec<u8>>> for MultipartMessage {
             return Err(anyhow!("invalid msg received"));
         }
 
-        #[cfg(target_endian = "little")]
         let Some(event_id) = first_msg
             .first_chunk::<2>()
             .map(|raw_event_id| u16::from_le_bytes(*raw_event_id))
@@ -42,26 +44,10 @@ impl TryFrom<Vec<Vec<u8>>> for MultipartMessage {
         else {
             return Err(anyhow!("invalid first two bytes"));
         };
-        #[cfg(not(target_endian = "little"))]
-        let Some(event_id) = first_msg
-            .first_chunk::<2>()
-            .map(|raw_event_id| u16::from_be_bytes(*raw_event_id))
-            .map(SocketEvent::from_raw)
-        else {
-            return Err(anyhow!("invalid first two bytes"));
-        };
 
-        #[cfg(target_endian = "little")]
         let Some(event_value) = first_msg
             .last_chunk::<4>()
             .map(|raw_event_value| u32::from_le_bytes(*raw_event_value))
-        else {
-            return Err(anyhow!("invalid last four bytes"));
-        };
-        #[cfg(not(target_endian = "little"))]
-        let Some(event_value) = first_msg
-            .last_chunk::<4>()
-            .map(|raw_event_value| u32::from_be_bytes(*raw_event_value))
         else {
             return Err(anyhow!("invalid last four bytes"));
         };
@@ -69,6 +55,7 @@ impl TryFrom<Vec<Vec<u8>>> for MultipartMessage {
         let Some(msg) = message.get(1) else {
             return Err(anyhow!("invalid msg received"));
         };
+
         Ok(Self {
             event_id,
             event_value,
@@ -130,10 +117,38 @@ pub(crate) fn create_socket(
     };
 
     socket.set_identity(identity_str.as_bytes())?;
+    socket.set_rcvtimeo(100)?;
+    socket.set_sndtimeo(100)?;
+    socket.set_heartbeat_ivl(60000)?;
+    socket.set_heartbeat_timeout(60000)?;
 
     socket.set_zap_domain("rcon")?;
 
     Ok(socket)
+}
+
+fn poll_message(socket: &Socket) -> Poll<Result<Message>> {
+    Poll::Ready(socket.recv_msg(zmq::DONTWAIT).map_err(Error::from))
+}
+
+fn poll_multipart(socket: &Socket) -> Poll<Result<MultipartMessage>> {
+    Poll::Ready(
+        socket
+            .recv_multipart(zmq::DONTWAIT)
+            .map_err(Error::from)
+            .and_then(MultipartMessage::try_from),
+    )
+}
+
+fn poll_socket(socket: &Socket) -> Poll<Result<i32>> {
+    Poll::Ready(socket.poll(zmq::POLLIN, 100).map_err(Error::from))
+}
+
+async fn poll_receiver<T>(receiver: &mut UnboundedReceiver<T>) -> Poll<Option<T>> {
+    if receiver.is_closed() || receiver.is_empty() {
+        return Poll::Pending;
+    }
+    Poll::Ready(receiver.recv().await)
 }
 
 fn trim_ql_msg(msg: &str) -> String {
@@ -158,21 +173,23 @@ pub(crate) async fn run_zmq(
 
     let first = AtomicBool::new(true);
 
-    while let Ok(event) = socket.poll(zmq::POLLIN, 100) {
+    while let Poll::Ready(event) = poll_socket(&socket) {
         if !CONTINUE_RUNNING.load(Ordering::Acquire) {
             break;
         }
 
-        match monitor_socket
-            .as_ref()
-            .recv_multipart(zmq::DONTWAIT)
-            .map_err(Error::from)
-            .and_then(MultipartMessage::try_from)
-        {
-            Ok(MultipartMessage {
+        if let Err(err) = event.as_ref() {
+            match err.downcast_ref::<zmq::Error>() {
+                Some(zmq::Error::EAGAIN) => (),
+                _ => display_sender.send(format!("Polling error: {err}"))?,
+            }
+        }
+
+        match poll_multipart(monitor_socket.as_ref()) {
+            Poll::Ready(Ok(MultipartMessage {
                 event_id: SocketEvent::CONNECTED,
                 ..
-            }) => {
+            })) => {
                 if first.load(Ordering::Acquire) {
                     first.store(false, Ordering::Release);
                     display_sender.send("ZMQ registering with the server.".to_string())?;
@@ -181,78 +198,91 @@ pub(crate) async fn run_zmq(
                     display_sender.send(format!("error registering with ZMQ: {e:?}."))?;
                 }
             }
-            Ok(MultipartMessage {
+            Poll::Ready(Ok(MultipartMessage {
                 event_id: SocketEvent::CONNECT_DELAYED | SocketEvent::CONNECT_RETRIED,
                 ..
-            }) => {
+            })) => {
                 continue;
             }
-            Ok(MultipartMessage {
+            Poll::Ready(Ok(MultipartMessage {
                 event_id: SocketEvent::HANDSHAKE_SUCCEEDED,
                 ..
-            }) => {
+            })) => {
                 first.store(true, Ordering::Release);
                 display_sender.send(format!("ZMQ connected to {}.", &args.host))?;
             }
-            Ok(MultipartMessage {
-                event_id:
-                    SocketEvent::HANDSHAKE_FAILED_AUTH
-                    | SocketEvent::CLOSED
-                    | SocketEvent::HANDSHAKE_FAILED_PROTOCOL
-                    | SocketEvent::HANDSHAKE_FAILED_NO_DETAIL
-                    | SocketEvent::MONITOR_STOPPED,
+            Poll::Ready(Ok(MultipartMessage {
+                event_id,
+                event_value,
                 ..
-            }) => {
+            })) if [
+                SocketEvent::HANDSHAKE_FAILED_AUTH,
+                SocketEvent::HANDSHAKE_FAILED_PROTOCOL,
+                SocketEvent::HANDSHAKE_FAILED_NO_DETAIL,
+                SocketEvent::MONITOR_STOPPED,
+            ]
+            .contains(&event_id) =>
+            {
+                display_sender.send(format!(
+                    "ZMQ socket error: {:#06x?} {event_id:?}({event_value:?}).",
+                    event_id.to_raw()
+                ))?;
                 break;
             }
-            Ok(MultipartMessage {
-                event_id: SocketEvent::DISCONNECTED,
+            Poll::Ready(Ok(MultipartMessage {
+                event_id: SocketEvent::DISCONNECTED | SocketEvent::CLOSED,
+                msg,
                 ..
-            }) => {
+            })) => {
                 if first.load(Ordering::Acquire) {
                     first.store(false, Ordering::Release);
                     display_sender.send("Reconnecting ZMQ...".to_string())?;
                 }
-                if let Err(e) = socket.connect(&args.host) {
+                if let Err(e) = socket.connect(msg.as_str().unwrap_or(&args.host)) {
                     display_sender.send(format!("error reconnecting: {e:?}."))?;
                 }
             }
-            Ok(MultipartMessage {
-                event_id: socket_event,
+            Poll::Ready(Ok(MultipartMessage {
+                event_id,
+                event_value,
                 ..
-            }) => {
+            })) => {
                 display_sender.send(format!(
-                    "{:#06x?} {:?}",
-                    socket_event.to_raw(),
-                    socket_event
+                    "ZMQ socket error: {:#06x?} {event_id:?}({event_value:?}).",
+                    event_id.to_raw()
                 ))?;
             }
-            Err(err) => match err.downcast_ref::<zmq::Error>() {
+            Poll::Ready(Err(err)) => match err.downcast_ref::<zmq::Error>() {
                 Some(zmq::Error::EAGAIN) => (),
                 _ => {
-                    display_sender.send(format!("zmq error: {err}"))?;
+                    display_sender.send(format!("ZMQ error: {err}"))?;
                 }
             },
+            _ => (),
         }
 
-        if zmq_receiver.is_closed() {
-            display_sender.send("receiver disconnected".to_string())?;
-            break;
+        while let Poll::Ready(Some(line)) = poll_receiver(&mut zmq_receiver).await {
+            socket.send(&line, zmq::DONTWAIT)?;
         }
 
-        while !zmq_receiver.is_empty() {
-            if let Some(line) = zmq_receiver.recv().await {
-                socket.send(&line, zmq::DONTWAIT)?;
-            }
-        }
-
-        if event == 0 {
+        if let Ok(0) = event {
             continue;
         }
 
-        while let Ok(zmq_msg) = socket.recv_msg(zmq::DONTWAIT) {
-            if let Some(zmq_str) = zmq_msg.as_str() {
-                display_sender.send(trim_ql_msg(zmq_str))?;
+        while let Poll::Ready(zmq_msg) = poll_message(&socket) {
+            match zmq_msg {
+                Err(err) => {
+                    match err.downcast_ref::<zmq::Error>() {
+                        Some(zmq::Error::EAGAIN) => (),
+                        _ => display_sender.send(format!("Polling error: {err}"))?,
+                    }
+                    break;
+                }
+                Ok(zmq_msg) => {
+                    if let Some(zmq_str) = zmq_msg.as_str() {
+                        display_sender.send(trim_ql_msg(zmq_str))?;
+                    }
+                }
             }
         }
     }
