@@ -20,6 +20,7 @@ rustflags = ["-Zlocation-detail=none"]
 derive_more = { version = ">=2.0", default-features = false, features = ["as_ref"] }
 tap = { version = ">=1.0", default-features = false }
 tokio = { version = ">=1.45", default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync"] }
+futures = { version = ">=0.3.31", default-features = false, features = ["async-await"] }
 zmq = { version = ">=0.10", default-features = false }
 clap = { version = ">=4.5", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
 anyhow = { version = ">=1.0", default-features = false }
