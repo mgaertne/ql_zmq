@@ -22,23 +22,33 @@ use zmq::{Context, Message, Socket, SocketEvent, SocketType};
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
 #[derive(Debug, PartialEq)]
-pub struct MultipartMessage {
-    event_id: SocketEvent,
-    #[allow(dead_code)]
-    event_value: u32,
-    #[allow(dead_code)]
-    msg: Message,
+enum MonitorSocketEvent {
+    Connected,
+    ConnectDelayed,
+    ConnectRetried(u32),
+    Listening,
+    Accepted,
+    AcceptFailed(zmq::Error),
+    Closed,
+    CloseFailed(u32),
+    Disconnected,
+    MonitorStopped,
+    HandshakeFailedNoDetail(u32),
+    HandshakeSucceeded,
+    HandshakeFailedProtocol(u32),
+    HandshakeFailedAuth(u32),
+    UnSupported(SocketEvent, u32),
 }
 
-impl TryFrom<Vec<Vec<u8>>> for MultipartMessage {
+impl TryFrom<Vec<Vec<u8>>> for MonitorSocketEvent {
     type Error = Error;
 
-    fn try_from(message: Vec<Vec<u8>>) -> Result<Self, Self::Error> {
-        if message.len() != 2 {
+    fn try_from(raw_multipart: Vec<Vec<u8>>) -> Result<Self, Self::Error> {
+        if raw_multipart.len() != 2 {
             return Err(anyhow!("invalid msg received"));
         }
 
-        let Some(first_msg) = message.first() else {
+        let Some(first_msg) = raw_multipart.first() else {
             return Err(anyhow!("invalid msg received"));
         };
 
@@ -61,15 +71,29 @@ impl TryFrom<Vec<Vec<u8>>> for MultipartMessage {
             return Err(anyhow!("invalid last four bytes"));
         };
 
-        let Some(msg) = message.get(1) else {
-            return Err(anyhow!("invalid msg received"));
-        };
-
-        Ok(Self {
-            event_id,
-            event_value,
-            msg: msg.into(),
-        })
+        match event_id {
+            SocketEvent::CONNECTED => Ok(Self::Connected),
+            SocketEvent::CONNECT_DELAYED => Ok(Self::ConnectDelayed),
+            SocketEvent::CONNECT_RETRIED => Ok(Self::ConnectRetried(event_value)),
+            SocketEvent::LISTENING => Ok(Self::Listening),
+            SocketEvent::ACCEPTED => Ok(Self::Accepted),
+            SocketEvent::ACCEPT_FAILED => {
+                Ok(Self::AcceptFailed(zmq::Error::from_raw(event_value as i32)))
+            }
+            SocketEvent::CLOSED => Ok(Self::Closed),
+            SocketEvent::CLOSE_FAILED => Ok(Self::CloseFailed(event_value)),
+            SocketEvent::DISCONNECTED => Ok(Self::Disconnected),
+            SocketEvent::MONITOR_STOPPED => Ok(Self::MonitorStopped),
+            SocketEvent::HANDSHAKE_FAILED_NO_DETAIL => {
+                Ok(Self::HandshakeFailedNoDetail(event_value))
+            }
+            SocketEvent::HANDSHAKE_SUCCEEDED => Ok(Self::HandshakeSucceeded),
+            SocketEvent::HANDSHAKE_FAILED_PROTOCOL => {
+                Ok(Self::HandshakeFailedProtocol(event_value))
+            }
+            SocketEvent::HANDSHAKE_FAILED_AUTH => Ok(Self::HandshakeFailedAuth(event_value)),
+            event_id => Ok(Self::UnSupported(event_id, 0)),
+        }
     }
 }
 
@@ -151,6 +175,8 @@ impl DealerSocket {
 
         let monitor = context.socket(zmq::PAIR)?;
 
+        monitor.connect(&monitor_endpoint)?;
+
         Ok(MonitoringSocket(monitor))
     }
 }
@@ -171,7 +197,7 @@ impl TryFrom<(&Context, &DealerSocket)> for MonitoringSocket {
 }
 
 impl Future for MonitoringSocket {
-    type Output = Result<MultipartMessage>;
+    type Output = Result<MonitorSocketEvent>;
 
     fn poll(self: Pin<&mut Self>, _ctx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         Poll::Ready(
@@ -179,31 +205,20 @@ impl Future for MonitoringSocket {
                 .as_ref()
                 .recv_multipart(zmq::DONTWAIT)
                 .map_err(Error::from)
-                .and_then(MultipartMessage::try_from),
+                .and_then(MonitorSocketEvent::try_from),
         )
     }
 }
 
-impl MonitoringSocket {
-    fn disconnect(&self) -> Result<()> {
-        self.as_ref()
-            .get_last_endpoint()?
-            .map_err(|_err| zmq::Error::EFAULT)
-            .and_then(|last_endpoint| self.as_ref().disconnect(&last_endpoint))?;
-
-        Ok(())
-    }
-}
-
-struct ZmqSocketPair {
+struct MonitoredDealer {
     dealer: Mutex<DealerSocket>,
     monitor: Mutex<MonitoringSocket>,
 }
 
-unsafe impl Send for ZmqSocketPair {}
-unsafe impl Sync for ZmqSocketPair {}
+unsafe impl Send for MonitoredDealer {}
+unsafe impl Sync for MonitoredDealer {}
 
-impl ZmqSocketPair {
+impl MonitoredDealer {
     fn new() -> Result<Self> {
         let context = Context::new();
         let socket = (&context).try_conv::<DealerSocket>()?;
@@ -220,19 +235,12 @@ impl ZmqSocketPair {
     }
 
     async fn connect(&self, address: &str) -> Result<()> {
-        let monitor_endpoint = self.dealer.lock().await.get_endpoint()?;
-        self.monitor
-            .lock()
-            .await
-            .as_ref()
-            .connect(&monitor_endpoint)?;
         self.dealer.lock().await.as_ref().connect(address)?;
 
         Ok(())
     }
 
     async fn disconnect(&self) -> Result<()> {
-        self.monitor.lock().await.disconnect()?;
         self.dealer.lock().await.disconnect()?;
 
         Ok(())
@@ -244,37 +252,83 @@ impl ZmqSocketPair {
         Ok(())
     }
 
-    async fn recv_msg(&mut self) -> Result<Message> {
+    async fn recv_msg(&self) -> Result<Message> {
         let mut socket = self.dealer.lock().await;
         poll_fn(|ctx| socket.poll_unpin(ctx)).await
     }
 
-    async fn monitor(&self) -> Result<MultipartMessage> {
+    async fn check_monitor(&self) -> Result<MonitorSocketEvent> {
         let mut monitor = self.monitor.lock().await;
         poll_fn(|ctx| (*monitor).poll_unpin(ctx)).await
     }
-
-    async fn zmq_poll(&self) -> Result<i32> {
-        self.dealer
-            .lock()
-            .await
-            .as_ref()
-            .poll(zmq::POLLIN, 100)
-            .map_err(Error::from)
-    }
-}
-
-async fn poll_receiver<T>(receiver: &mut UnboundedReceiver<T>) -> Option<T> {
-    if receiver.is_closed() || receiver.is_empty() {
-        return None;
-    }
-    receiver.recv().await
 }
 
 fn trim_ql_msg(msg: &str) -> String {
     msg.replace("\n", "")
         .replace("\\n", "")
         .replace('\u{0019}', "")
+}
+
+static FIRST_TIME: AtomicBool = AtomicBool::new(true);
+
+async fn check_monitor(
+    monitored_dealer: &MonitoredDealer,
+    sender: &UnboundedSender<String>,
+    endpoint: &str,
+) -> Result<()> {
+    match monitored_dealer.check_monitor().await {
+        Ok(MonitorSocketEvent::Connected) => {
+            if FIRST_TIME.load(Ordering::Acquire) {
+                FIRST_TIME.store(false, Ordering::Release);
+                sender.send("ZMQ registering with the server.".to_string())?;
+            }
+            if let Err(e) = monitored_dealer.send("register", zmq::DONTWAIT).await {
+                sender.send(format!("error registering with ZMQ: {e:?}."))?;
+            }
+        }
+
+        Ok(MonitorSocketEvent::HandshakeSucceeded) => {
+            FIRST_TIME.store(true, Ordering::Release);
+            sender.send(format!("ZMQ connected to {}.", &endpoint))?;
+        }
+
+        Ok(
+            event @ (MonitorSocketEvent::HandshakeFailedAuth(_)
+            | MonitorSocketEvent::HandshakeFailedProtocol(_)
+            | MonitorSocketEvent::HandshakeFailedNoDetail(_)
+            | MonitorSocketEvent::MonitorStopped),
+        ) => {
+            sender.send(format!("ZMQ socket error: {event:?}"))?;
+            CONTINUE_RUNNING.store(false, Ordering::Release);
+        }
+
+        Ok(MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed) => {
+            if FIRST_TIME.load(Ordering::Acquire) {
+                FIRST_TIME.store(false, Ordering::Release);
+                sender.send("Reconnecting ZMQ...".to_string())?;
+            }
+            if let Err(e) = monitored_dealer.connect(endpoint).await {
+                sender.send(format!("error reconnecting: {e:?}."))?;
+            }
+        }
+
+        Ok(MonitorSocketEvent::ConnectDelayed | MonitorSocketEvent::ConnectRetried(_)) => (),
+
+        Ok(event) => {
+            sender.send(format!("ZMQ socket error: {event:?}",))?;
+        }
+
+        Err(err)
+            if err
+                .downcast_ref::<zmq::Error>()
+                .is_some_and(|&zmq_error| zmq_error == zmq::Error::EAGAIN) => {}
+
+        Err(err) => {
+            sender.send(format!("ZMQ error: {err}"))?;
+        }
+    };
+
+    Ok(())
 }
 
 pub(crate) async fn run_zmq(
@@ -284,124 +338,38 @@ pub(crate) async fn run_zmq(
 ) -> Result<()> {
     display_sender.send(format!("ZMQ connecting to {}...", &args.host))?;
 
-    let mut zmq_socket_pair = ZmqSocketPair::new()?;
-    zmq_socket_pair
+    let monitored_dealer = MonitoredDealer::new()?;
+    monitored_dealer
         .configure(&args.password, &args.identity)
         .await?;
 
-    zmq_socket_pair.connect(&args.host).await?;
+    monitored_dealer.connect(&args.host).await?;
 
-    let first = AtomicBool::new(true);
+    while CONTINUE_RUNNING.load(Ordering::Acquire) && !zmq_receiver.is_closed() {
+        select!(
+            biased;
 
-    'outer: while let Ok(event) = zmq_socket_pair.zmq_poll().await {
-        if !CONTINUE_RUNNING.load(Ordering::Acquire) {
-            break;
-        }
+            Ok(zmq_msg) = monitored_dealer.recv_msg() => {
+                if let Some(zmq_str) = zmq_msg.as_str() {
+                    display_sender.send(trim_ql_msg(zmq_str))?;
+                }
+            }
 
-        match zmq_socket_pair.monitor().await {
-            Ok(MultipartMessage {
-                event_id: SocketEvent::CONNECTED,
-                ..
-            }) => {
-                if first.load(Ordering::Acquire) {
-                    first.store(false, Ordering::Release);
-                    display_sender.send("ZMQ registering with the server.".to_string())?;
-                }
-                if let Err(e) = zmq_socket_pair.send("register", zmq::DONTWAIT).await {
-                    display_sender.send(format!("error registering with ZMQ: {e:?}."))?;
-                }
-            }
-            Ok(MultipartMessage {
-                event_id: SocketEvent::CONNECT_DELAYED | SocketEvent::CONNECT_RETRIED,
-                ..
-            }) => {
-                continue;
-            }
-            Ok(MultipartMessage {
-                event_id: SocketEvent::HANDSHAKE_SUCCEEDED,
-                ..
-            }) => {
-                first.store(true, Ordering::Release);
-                display_sender.send(format!("ZMQ connected to {}.", &args.host))?;
-            }
-            Ok(MultipartMessage {
-                event_id:
-                    event_id @ (SocketEvent::HANDSHAKE_FAILED_AUTH
-                    | SocketEvent::HANDSHAKE_FAILED_PROTOCOL
-                    | SocketEvent::HANDSHAKE_FAILED_NO_DETAIL
-                    | SocketEvent::MONITOR_STOPPED),
-                event_value,
-                ..
-            }) => {
-                display_sender.send(format!(
-                    "ZMQ socket error: {:#06x?} {event_id:?}({event_value:?}).",
-                    event_id.to_raw()
-                ))?;
-                break;
-            }
-            Ok(MultipartMessage {
-                event_id: SocketEvent::DISCONNECTED | SocketEvent::CLOSED,
-                msg,
-                ..
-            }) => {
-                if first.load(Ordering::Acquire) {
-                    first.store(false, Ordering::Release);
-                    display_sender.send("Reconnecting ZMQ...".to_string())?;
-                }
-                if let Err(e) = zmq_socket_pair
-                    .connect(msg.as_str().unwrap_or(&args.host))
-                    .await
-                {
-                    display_sender.send(format!("error reconnecting: {e:?}."))?;
-                }
-            }
-            Ok(MultipartMessage {
-                event_id,
-                event_value,
-                ..
-            }) => {
-                display_sender.send(format!(
-                    "ZMQ socket error: {:#06x?} {event_id:?}({event_value:?}).",
-                    event_id.to_raw()
-                ))?;
-            }
-            Err(err)
-                if err
-                    .downcast_ref::<zmq::Error>()
-                    .is_some_and(|&zmq_error| zmq_error == zmq::Error::EAGAIN) => {}
-            Err(err) => {
-                display_sender.send(format!("ZMQ error: {err}"))?;
-            }
-        }
+            Some(line) = zmq_receiver.recv(), if !zmq_receiver.is_empty() => {
+                monitored_dealer.send(&line, zmq::DONTWAIT).await?;
+            },
 
-        loop {
-            select!(
-                Some(line) = poll_receiver(&mut zmq_receiver) => {
-                    zmq_socket_pair.send(&line, zmq::DONTWAIT).await?;
-                },
-                Ok(zmq_msg) = zmq_socket_pair.recv_msg(), if event != 0 => {
-                    if let Some(zmq_str) = zmq_msg.as_str() {
-                        display_sender.send(trim_ql_msg(zmq_str))?;
-                    }
-                }
-                else => {
-                    continue 'outer;
-                }
-            );
-        }
+            Ok(()) = check_monitor(&monitored_dealer, &display_sender, &args.host) => (),
+
+            else => ()
+        );
     }
 
     drop(zmq_receiver);
 
-    if CONTINUE_RUNNING.load(Ordering::SeqCst) {
-        display_sender.send("Exiting ZMQ...".to_string())?;
-    }
-
-    zmq_socket_pair.disconnect().await?;
+    monitored_dealer.disconnect().await?;
 
     drop(display_sender);
-
-    CONTINUE_RUNNING.store(false, Ordering::SeqCst);
 
     Ok(())
 }
