@@ -15,7 +15,7 @@ extern crate alloc;
 
 pub(crate) static CONTINUE_RUNNING: AtomicBool = AtomicBool::new(true);
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 5)]
 async fn main() -> Result<()> {
     let args = CommandLineOptions::parse();
 
@@ -29,8 +29,7 @@ async fn main() -> Result<()> {
     let zmq_task = task::spawn(run_zmq(cloned_args, zmq_receiver, display_sender));
     let terminal_task = task::spawn(run_terminal(args, zmq_sender, display_receiver));
     match try_join!(zmq_task, terminal_task)? {
-        (Err(e), _) => Err(e),
-        (_, Err(e)) => Err(e),
+        (Err(e), _) | (_, Err(e)) => Err(e),
         _ => Ok(()),
     }
 }

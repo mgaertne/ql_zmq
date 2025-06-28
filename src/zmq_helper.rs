@@ -144,6 +144,15 @@ impl DealerSocket {
 
         Ok(format!("inproc://monitor.s-{fd}"))
     }
+
+    fn monitor(&self, context: &Context, events: SocketEvent) -> Result<MonitoringSocket> {
+        let monitor_endpoint = self.get_endpoint()?;
+        self.as_ref().monitor(&monitor_endpoint, events as i32)?;
+
+        let monitor = context.socket(zmq::PAIR)?;
+
+        Ok(MonitoringSocket(monitor))
+    }
 }
 
 #[derive(AsRef)]
@@ -153,18 +162,11 @@ struct MonitoringSocket(Socket);
 unsafe impl Send for MonitoringSocket {}
 unsafe impl Sync for MonitoringSocket {}
 
-impl TryFrom<(&Context, &Socket)> for MonitoringSocket {
+impl TryFrom<(&Context, &DealerSocket)> for MonitoringSocket {
     type Error = Error;
 
-    fn try_from((ctx, socket): (&Context, &Socket)) -> Result<Self> {
-        let fd = socket.get_fd()?;
-
-        let monitor_endpoint = format!("inproc://monitor.s-{fd}");
-        socket.monitor(&monitor_endpoint, SocketEvent::ALL as i32)?;
-
-        let monitor = ctx.socket(zmq::PAIR)?;
-
-        Ok(Self(monitor))
+    fn try_from((ctx, socket): (&Context, &DealerSocket)) -> Result<Self> {
+        socket.monitor(ctx, SocketEvent::ALL)
     }
 }
 
@@ -205,9 +207,7 @@ impl ZmqSocketPair {
     fn new() -> Result<Self> {
         let context = Context::new();
         let socket = (&context).try_conv::<DealerSocket>()?;
-        let monitor = (&context, socket.as_ref())
-            .try_conv::<MonitoringSocket>()?
-            .into();
+        let monitor = (&context, &socket).try_conv::<MonitoringSocket>()?.into();
 
         Ok(Self {
             dealer: socket.into(),
@@ -249,7 +249,7 @@ impl ZmqSocketPair {
         poll_fn(|ctx| socket.poll_unpin(ctx)).await
     }
 
-    async fn recv_multipart(&self) -> Result<MultipartMessage> {
+    async fn monitor(&self) -> Result<MultipartMessage> {
         let mut monitor = self.monitor.lock().await;
         poll_fn(|ctx| (*monitor).poll_unpin(ctx)).await
     }
@@ -298,7 +298,7 @@ pub(crate) async fn run_zmq(
             break;
         }
 
-        match zmq_socket_pair.recv_multipart().await {
+        match zmq_socket_pair.monitor().await {
             Ok(MultipartMessage {
                 event_id: SocketEvent::CONNECTED,
                 ..
@@ -365,12 +365,13 @@ pub(crate) async fn run_zmq(
                     event_id.to_raw()
                 ))?;
             }
-            Err(err) => match err.downcast_ref::<zmq::Error>() {
-                Some(zmq::Error::EAGAIN) => (),
-                _ => {
-                    display_sender.send(format!("ZMQ error: {err}"))?;
-                }
-            },
+            Err(err)
+                if err
+                    .downcast_ref::<zmq::Error>()
+                    .is_some_and(|&zmq_error| zmq_error == zmq::Error::EAGAIN) => {}
+            Err(err) => {
+                display_sender.send(format!("ZMQ error: {err}"))?;
+            }
         }
 
         loop {
