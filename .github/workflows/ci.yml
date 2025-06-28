@@ -29,50 +29,16 @@ jobs:
           components: clippy
       - run: cargo clippy -- -D warnings
 
-  build-linux:
-    name: build (Linux)
-    runs-on: ubuntu-latest
+  build:
+    name: build
     needs: [ check, clippy ]
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-      - run: cargo build --release --verbose
-      - name: Provide build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ql_zmq_linux
-          path: |
-            target/release/ql_zmq_rcon
-            target/release/ql_zmq_stats
 
-  build-windows:
-    name: build (Windows)
-    runs-on: windows-latest
-    needs: [ check, clippy ]
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-      - name: Install toolchain
-        with:
-          toolchain: nightly
-        uses: dtolnay/rust-toolchain@stable
-      - run: cargo build --release --verbose
-      - name: Provide build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ql_zmq_windows
-          path: |
-            target/release/ql_zmq_rcon.exe
-            target/release/ql_zmq_stats.exe
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
-  build-macos:
-    name: build (MacOS)
-    runs-on: macos-latest
-    needs: [ check, clippy ]
+    runs-on: ${{ matrix.os }}
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -82,9 +48,26 @@ jobs:
           toolchain: nightly
       - run: cargo build --release --verbose
       - name: Provide build artifacts
+        if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: ql_zmq_macos
-          path: |
-            target/release/ql_zmq_rcon
-            target/release/ql_zmq_stats
+          name: ql_zmq_rcon_${{ matrix.os }}
+          path: target/release/ql_zmq_rcon
+      - name: Provide build artifacts
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ql_zmq_rcon_${{ matrix.os }}.exe
+          path: target/release/ql_zmq_rcon.exe
+      - name: Provide build artifacts
+        if: matrix.os != 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ql_zmq_stats_${{ matrix.os }}
+          path: target/release/ql_zmq_stats
+      - name: Provide build artifacts
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ql_zmq_stats_${{ matrix.os }}.exe
+          path: target/release/ql_zmq_stats.exe
