@@ -1,0 +1,21 @@
+[package]
+name = "ql_zmq_stats"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+derive_more = { workspace = true, features = ["as_ref"] }
+tap = { workspace = true }
+tokio = { workspace = true, features = ["default", "macros", "rt", "rt-multi-thread", "sync", "time"] }
+futures = { workspace = true, features = ["async-await"] }
+zmq = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
+uuid = { workspace = true, features = ["v4"] }
+
+serde_json = { version = ">=1.0.140", default-features = false, features = ["alloc"] }
+
+[lints]
+workspace = true

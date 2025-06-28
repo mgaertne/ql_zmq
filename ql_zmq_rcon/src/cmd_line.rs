@@ -1,7 +1,7 @@
 use clap::Parser;
 use termcolor::ColorChoice;
 
-/// Verbose QuakeLive server statistics
+/// QuakeLive rcon options
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]
 pub(crate) struct CommandLineOptions {

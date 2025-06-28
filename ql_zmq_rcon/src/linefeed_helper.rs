@@ -101,9 +101,9 @@ fn get_history_file(args: &CommandLineOptions) -> Option<PathBuf> {
     UserDirs::new().map(|user_dirs| {
         let mut home_dir = user_dirs.home_dir().to_path_buf();
         match &args.host.strip_prefix("tcp://") {
-            None => home_dir.push(".ql_rcon.history"),
+            None => home_dir.push(".ql_zmq_rcon.history"),
             Some(hostname) => home_dir.push(format!(
-                ".ql_rcon-{}.history",
+                ".ql_zmq_rcon-{}.history",
                 hostname.replace(".", "_").replace(":", "_")
             )),
         }
@@ -124,10 +124,10 @@ fn terminal(args: &CommandLineOptions) -> Result<Interface<DefaultTerminal>> {
             editor.set_report_signal(signal, true);
         });
 
-    if let Some(history_file) = get_history_file(args) {
-        if history_file.exists() {
-            editor.load_history(&history_file)?;
-        }
+    if let Some(history_file) = get_history_file(args)
+        && history_file.exists()
+    {
+        editor.load_history(&history_file)?;
     };
 
     let history_completer = HistoryCompleter {};
