@@ -142,8 +142,12 @@ impl SubscriberSocket {
         };
 
         self.as_ref().set_identity(identity_str.as_bytes())?;
-        self.as_ref().set_rcvtimeo(100)?;
-        self.as_ref().set_sndtimeo(100)?;
+
+        self.as_ref().set_rcvtimeo(0)?;
+        self.as_ref().set_rcvhwm(0)?;
+        self.as_ref().set_sndtimeo(0)?;
+        self.as_ref().set_sndhwm(0)?;
+
         self.as_ref().set_heartbeat_ivl(600_000)?;
         self.as_ref().set_heartbeat_timeout(600_000)?;
 
