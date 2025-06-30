@@ -2,10 +2,11 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Error, Result};
 use azmq::{Monitor, MonitorSocketEvent, Subscriber, ZmqSocket};
+use futures::future::{FutureExt, poll_fn};
 use serde_json::Value;
 use tokio::{
     select,
-    sync::{Mutex, mpsc::UnboundedSender},
+    sync::{RwLock, mpsc::UnboundedSender},
 };
 use uuid::Uuid;
 use zmq::Message;
@@ -13,8 +14,8 @@ use zmq::Message;
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
 struct MonitoredSubscriber {
-    subscriber: Mutex<ZmqSocket<Subscriber>>,
-    monitor: Mutex<ZmqSocket<Monitor>>,
+    subscriber: RwLock<ZmqSocket<Subscriber>>,
+    monitor: RwLock<ZmqSocket<Monitor>>,
 }
 
 unsafe impl Send for MonitoredSubscriber {}
@@ -32,7 +33,7 @@ impl MonitoredSubscriber {
     }
 
     async fn configure(&self, password: &str, identity: &str) -> Result<()> {
-        let subscriber = self.subscriber.lock().await;
+        let subscriber = self.subscriber.read().await;
         subscriber.set_plain_username(Some("stats"))?;
         if !password.is_empty() {
             subscriber.set_plain_password(Some(password))?;
@@ -63,7 +64,7 @@ impl MonitoredSubscriber {
     }
 
     async fn connect(&self, address: &str) -> Result<()> {
-        let socket = self.subscriber.lock().await;
+        let socket = self.subscriber.read().await;
         socket.as_ref().connect(address)?;
 
         socket.as_ref().set_subscribe("".as_bytes())?;
@@ -72,7 +73,7 @@ impl MonitoredSubscriber {
     }
 
     async fn disconnect(&self) -> Result<()> {
-        let subscriber = self.subscriber.lock().await;
+        let subscriber = self.subscriber.read().await;
         subscriber
             .last_endpoint()?
             .map_err(|_err| Error::from(zmq::Error::EFAULT))
@@ -82,13 +83,13 @@ impl MonitoredSubscriber {
     }
 
     async fn recv_msg(&self) -> Option<Message> {
-        let subscriber = self.subscriber.lock().await;
-        subscriber.recv_async().await.ok()
+        let mut subscriber = self.subscriber.write().await;
+        poll_fn(|ctx| subscriber.poll_unpin(ctx)).now_or_never()
     }
 
-    async fn check_monitor(&self) -> Result<MonitorSocketEvent> {
-        let monitor = self.monitor.lock().await;
-        monitor.recv().await
+    async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
+        let mut monitor = self.monitor.write().await;
+        poll_fn(|ctx| monitor.poll_unpin(ctx)).now_or_never()
     }
 }
 
@@ -112,12 +113,12 @@ async fn check_monitor(
     endpoint: &str,
 ) -> Result<()> {
     match monitored_dealer.check_monitor().await {
-        Ok(MonitorSocketEvent::HandshakeSucceeded) => {
+        Some(MonitorSocketEvent::HandshakeSucceeded) => {
             FIRST_TIME.store(true, Ordering::Release);
             sender.send(format!("ZMQ connected to {}.", &endpoint))?;
         }
 
-        Ok(
+        Some(
             event @ (MonitorSocketEvent::HandshakeFailedAuth(_)
             | MonitorSocketEvent::HandshakeFailedProtocol(_)
             | MonitorSocketEvent::HandshakeFailedNoDetail(_)
@@ -127,7 +128,7 @@ async fn check_monitor(
             CONTINUE_RUNNING.store(false, Ordering::Release);
         }
 
-        Ok(MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed) => {
+        Some(MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed) => {
             if FIRST_TIME.load(Ordering::Acquire) {
                 FIRST_TIME.store(false, Ordering::Release);
                 sender.send("Reconnecting ZMQ...".to_string())?;
@@ -137,24 +138,11 @@ async fn check_monitor(
             }
         }
 
-        Ok(
-            MonitorSocketEvent::ConnectDelayed
-            | MonitorSocketEvent::ConnectRetried(_)
-            | MonitorSocketEvent::Connected,
-        ) => (),
-
-        Ok(event) => {
+        Some(event) => {
             sender.send(format!("ZMQ socket error: {event:?}",))?;
         }
 
-        Err(err)
-            if err
-                .downcast_ref::<zmq::Error>()
-                .is_some_and(|&zmq_error| zmq_error == zmq::Error::EAGAIN) => {}
-
-        Err(err) => {
-            sender.send(format!("ZMQ error: {err}"))?;
-        }
+        _ => (),
     };
 
     Ok(())

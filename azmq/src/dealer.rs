@@ -1,3 +1,8 @@
+use core::{
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use anyhow::{Error, Result};
 use zmq::{self, Message, SocketType};
 
@@ -64,8 +69,14 @@ impl ZmqSocket<Dealer> {
     pub fn recv(&self, flags: i32) -> Result<Message> {
         self.socket.recv_msg(flags).map_err(Error::from)
     }
+}
 
-    pub async fn recv_async(&self) -> Result<Message> {
-        self.socket.recv_msg(zmq::DONTWAIT).map_err(Error::from)
+impl Future for ZmqSocket<Dealer> {
+    type Output = Message;
+
+    fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.socket
+            .recv_msg(zmq::DONTWAIT)
+            .map_or(Poll::Pending, Poll::Ready)
     }
 }

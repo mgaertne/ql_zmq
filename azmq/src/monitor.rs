@@ -1,3 +1,8 @@
+use std::{
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use anyhow::{Error, Result, anyhow};
 use zmq::{SocketEvent, SocketType};
 
@@ -90,11 +95,17 @@ impl ZmqSocketType for Monitor {
     }
 }
 
-impl ZmqSocket<Monitor> {
-    pub async fn recv(&self) -> Result<MonitorSocketEvent> {
-        self.socket
+impl Future for ZmqSocket<Monitor> {
+    type Output = MonitorSocketEvent;
+
+    fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self
+            .socket
             .recv_multipart(zmq::DONTWAIT)
-            .map_err(Error::from)
-            .and_then(MonitorSocketEvent::try_from)
+            .map(MonitorSocketEvent::try_from)
+        {
+            Ok(Ok(event)) => Poll::Ready(event),
+            _ => Poll::Pending,
+        }
     }
 }

@@ -8,6 +8,7 @@ authors.workspace = true
 [dependencies]
 azmq = { workspace = true }
 tokio = { workspace = true, features = ["default", "macros", "rt", "rt-multi-thread", "sync", "time"] }
+futures = { workspace = true }
 zmq = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }

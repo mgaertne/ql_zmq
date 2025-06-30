@@ -1,11 +1,15 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    future::poll_fn,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use anyhow::{Error, Result};
 use azmq::{Dealer, Monitor, MonitorSocketEvent, ZmqSocket};
+use futures::future::FutureExt;
 use tokio::{
     select,
     sync::{
-        Mutex,
+        RwLock,
         mpsc::{UnboundedReceiver, UnboundedSender},
     },
 };
@@ -15,8 +19,8 @@ use zmq::{Message, SocketEvent};
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
 struct MonitoredDealer {
-    dealer: Mutex<ZmqSocket<Dealer>>,
-    monitor: Mutex<ZmqSocket<Monitor>>,
+    dealer: RwLock<ZmqSocket<Dealer>>,
+    monitor: RwLock<ZmqSocket<Monitor>>,
 }
 
 unsafe impl Send for MonitoredDealer {}
@@ -34,7 +38,7 @@ impl MonitoredDealer {
     }
 
     async fn configure(&self, password: &str, identity: &str) -> Result<()> {
-        let dealer = self.dealer.lock().await;
+        let dealer = self.dealer.read().await;
         dealer.set_plain_username(Some("rcon"))?;
         if !password.is_empty() {
             dealer.set_plain_password(Some(password))?;
@@ -65,13 +69,13 @@ impl MonitoredDealer {
     }
 
     async fn connect(&self, address: &str) -> Result<()> {
-        self.dealer.lock().await.as_ref().connect(address)?;
+        self.dealer.read().await.as_ref().connect(address)?;
 
         Ok(())
     }
 
     async fn disconnect(&self) -> Result<()> {
-        let dealer = self.dealer.lock().await;
+        let dealer = self.dealer.read().await;
         dealer
             .last_endpoint()?
             .map_err(|_err| Error::from(zmq::Error::EFAULT))
@@ -81,19 +85,19 @@ impl MonitoredDealer {
     }
 
     async fn send(&self, msg: &str, flags: i32) -> Result<()> {
-        self.dealer.lock().await.as_ref().send(msg, flags)?;
+        self.dealer.read().await.as_ref().send(msg, flags)?;
 
         Ok(())
     }
 
     async fn recv_msg(&self) -> Option<Message> {
-        let dealer = self.dealer.lock().await;
-        dealer.recv_async().await.ok()
+        let mut dealer = self.dealer.write().await;
+        poll_fn(|ctx| dealer.poll_unpin(ctx)).now_or_never()
     }
 
-    async fn check_monitor(&self) -> Result<MonitorSocketEvent> {
-        let monitor = self.monitor.lock().await;
-        monitor.recv().await
+    async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
+        let mut monitor = self.monitor.write().await;
+        poll_fn(|ctx| monitor.poll_unpin(ctx)).now_or_never()
     }
 }
 
@@ -111,7 +115,7 @@ async fn check_monitor(
     endpoint: &str,
 ) -> Result<()> {
     match monitored_dealer.check_monitor().await {
-        Ok(MonitorSocketEvent::Connected) => {
+        Some(MonitorSocketEvent::Connected) => {
             if FIRST_TIME.load(Ordering::Acquire) {
                 FIRST_TIME.store(false, Ordering::Release);
                 sender.send("ZMQ registering with the server.".to_string())?;
@@ -121,12 +125,12 @@ async fn check_monitor(
             }
         }
 
-        Ok(MonitorSocketEvent::HandshakeSucceeded) => {
+        Some(MonitorSocketEvent::HandshakeSucceeded) => {
             FIRST_TIME.store(true, Ordering::Release);
             sender.send(format!("ZMQ connected to {}.", &endpoint))?;
         }
 
-        Ok(
+        Some(
             event @ (MonitorSocketEvent::HandshakeFailedAuth(_)
             | MonitorSocketEvent::HandshakeFailedProtocol(_)
             | MonitorSocketEvent::HandshakeFailedNoDetail(_)
@@ -136,7 +140,7 @@ async fn check_monitor(
             CONTINUE_RUNNING.store(false, Ordering::Release);
         }
 
-        Ok(MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed) => {
+        Some(MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed) => {
             if FIRST_TIME.load(Ordering::Acquire) {
                 FIRST_TIME.store(false, Ordering::Release);
                 sender.send("Reconnecting ZMQ...".to_string())?;
@@ -146,20 +150,11 @@ async fn check_monitor(
             }
         }
 
-        Ok(MonitorSocketEvent::ConnectDelayed | MonitorSocketEvent::ConnectRetried(_)) => (),
-
-        Ok(event) => {
+        Some(event) => {
             sender.send(format!("ZMQ socket error: {event:?}",))?;
         }
 
-        Err(err)
-            if err
-                .downcast_ref::<zmq::Error>()
-                .is_some_and(|&zmq_error| zmq_error == zmq::Error::EAGAIN) => {}
-
-        Err(err) => {
-            sender.send(format!("ZMQ error: {err}"))?;
-        }
+        _ => (),
     };
 
     Ok(())
