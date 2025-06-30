@@ -1,8 +1,10 @@
 mod cmd_line;
 mod zmq_helper;
 
-use core::sync::atomic::AtomicBool;
-use std::{sync::atomic::Ordering, time::Duration};
+use core::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
 
 use anyhow::Result;
 use clap::Parser;

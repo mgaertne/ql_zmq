@@ -1,23 +1,24 @@
-use core::{
-    pin::Pin,
-    task::{Context, Poll},
-};
-
 use anyhow::{Error, Result};
-use zmq::{self, Message, SocketType};
+use zmq::{self, SocketType};
 
-use crate::{ZmqSocket, sealed::ZmqSocketType};
+use crate::{
+    ZmqSocket,
+    sealed::{ZmqReceiver, ZmqSender, ZmqSocketType},
+};
 
 pub struct Dealer {}
 
-unsafe impl Sync for ZmqSocket<Dealer> {}
-unsafe impl Send for ZmqSocket<Dealer> {}
+impl ZmqSender for Dealer {}
+impl ZmqReceiver for Dealer {}
 
 impl ZmqSocketType for Dealer {
     fn raw_socket_type() -> SocketType {
         zmq::DEALER
     }
 }
+
+unsafe impl Sync for ZmqSocket<Dealer> {}
+unsafe impl Send for ZmqSocket<Dealer> {}
 
 impl ZmqSocket<Dealer> {
     /// The `ZMQ_BACKLOG` option shall set the maximum length of the queue of outstanding peer
@@ -60,23 +61,5 @@ impl ZmqSocket<Dealer> {
         self.socket
             .disconnect(endpoint.as_ref())
             .map_err(Error::from)
-    }
-
-    pub fn send<T: Into<Message>>(&self, msg: T, flags: i32) -> Result<()> {
-        self.socket.send(msg, flags).map_err(Error::from)
-    }
-
-    pub fn recv(&self, flags: i32) -> Result<Message> {
-        self.socket.recv_msg(flags).map_err(Error::from)
-    }
-}
-
-impl Future for ZmqSocket<Dealer> {
-    type Output = Message;
-
-    fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.socket
-            .recv_msg(zmq::DONTWAIT)
-            .map_or(Poll::Pending, Poll::Ready)
     }
 }

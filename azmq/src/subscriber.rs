@@ -1,14 +1,14 @@
-use std::{
-    pin::Pin,
-    task::{Context, Poll},
+use anyhow::{Error, Result};
+use zmq::SocketType;
+
+use crate::{
+    ZmqSocket,
+    sealed::{ZmqReceiver, ZmqSocketType},
 };
 
-use anyhow::{Error, Result};
-use zmq::{Message, SocketType};
-
-use crate::{ZmqSocket, sealed::ZmqSocketType};
-
 pub struct Subscriber {}
+
+impl ZmqReceiver for Subscriber {}
 
 unsafe impl Sync for ZmqSocket<Subscriber> {}
 unsafe impl Send for ZmqSocket<Subscriber> {}
@@ -48,19 +48,5 @@ impl ZmqSocket<Subscriber> {
         self.socket
             .disconnect(endpoint.as_ref())
             .map_err(Error::from)
-    }
-
-    pub fn recv(&self, flags: i32) -> Result<Message> {
-        self.socket.recv_msg(flags).map_err(Error::from)
-    }
-}
-
-impl Future for ZmqSocket<Subscriber> {
-    type Output = Message;
-
-    fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.socket
-            .recv_msg(zmq::DONTWAIT)
-            .map_or(Poll::Pending, Poll::Ready)
     }
 }

@@ -69,7 +69,7 @@ impl MonitoredDealer {
     }
 
     async fn connect(&self, address: &str) -> Result<()> {
-        self.dealer.read().await.as_ref().connect(address)?;
+        self.dealer.read().await.connect(address)?;
 
         Ok(())
     }
@@ -85,7 +85,7 @@ impl MonitoredDealer {
     }
 
     async fn send(&self, msg: &str, flags: i32) -> Result<()> {
-        self.dealer.read().await.as_ref().send(msg, flags)?;
+        self.dealer.read().await.send(msg, flags)?;
 
         Ok(())
     }
@@ -149,6 +149,8 @@ async fn check_monitor(
                 sender.send(format!("error reconnecting: {e:?}."))?;
             }
         }
+
+        Some(MonitorSocketEvent::ConnectDelayed | MonitorSocketEvent::ConnectRetried(_)) => (),
 
         Some(event) => {
             sender.send(format!("ZMQ socket error: {event:?}",))?;

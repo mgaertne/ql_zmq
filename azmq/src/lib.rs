@@ -1,10 +1,9 @@
-use core::marker::PhantomData;
+use core::{marker::PhantomData, pin::Pin, task::Poll};
 
 use anyhow::{Error, Result};
-use derive_more::AsRef;
-use zmq::{Context, Mechanism, PollEvents, Socket, SocketEvent};
+use zmq::{Context, Mechanism, Message, PollEvents, Socket, SocketEvent};
 
-use crate::sealed::ZmqSocketType;
+use crate::sealed::{ZmqReceiver, ZmqSender, ZmqSocketType};
 
 mod dealer;
 mod monitor;
@@ -17,15 +16,15 @@ pub use subscriber::Subscriber;
 mod sealed {
     use zmq::SocketType;
 
+    pub trait ZmqReceiver {}
+    pub trait ZmqSender {}
     pub trait ZmqSocketType {
         fn raw_socket_type() -> SocketType;
     }
 }
 
-#[derive(AsRef)]
 pub struct ZmqSocket<T: ZmqSocketType> {
     context: Context,
-    #[as_ref(Socket)]
     socket: Socket,
     socket_type: PhantomData<T>,
 }
@@ -527,5 +526,36 @@ impl<T: ZmqSocketType> ZmqSocket<T> {
             socket: monitor,
             socket_type: PhantomData,
         })
+    }
+}
+
+impl<T> ZmqSocket<T>
+where
+    T: ZmqSocketType + ZmqReceiver,
+{
+    pub fn recv(&self, flags: i32) -> Result<Message> {
+        self.socket.recv_msg(flags).map_err(Error::from)
+    }
+}
+
+impl<T> Future for ZmqSocket<T>
+where
+    T: ZmqSocketType + ZmqReceiver,
+{
+    type Output = Message;
+
+    fn poll(self: Pin<&mut Self>, _ctx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        self.socket
+            .recv_msg(zmq::DONTWAIT)
+            .map_or(Poll::Pending, Poll::Ready)
+    }
+}
+
+impl<T> ZmqSocket<T>
+where
+    T: ZmqSocketType + ZmqSender,
+{
+    pub fn send<V: Into<Message>>(&self, msg: V, flags: i32) -> Result<()> {
+        self.socket.send(msg, flags).map_err(Error::from)
     }
 }

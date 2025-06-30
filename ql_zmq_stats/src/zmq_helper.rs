@@ -65,9 +65,9 @@ impl MonitoredSubscriber {
 
     async fn connect(&self, address: &str) -> Result<()> {
         let socket = self.subscriber.read().await;
-        socket.as_ref().connect(address)?;
+        socket.connect(address)?;
 
-        socket.as_ref().set_subscribe("".as_bytes())?;
+        socket.subscribe("")?;
 
         Ok(())
     }
@@ -137,6 +137,12 @@ async fn check_monitor(
                 sender.send(format!("error reconnecting: {e:?}."))?;
             }
         }
+
+        Some(
+            MonitorSocketEvent::Connected
+            | MonitorSocketEvent::ConnectDelayed
+            | MonitorSocketEvent::ConnectRetried(_),
+        ) => (),
 
         Some(event) => {
             sender.send(format!("ZMQ socket error: {event:?}",))?;
