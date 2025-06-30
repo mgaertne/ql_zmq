@@ -1,14 +1,7 @@
-use core::{
-    future::{Future, poll_fn},
-    pin::Pin,
-    sync::atomic::{AtomicBool, Ordering},
-    task::Poll,
-};
+use core::sync::atomic::{AtomicBool, Ordering};
 
-use anyhow::{Error, Result, anyhow};
-use derive_more::AsRef;
-use futures::FutureExt;
-use tap::TryConv;
+use anyhow::{Error, Result};
+use azmq::{Dealer, Monitor, MonitorSocketEvent, ZmqSocket};
 use tokio::{
     select,
     sync::{
@@ -17,123 +10,36 @@ use tokio::{
     },
 };
 use uuid::Uuid;
-use zmq::{Context, Message, Socket, SocketEvent, SocketType};
+use zmq::{Message, SocketEvent};
 
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
-#[derive(Debug, PartialEq)]
-enum MonitorSocketEvent {
-    Connected,
-    ConnectDelayed,
-    ConnectRetried(u32),
-    Listening,
-    Accepted,
-    AcceptFailed(zmq::Error),
-    Closed,
-    CloseFailed(u32),
-    Disconnected,
-    MonitorStopped,
-    HandshakeFailedNoDetail(u32),
-    HandshakeSucceeded,
-    HandshakeFailedProtocol(u32),
-    HandshakeFailedAuth(u32),
-    UnSupported(SocketEvent, u32),
+struct MonitoredDealer {
+    dealer: Mutex<ZmqSocket<Dealer>>,
+    monitor: Mutex<ZmqSocket<Monitor>>,
 }
 
-impl TryFrom<Vec<Vec<u8>>> for MonitorSocketEvent {
-    type Error = Error;
+unsafe impl Send for MonitoredDealer {}
+unsafe impl Sync for MonitoredDealer {}
 
-    fn try_from(raw_multipart: Vec<Vec<u8>>) -> Result<Self, Self::Error> {
-        if raw_multipart.len() != 2 {
-            return Err(anyhow!("invalid msg received"));
-        }
+impl MonitoredDealer {
+    fn new() -> Result<Self> {
+        let dealer = ZmqSocket::try_new()?;
+        let monitor = dealer.monitor(SocketEvent::ALL)?;
 
-        let Some(first_msg) = raw_multipart.first() else {
-            return Err(anyhow!("invalid msg received"));
-        };
-
-        if first_msg.len() != 6 {
-            return Err(anyhow!("invalid msg received"));
-        }
-
-        let Some(event_id) = first_msg
-            .first_chunk::<2>()
-            .map(|raw_event_id| u16::from_le_bytes(*raw_event_id))
-            .map(SocketEvent::from_raw)
-        else {
-            return Err(anyhow!("invalid first two bytes"));
-        };
-
-        let Some(event_value) = first_msg
-            .last_chunk::<4>()
-            .map(|raw_event_value| u32::from_le_bytes(*raw_event_value))
-        else {
-            return Err(anyhow!("invalid last four bytes"));
-        };
-
-        match event_id {
-            SocketEvent::CONNECTED => Ok(Self::Connected),
-            SocketEvent::CONNECT_DELAYED => Ok(Self::ConnectDelayed),
-            SocketEvent::CONNECT_RETRIED => Ok(Self::ConnectRetried(event_value)),
-            SocketEvent::LISTENING => Ok(Self::Listening),
-            SocketEvent::ACCEPTED => Ok(Self::Accepted),
-            SocketEvent::ACCEPT_FAILED => {
-                Ok(Self::AcceptFailed(zmq::Error::from_raw(event_value as i32)))
-            }
-            SocketEvent::CLOSED => Ok(Self::Closed),
-            SocketEvent::CLOSE_FAILED => Ok(Self::CloseFailed(event_value)),
-            SocketEvent::DISCONNECTED => Ok(Self::Disconnected),
-            SocketEvent::MONITOR_STOPPED => Ok(Self::MonitorStopped),
-            SocketEvent::HANDSHAKE_FAILED_NO_DETAIL => {
-                Ok(Self::HandshakeFailedNoDetail(event_value))
-            }
-            SocketEvent::HANDSHAKE_SUCCEEDED => Ok(Self::HandshakeSucceeded),
-            SocketEvent::HANDSHAKE_FAILED_PROTOCOL => {
-                Ok(Self::HandshakeFailedProtocol(event_value))
-            }
-            SocketEvent::HANDSHAKE_FAILED_AUTH => Ok(Self::HandshakeFailedAuth(event_value)),
-            event_id => Ok(Self::UnSupported(event_id, 0)),
-        }
+        Ok(Self {
+            dealer: dealer.into(),
+            monitor: monitor.into(),
+        })
     }
-}
 
-#[derive(AsRef)]
-#[as_ref(Socket)]
-struct DealerSocket(Socket);
-
-unsafe impl Send for DealerSocket {}
-unsafe impl Sync for DealerSocket {}
-
-impl TryFrom<&Context> for DealerSocket {
-    type Error = Error;
-
-    fn try_from(context: &Context) -> Result<Self> {
-        let socket = context.socket(SocketType::DEALER)?;
-
-        Ok(Self(socket))
-    }
-}
-
-impl Future for DealerSocket {
-    type Output = Result<Message>;
-
-    fn poll(self: Pin<&mut Self>, _ctx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(
-            (*self)
-                .as_ref()
-                .recv_msg(zmq::DONTWAIT)
-                .map_err(Error::from),
-        )
-    }
-}
-
-impl DealerSocket {
-    fn configure(&self, password: &str, identity: &str) -> Result<()> {
-        self.as_ref().set_plain_username(Some("rcon"))?;
+    async fn configure(&self, password: &str, identity: &str) -> Result<()> {
+        let dealer = self.dealer.lock().await;
+        dealer.set_plain_username(Some("rcon"))?;
         if !password.is_empty() {
-            self.as_ref().set_plain_password(Some(password))?;
+            dealer.set_plain_password(Some(password))?;
         } else {
-            self.as_ref().set_plain_password(None)?;
+            dealer.set_plain_password(None::<&str>)?;
         }
 
         let identity_str = if identity.is_empty() {
@@ -143,99 +49,19 @@ impl DealerSocket {
             identity.to_string()
         };
 
-        self.as_ref().set_identity(identity_str.as_bytes())?;
+        dealer.set_identity(identity_str.as_bytes())?;
 
-        self.as_ref().set_rcvtimeo(0)?;
-        self.as_ref().set_rcvhwm(0)?;
-        self.as_ref().set_sndtimeo(0)?;
-        self.as_ref().set_sndhwm(0)?;
+        dealer.set_rcvtimeo(0)?;
+        dealer.set_rcvhwm(0)?;
+        dealer.set_sndtimeo(0)?;
+        dealer.set_sndhwm(0)?;
 
-        self.as_ref().set_heartbeat_ivl(600_000)?;
-        self.as_ref().set_heartbeat_timeout(600_000)?;
+        dealer.set_heartbeat_ivl(600_000)?;
+        dealer.set_heartbeat_timeout(600_000)?;
 
-        self.as_ref().set_zap_domain("rcon")?;
-
-        Ok(())
-    }
-
-    fn disconnect(&self) -> Result<()> {
-        self.as_ref()
-            .get_last_endpoint()?
-            .map_err(|_err| zmq::Error::EFAULT)
-            .and_then(|last_endpoint| self.as_ref().disconnect(&last_endpoint))?;
+        dealer.set_zap_domain("rcon")?;
 
         Ok(())
-    }
-
-    fn get_endpoint(&self) -> Result<String> {
-        let fd = self.as_ref().get_fd()?;
-
-        Ok(format!("inproc://monitor.s-{fd}"))
-    }
-
-    fn monitor(&self, context: &Context, events: SocketEvent) -> Result<MonitoringSocket> {
-        let monitor_endpoint = self.get_endpoint()?;
-        self.as_ref().monitor(&monitor_endpoint, events as i32)?;
-
-        let monitor = context.socket(zmq::PAIR)?;
-
-        monitor.connect(&monitor_endpoint)?;
-
-        Ok(MonitoringSocket(monitor))
-    }
-}
-
-#[derive(AsRef)]
-#[as_ref(Socket)]
-struct MonitoringSocket(Socket);
-
-unsafe impl Send for MonitoringSocket {}
-unsafe impl Sync for MonitoringSocket {}
-
-impl TryFrom<(&Context, &DealerSocket)> for MonitoringSocket {
-    type Error = Error;
-
-    fn try_from((ctx, socket): (&Context, &DealerSocket)) -> Result<Self> {
-        socket.monitor(ctx, SocketEvent::ALL)
-    }
-}
-
-impl Future for MonitoringSocket {
-    type Output = Result<MonitorSocketEvent>;
-
-    fn poll(self: Pin<&mut Self>, _ctx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        Poll::Ready(
-            (*self)
-                .as_ref()
-                .recv_multipart(zmq::DONTWAIT)
-                .map_err(Error::from)
-                .and_then(MonitorSocketEvent::try_from),
-        )
-    }
-}
-
-struct MonitoredDealer {
-    dealer: Mutex<DealerSocket>,
-    monitor: Mutex<MonitoringSocket>,
-}
-
-unsafe impl Send for MonitoredDealer {}
-unsafe impl Sync for MonitoredDealer {}
-
-impl MonitoredDealer {
-    fn new() -> Result<Self> {
-        let context = Context::new();
-        let socket = (&context).try_conv::<DealerSocket>()?;
-        let monitor = (&context, &socket).try_conv::<MonitoringSocket>()?.into();
-
-        Ok(Self {
-            dealer: socket.into(),
-            monitor,
-        })
-    }
-
-    async fn configure(&self, password: &str, identity: &str) -> Result<()> {
-        self.dealer.lock().await.configure(password, identity)
     }
 
     async fn connect(&self, address: &str) -> Result<()> {
@@ -245,7 +71,11 @@ impl MonitoredDealer {
     }
 
     async fn disconnect(&self) -> Result<()> {
-        self.dealer.lock().await.disconnect()?;
+        let dealer = self.dealer.lock().await;
+        dealer
+            .last_endpoint()?
+            .map_err(|_err| Error::from(zmq::Error::EFAULT))
+            .and_then(|last_endpoint| dealer.disconnect(&last_endpoint))?;
 
         Ok(())
     }
@@ -256,14 +86,14 @@ impl MonitoredDealer {
         Ok(())
     }
 
-    async fn recv_msg(&self) -> Result<Message> {
-        let mut socket = self.dealer.lock().await;
-        poll_fn(|ctx| socket.poll_unpin(ctx)).await
+    async fn recv_msg(&self) -> Option<Message> {
+        let dealer = self.dealer.lock().await;
+        dealer.recv_async().await.ok()
     }
 
     async fn check_monitor(&self) -> Result<MonitorSocketEvent> {
-        let mut monitor = self.monitor.lock().await;
-        poll_fn(|ctx| (*monitor).poll_unpin(ctx)).await
+        let monitor = self.monitor.lock().await;
+        monitor.recv().await
     }
 }
 
@@ -353,7 +183,7 @@ pub(crate) async fn run_zmq(
         select!(
             biased;
 
-            Ok(zmq_msg) = monitored_dealer.recv_msg() => {
+            Some(zmq_msg) = monitored_dealer.recv_msg() => {
                 if let Some(zmq_str) = zmq_msg.as_str() {
                     display_sender.send(trim_ql_msg(zmq_str))?;
                 }
