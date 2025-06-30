@@ -51,23 +51,23 @@ jobs:
         if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: ql_zmq_rcon_${{ matrix.os }}
+          name: ql_zmq_rcon_${{ matrix.os }}.zip
           path: target/release/ql_zmq_rcon
       - name: Provide build artifacts
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: ql_zmq_rcon_${{ matrix.os }}.exe
+          name: ql_zmq_rcon_${{ matrix.os }}.zip
           path: target/release/ql_zmq_rcon.exe
       - name: Provide build artifacts
         if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: ql_zmq_stats_${{ matrix.os }}
+          name: ql_zmq_stats_${{ matrix.os }}.zip
           path: target/release/ql_zmq_stats
       - name: Provide build artifacts
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: ql_zmq_stats_${{ matrix.os }}.exe
+          name: ql_zmq_stats_${{ matrix.os }}.zip
           path: target/release/ql_zmq_stats.exe
