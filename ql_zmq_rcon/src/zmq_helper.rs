@@ -53,7 +53,7 @@ impl MonitoredDealer {
             identity.to_string()
         };
 
-        dealer.set_identity(identity_str.as_bytes())?;
+        dealer.set_identity(identity_str)?;
 
         dealer.set_rcvtimeo(0)?;
         dealer.set_rcvhwm(0)?;

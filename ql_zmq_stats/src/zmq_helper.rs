@@ -48,7 +48,7 @@ impl MonitoredSubscriber {
             identity.to_string()
         };
 
-        subscriber.set_identity(identity_str.as_bytes())?;
+        subscriber.set_identity(identity_str)?;
 
         subscriber.set_rcvtimeo(0)?;
         subscriber.set_rcvhwm(0)?;
