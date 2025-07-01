@@ -1,7 +1,7 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Error, Result};
-use azmq::{Monitor, MonitorSocketEvent, Subscriber, ZmqSocket};
+use azmq::{Monitor, MonitorFlags, MonitorSocketEvent, Subscriber, ZmqSocket};
 use futures::future::{FutureExt, poll_fn};
 use serde_json::Value;
 use tokio::{
@@ -24,7 +24,15 @@ unsafe impl Sync for MonitoredSubscriber {}
 impl MonitoredSubscriber {
     fn new() -> Result<Self> {
         let subscriber = ZmqSocket::try_new()?;
-        let monitor = subscriber.monitor(zmq::SocketEvent::ALL)?;
+        let monitor = subscriber.monitor(
+            MonitorFlags::HandshakeSucceeded
+                | MonitorFlags::HandshakeFailedAuth
+                | MonitorFlags::HandshakeFailedProtocol
+                | MonitorFlags::HandshakeFailedNoDetail
+                | MonitorFlags::MonitorStopped
+                | MonitorFlags::Disconnected
+                | MonitorFlags::Closed,
+        )?;
 
         Ok(Self {
             subscriber: subscriber.into(),

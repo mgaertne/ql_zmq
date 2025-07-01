@@ -21,7 +21,7 @@ rustflags = ["-Zlocation-detail=none"]
 
 [workspace.dependencies]
 azmq = { path = "azmq" }
-derive_more = { version = ">=2.0", default-features = false, features = ["as_ref"] }
+
 anyhow = { version = ">=1.0", default-features = false }
 tokio = { version = ">=1.45", default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync"] }
 futures = { version = ">=0.3.31", default-features = false, features = ["async-await", "alloc"]}

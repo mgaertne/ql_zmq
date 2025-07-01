@@ -1,5 +1,4 @@
 use anyhow::{Error, Result};
-use zmq::SocketType;
 
 use crate::{
     ZmqSocket,
@@ -14,8 +13,8 @@ unsafe impl Sync for ZmqSocket<Subscriber> {}
 unsafe impl Send for ZmqSocket<Subscriber> {}
 
 impl ZmqSocketType for Subscriber {
-    fn raw_socket_type() -> SocketType {
-        zmq::SUB
+    fn raw_socket_type() -> zmq::SocketType {
+        zmq::SocketType::SUB
     }
 }
 

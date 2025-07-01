@@ -1,7 +1,9 @@
 use core::{marker::PhantomData, pin::Pin, task::Poll};
 
 use anyhow::{Error, Result};
-use zmq::{Context, Mechanism, Message, PollEvents, Socket, SocketEvent};
+use bitflags::bitflags;
+use derive_more::From;
+use zmq::{Context, Mechanism, Message, PollEvents, Sendable, Socket};
 
 use crate::sealed::{ZmqReceiver, ZmqSender, ZmqSocketType};
 
@@ -14,12 +16,10 @@ pub use monitor::{Monitor, MonitorSocketEvent};
 pub use subscriber::Subscriber;
 
 mod sealed {
-    use zmq::SocketType;
-
     pub trait ZmqReceiver {}
     pub trait ZmqSender {}
     pub trait ZmqSocketType {
-        fn raw_socket_type() -> SocketType;
+        fn raw_socket_type() -> zmq::SocketType;
     }
 }
 
@@ -511,11 +511,12 @@ impl<T: ZmqSocketType> ZmqSocket<T> {
         self.socket.get_zap_domain().map_err(Error::from)
     }
 
-    pub fn monitor(&self, events: SocketEvent) -> Result<ZmqSocket<Monitor>> {
+    pub fn monitor<F: Into<MonitorFlags>>(&self, events: F) -> Result<ZmqSocket<Monitor>> {
         let fd = self.socket.get_fd()?;
         let monitor_endpoint = format!("inproc://monitor.s-{fd}");
 
-        self.socket.monitor(&monitor_endpoint, events as i32)?;
+        self.socket
+            .monitor(&monitor_endpoint, events.into().bits() as i32)?;
 
         let monitor = self.context.socket(zmq::PAIR)?;
 
@@ -529,25 +530,46 @@ impl<T: ZmqSocketType> ZmqSocket<T> {
     }
 }
 
+#[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ZmqRecvFlags(i32);
+
+bitflags! {
+    impl ZmqRecvFlags: i32 {
+        const DONT_WAIT = 0b00000001;
+    }
+}
+
 impl<T> ZmqSocket<T>
 where
     T: ZmqSocketType + ZmqReceiver,
 {
-    pub fn recv(&self, flags: i32) -> Result<Message> {
-        self.socket.recv_msg(flags).map_err(Error::from)
+    pub fn recv<F: Into<ZmqRecvFlags>>(&self, flags: F) -> Result<Message> {
+        self.socket
+            .recv_msg(flags.into().bits())
+            .map_err(Error::from)
     }
 }
 
 impl<T> Future for ZmqSocket<T>
 where
-    T: ZmqSocketType + ZmqReceiver,
+    T: ZmqReceiver + ZmqSocketType,
 {
     type Output = Message;
 
     fn poll(self: Pin<&mut Self>, _ctx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         self.socket
-            .recv_msg(zmq::DONTWAIT)
+            .recv_msg(ZmqRecvFlags::DONT_WAIT.bits())
             .map_or(Poll::Pending, Poll::Ready)
+    }
+}
+
+#[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ZmqSendFlags(i32);
+
+bitflags! {
+    impl ZmqSendFlags: i32 {
+        const DONT_WAIT = 0b00000001;
+        const SEND_MORE = 0b00000010;
     }
 }
 
@@ -555,7 +577,33 @@ impl<T> ZmqSocket<T>
 where
     T: ZmqSocketType + ZmqSender,
 {
-    pub fn send<V: Into<Message>>(&self, msg: V, flags: i32) -> Result<()> {
-        self.socket.send(msg, flags).map_err(Error::from)
+    pub fn send<V: Sendable, F: Into<ZmqSendFlags>>(&self, msg: V, flags: F) -> Result<()> {
+        self.socket
+            .send(msg, flags.into().bits())
+            .map_err(Error::from)
+    }
+}
+
+#[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[from(u16)]
+pub struct MonitorFlags(u16);
+
+bitflags! {
+    impl MonitorFlags: u16 {
+        const Connected                 = 0b0000_0000_0000_0001;
+        const ConnectDelayed            = 0b0000_0000_0000_0010;
+        const ConnectRetried            = 0b0000_0000_0000_0100;
+        const Listening                 = 0b0000_0000_0000_1000;
+        const BindFailed                = 0b0000_0000_0001_0000;
+        const Accepted                  = 0b0000_0000_0010_0000;
+        const AcceptFailed              = 0b0000_0000_0100_0000;
+        const Closed                    = 0b0000_0000_1000_0000;
+        const CloseFailed               = 0b0000_0001_0000_0000;
+        const Disconnected              = 0b0000_0010_0000_0000;
+        const MonitorStopped            = 0b0000_0100_0000_0000;
+        const HandshakeFailedNoDetail   = 0b0000_1000_0000_0000;
+        const HandshakeSucceeded        = 0b0001_0000_0000_0000;
+        const HandshakeFailedProtocol   = 0b0010_0000_0000_0000;
+        const HandshakeFailedAuth       = 0b0100_0000_0000_0000;
     }
 }

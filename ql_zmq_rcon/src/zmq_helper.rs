@@ -4,7 +4,7 @@ use core::{
 };
 
 use anyhow::{Error, Result};
-use azmq::{Dealer, Monitor, MonitorSocketEvent, ZmqSocket};
+use azmq::{Dealer, Monitor, MonitorFlags, MonitorSocketEvent, ZmqSendFlags, ZmqSocket};
 use futures::future::FutureExt;
 use tokio::{
     select,
@@ -14,7 +14,7 @@ use tokio::{
     },
 };
 use uuid::Uuid;
-use zmq::{Message, SocketEvent};
+use zmq::Message;
 
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
@@ -29,7 +29,16 @@ unsafe impl Sync for MonitoredDealer {}
 impl MonitoredDealer {
     fn new() -> Result<Self> {
         let dealer = ZmqSocket::try_new()?;
-        let monitor = dealer.monitor(SocketEvent::ALL)?;
+        let monitor = dealer.monitor(
+            MonitorFlags::Connected
+                | MonitorFlags::HandshakeSucceeded
+                | MonitorFlags::HandshakeFailedAuth
+                | MonitorFlags::HandshakeFailedProtocol
+                | MonitorFlags::HandshakeFailedNoDetail
+                | MonitorFlags::MonitorStopped
+                | MonitorFlags::Disconnected
+                | MonitorFlags::Closed,
+        )?;
 
         Ok(Self {
             dealer: dealer.into(),
@@ -84,7 +93,7 @@ impl MonitoredDealer {
         Ok(())
     }
 
-    async fn send(&self, msg: &str, flags: i32) -> Result<()> {
+    async fn send<F: Into<ZmqSendFlags>>(&self, msg: &str, flags: F) -> Result<()> {
         self.dealer.read().await.send(msg, flags)?;
 
         Ok(())
@@ -120,7 +129,10 @@ async fn check_monitor(
                 FIRST_TIME.store(false, Ordering::Release);
                 sender.send("ZMQ registering with the server.".to_string())?;
             }
-            if let Err(e) = monitored_dealer.send("register", zmq::DONTWAIT).await {
+            if let Err(e) = monitored_dealer
+                .send("register", ZmqSendFlags::DONT_WAIT)
+                .await
+            {
                 sender.send(format!("error registering with ZMQ: {e:?}."))?;
             }
         }
@@ -149,8 +161,6 @@ async fn check_monitor(
                 sender.send(format!("error reconnecting: {e:?}."))?;
             }
         }
-
-        Some(MonitorSocketEvent::ConnectDelayed | MonitorSocketEvent::ConnectRetried(_)) => (),
 
         Some(event) => {
             sender.send(format!("ZMQ socket error: {event:?}",))?;
@@ -187,7 +197,7 @@ pub(crate) async fn run_zmq(
             }
 
             Some(line) = zmq_receiver.recv(), if !zmq_receiver.is_empty() => {
-                monitored_dealer.send(&line, zmq::DONTWAIT).await?;
+                monitored_dealer.send(&line, ZmqSendFlags::DONT_WAIT).await?;
             },
 
             Ok(()) = check_monitor(&monitored_dealer, &display_sender, &args.host) => (),

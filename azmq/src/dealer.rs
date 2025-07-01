@@ -1,5 +1,4 @@
 use anyhow::{Error, Result};
-use zmq::{self, SocketType};
 
 use crate::{
     ZmqSocket,
@@ -12,8 +11,8 @@ impl ZmqSender for Dealer {}
 impl ZmqReceiver for Dealer {}
 
 impl ZmqSocketType for Dealer {
-    fn raw_socket_type() -> SocketType {
-        zmq::DEALER
+    fn raw_socket_type() -> zmq::SocketType {
+        zmq::SocketType::DEALER
     }
 }
 
