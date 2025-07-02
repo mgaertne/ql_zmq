@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 use core::{sync::atomic::Ordering, time::Duration};
 use std::{
-    io::{IsTerminal, Write},
+    io::{self, IsTerminal, Write},
     path::PathBuf,
 };
 
@@ -141,7 +141,7 @@ fn terminal_buffer(color_choice: &ColorChoice) -> Buffer {
         ColorChoice::Always => Buffer::ansi(),
         ColorChoice::AlwaysAnsi => Buffer::ansi(),
         ColorChoice::Auto => {
-            if std::io::stdout().is_terminal() {
+            if io::stdout().is_terminal() {
                 Buffer::ansi()
             } else {
                 Buffer::no_color()
