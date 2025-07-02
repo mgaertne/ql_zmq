@@ -2,13 +2,13 @@ use anyhow::{Error, Result};
 
 use crate::{
     ZmqSocket,
-    sealed::{ZmqReceiver, ZmqSender, ZmqSocketType},
+    sealed::{ZmqReceiverFlag, ZmqSenderFlag, ZmqSocketType},
 };
 
 pub struct Dealer {}
 
-impl ZmqSender for Dealer {}
-impl ZmqReceiver for Dealer {}
+impl ZmqSenderFlag for Dealer {}
+impl ZmqReceiverFlag for Dealer {}
 
 impl ZmqSocketType for Dealer {
     fn raw_socket_type() -> zmq::SocketType {

@@ -1,7 +1,10 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Error, Result};
-use azmq::{Monitor, MonitorFlags, MonitorSocketEvent, Subscriber, ZmqSocket};
+use azmq::{
+    AsyncMonitorReceiver, AsyncZmqReceiver, Monitor, MonitorFlags, MonitorSocketEvent, Subscriber,
+    ZmqSocket,
+};
 use serde_json::Value;
 use tokio::{
     select,
@@ -91,12 +94,12 @@ impl MonitoredSubscriber {
 
     async fn recv_msg(&self) -> Option<Message> {
         let subscriber = self.subscriber.read().await;
-        subscriber.recv_msg().await
+        subscriber.recv_msg_async().await
     }
 
     async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
         let monitor = self.monitor.read().await;
-        monitor.recv_monitor_event().await
+        monitor.recv_monitor_event_async().await
     }
 }
 

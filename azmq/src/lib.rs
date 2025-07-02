@@ -1,24 +1,28 @@
-use core::{marker::PhantomData, pin::Pin, task::Poll};
+use core::{iter, marker::PhantomData, pin::Pin, task::Poll};
 
-use anyhow::{Error, Result};
+use anyhow::{Error, Result, anyhow};
+use async_trait::async_trait;
 use bitflags::bitflags;
 use derive_more::From;
-use futures::future::FutureExt;
+use futures::{
+    future::FutureExt,
+    stream::{StreamExt, TryStreamExt},
+};
 use zmq::{Context, Mechanism, Message, PollEvents, Sendable, Socket};
 
-use crate::sealed::{ZmqReceiver, ZmqSender, ZmqSocketType};
+use crate::sealed::{ZmqReceiverFlag, ZmqSenderFlag, ZmqSocketType};
 
 mod dealer;
 mod monitor;
 mod subscriber;
 
 pub use dealer::Dealer;
-pub use monitor::{Monitor, MonitorSocketEvent};
+pub use monitor::{AsyncMonitorReceiver, Monitor, MonitorSocketEvent};
 pub use subscriber::Subscriber;
 
 mod sealed {
-    pub trait ZmqReceiver {}
-    pub trait ZmqSender {}
+    pub trait ZmqReceiverFlag {}
+    pub trait ZmqSenderFlag {}
     pub trait ZmqSocketType {
         fn raw_socket_type() -> zmq::SocketType;
     }
@@ -532,85 +536,6 @@ impl<T: ZmqSocketType + Unpin> ZmqSocket<T> {
 }
 
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ZmqRecvFlags(i32);
-
-bitflags! {
-    impl ZmqRecvFlags: i32 {
-        const DONT_WAIT = 0b00000001;
-    }
-}
-
-impl<T> ZmqSocket<T>
-where
-    T: ZmqSocketType + ZmqReceiver + Unpin,
-{
-    pub fn recv<F: Into<ZmqRecvFlags>>(&self, flags: F) -> Result<Message> {
-        self.socket
-            .recv_msg(flags.into().bits())
-            .map_err(Error::from)
-    }
-
-    pub async fn recv_msg(&self) -> Option<Message> {
-        MessageReceivingFuture { receiver: self }.now_or_never()
-    }
-
-    pub async fn recv_multipart(&self) -> Option<Vec<Vec<u8>>> {
-        MultipartReceivingFuture { receiver: self }.now_or_never()
-    }
-}
-
-struct MessageReceivingFuture<'a, T: ZmqSocketType + ZmqReceiver + Unpin> {
-    receiver: &'a ZmqSocket<T>,
-}
-
-impl<T: ZmqSocketType + ZmqReceiver + Unpin> Future for MessageReceivingFuture<'_, T> {
-    type Output = Message;
-
-    fn poll(self: Pin<&mut Self>, _ctx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
-        self.receiver
-            .socket
-            .recv_msg(ZmqRecvFlags::DONT_WAIT.bits())
-            .map_or(Poll::Pending, Poll::Ready)
-    }
-}
-
-struct MultipartReceivingFuture<'a, T: ZmqSocketType + ZmqReceiver + Unpin> {
-    receiver: &'a ZmqSocket<T>,
-}
-
-impl<T: ZmqSocketType + ZmqReceiver + Unpin> Future for MultipartReceivingFuture<'_, T> {
-    type Output = Vec<Vec<u8>>;
-
-    fn poll(self: Pin<&mut Self>, _ctx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
-        self.receiver
-            .socket
-            .recv_multipart(ZmqRecvFlags::DONT_WAIT.bits())
-            .map_or(Poll::Pending, Poll::Ready)
-    }
-}
-
-#[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ZmqSendFlags(i32);
-
-bitflags! {
-    impl ZmqSendFlags: i32 {
-        const DONT_WAIT = 0b00000001;
-        const SEND_MORE = 0b00000010;
-    }
-}
-
-impl<T> ZmqSocket<T>
-where
-    T: ZmqSocketType + ZmqSender + Unpin,
-{
-    pub fn send<V: Sendable, F: Into<ZmqSendFlags>>(&self, msg: V, flags: F) -> Result<()> {
-        self.socket
-            .send(msg, flags.into().bits())
-            .map_err(Error::from)
-    }
-}
-
-#[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[from(u16)]
 pub struct MonitorFlags(u16);
 
@@ -631,5 +556,130 @@ bitflags! {
         const HandshakeSucceeded        = 0b0001_0000_0000_0000;
         const HandshakeFailedProtocol   = 0b0010_0000_0000_0000;
         const HandshakeFailedAuth       = 0b0100_0000_0000_0000;
+    }
+}
+
+#[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ZmqRecvFlags(i32);
+
+bitflags! {
+    impl ZmqRecvFlags: i32 {
+        const DONT_WAIT = 0b00000001;
+    }
+}
+
+pub trait ZmqReceiver<F>
+where
+    F: Into<ZmqRecvFlags> + Copy,
+{
+    fn recv_msg(&self, flags: F) -> Result<Message>;
+    fn recv_multipart(&self, flags: F) -> Result<Vec<Vec<u8>>> {
+        iter::repeat_with(|| self.recv_msg(flags)).try_fold(vec![], |mut parts, zmq_result| {
+            let Ok(zmq_msg) = zmq_result else {
+                return Ok(parts);
+            };
+
+            parts.push(zmq_msg.to_vec());
+            if zmq_msg.get_more() {
+                return Err(anyhow!("end reached"));
+            }
+            Ok(parts)
+        })
+    }
+}
+
+impl<T: ZmqSocketType + ZmqReceiverFlag + Unpin, F: Into<ZmqRecvFlags> + Copy> ZmqReceiver<F>
+    for ZmqSocket<T>
+{
+    fn recv_msg(&self, flags: F) -> Result<Message> {
+        self.socket
+            .recv_msg(flags.into().bits())
+            .map_err(Error::from)
+    }
+}
+
+#[async_trait]
+pub trait AsyncZmqReceiver {
+    async fn recv_msg_async(&self) -> Option<Message>;
+    async fn recv_multipart_async(&self) -> Option<Vec<Vec<u8>>> {
+        futures::stream::repeat_with(|| async move { self.recv_msg_async().await })
+            .then(|item| async move { item.await.ok_or(anyhow!("filtered value")) })
+            .try_fold(vec![], |mut parts, zmq_msg| async move {
+                parts.push(zmq_msg.to_vec());
+
+                if zmq_msg.get_more() {
+                    return Err(anyhow!("End reached"));
+                }
+                Ok(parts)
+            })
+            .await
+            .ok()
+    }
+}
+
+#[async_trait]
+impl<T: ZmqSocketType + ZmqReceiverFlag + Unpin> AsyncZmqReceiver for ZmqSocket<T>
+where
+    ZmqSocket<T>: Sync,
+{
+    async fn recv_msg_async(&self) -> Option<Message> {
+        MessageReceivingFuture { receiver: self }.now_or_never()
+    }
+}
+
+struct MessageReceivingFuture<'a, T: ZmqSocketType + ZmqReceiverFlag + Unpin> {
+    receiver: &'a ZmqSocket<T>,
+}
+
+impl<T: ZmqSocketType + ZmqReceiverFlag + Unpin> Future for MessageReceivingFuture<'_, T> {
+    type Output = Message;
+
+    fn poll(self: Pin<&mut Self>, _ctx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
+        self.receiver
+            .socket
+            .recv_msg(ZmqRecvFlags::DONT_WAIT.bits())
+            .map_or(Poll::Pending, Poll::Ready)
+    }
+}
+
+#[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ZmqSendFlags(i32);
+
+bitflags! {
+    impl ZmqSendFlags: i32 {
+        const DONT_WAIT = 0b00000001;
+        const SEND_MORE = 0b00000010;
+    }
+}
+
+pub trait ZmqSender<V>
+where
+    V: Sendable,
+{
+    fn send_msg(&self, msg: V, flags: ZmqSendFlags) -> Result<()>;
+
+    fn send_multipart<I>(&self, iter: I, flags: ZmqSendFlags) -> Result<()>
+    where
+        I: IntoIterator<Item = V>,
+    {
+        let mut last_part: Option<V> = None;
+        for part in iter {
+            let maybe_last = last_part.take();
+            if let Some(last) = maybe_last {
+                self.send_msg(last, flags | ZmqSendFlags::SEND_MORE)?;
+            }
+            last_part = Some(part);
+        }
+        if let Some(last) = last_part {
+            self.send_msg(last, flags)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl<T: ZmqSocketType + ZmqSenderFlag + Unpin, V: Sendable> ZmqSender<V> for ZmqSocket<T> {
+    fn send_msg(&self, msg: V, flags: ZmqSendFlags) -> Result<()> {
+        msg.send(&self.socket, flags.bits()).map_err(Error::from)
     }
 }

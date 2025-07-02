@@ -1,7 +1,10 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Error, Result};
-use azmq::{Dealer, Monitor, MonitorFlags, MonitorSocketEvent, ZmqSendFlags, ZmqSocket};
+use azmq::{
+    AsyncMonitorReceiver, AsyncZmqReceiver, Dealer, Monitor, MonitorFlags, MonitorSocketEvent,
+    ZmqSendFlags, ZmqSender, ZmqSocket,
+};
 use tokio::{
     select,
     sync::{
@@ -90,19 +93,19 @@ impl MonitoredDealer {
     }
 
     async fn send<F: Into<ZmqSendFlags>>(&self, msg: &str, flags: F) -> Result<()> {
-        self.dealer.read().await.send(msg, flags)?;
+        self.dealer.read().await.send_msg(msg, flags.into())?;
 
         Ok(())
     }
 
     async fn recv_msg(&self) -> Option<Message> {
         let dealer = self.dealer.read().await;
-        dealer.recv_msg().await
+        dealer.recv_msg_async().await
     }
 
     async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
         let monitor = self.monitor.read().await;
-        monitor.recv_monitor_event().await
+        monitor.recv_monitor_event_async().await
     }
 }
 

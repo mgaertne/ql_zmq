@@ -2,12 +2,12 @@ use anyhow::{Error, Result};
 
 use crate::{
     ZmqSocket,
-    sealed::{ZmqReceiver, ZmqSocketType},
+    sealed::{ZmqReceiverFlag, ZmqSocketType},
 };
 
 pub struct Subscriber {}
 
-impl ZmqReceiver for Subscriber {}
+impl ZmqReceiverFlag for Subscriber {}
 
 unsafe impl Sync for ZmqSocket<Subscriber> {}
 unsafe impl Send for ZmqSocket<Subscriber> {}

@@ -12,6 +12,7 @@ zmq = { workspace = true, default-features = false }
 futures = { version = ">=0.3.31", default-features = false, features = ["async-await", "alloc"]}
 bitflags = { version = ">=2.9", default-features = false, features = ["core"]}
 derive_more = { version = ">=2.0", default-features = false, features = ["from"]}
+async-trait = {  version = ">=0.1.88", default-features = false }
 
 [lints]
 workspace = true

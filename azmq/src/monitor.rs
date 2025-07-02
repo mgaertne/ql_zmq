@@ -5,11 +5,12 @@ use core::{
 };
 
 use anyhow::{Error, Result, anyhow};
+use async_trait::async_trait;
 use futures::future::FutureExt;
 
 use crate::{
     MonitorFlags, ZmqRecvFlags, ZmqSocket,
-    sealed::{ZmqReceiver, ZmqSocketType},
+    sealed::{ZmqReceiverFlag, ZmqSocketType},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -148,7 +149,7 @@ impl<T: Deref<Target = [u8]>> TryFrom<Vec<T>> for MonitorSocketEvent {
 
 pub struct Monitor {}
 
-impl ZmqReceiver for Monitor {}
+impl ZmqReceiverFlag for Monitor {}
 
 unsafe impl Sync for ZmqSocket<Monitor> {}
 unsafe impl Send for ZmqSocket<Monitor> {}
@@ -159,13 +160,19 @@ impl ZmqSocketType for Monitor {
     }
 }
 
-impl ZmqSocket<Monitor> {
-    pub async fn recv_monitor_event(&self) -> Option<MonitorSocketEvent> {
+#[async_trait]
+pub trait AsyncMonitorReceiver {
+    async fn recv_monitor_event_async(&self) -> Option<MonitorSocketEvent>;
+}
+
+#[async_trait]
+impl AsyncMonitorReceiver for ZmqSocket<Monitor> {
+    async fn recv_monitor_event_async(&self) -> Option<MonitorSocketEvent> {
         MonitorSocketEventFuture { receiver: self }.now_or_never()
     }
 }
 
-struct MonitorSocketEventFuture<'a, T: ZmqSocketType + ZmqReceiver + Unpin> {
+struct MonitorSocketEventFuture<'a, T: ZmqSocketType + ZmqReceiverFlag + Unpin> {
     receiver: &'a ZmqSocket<T>,
 }
 
