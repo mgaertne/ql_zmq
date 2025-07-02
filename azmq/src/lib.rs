@@ -8,7 +8,7 @@ use futures::{
     future::FutureExt,
     stream::{StreamExt, TryStreamExt},
 };
-use zmq::{Context, Mechanism, Message, PollEvents, Sendable, Socket};
+use zmq::{Context, Mechanism, Message, Sendable, Socket};
 
 use crate::sealed::{ZmqReceiverFlag, ZmqSenderFlag, ZmqSocketType};
 
@@ -165,8 +165,11 @@ impl<T: ZmqSocketType + Unpin> ZmqSocket<T> {
     /// reading but no actual events returned by a subsequent retrieval of the `ZMQ_EVENTS`
     /// option is valid; applications should simply ignore this case and restart their polling
     /// operation/event loop.
-    pub fn events(&self) -> Result<PollEvents> {
-        self.socket.get_events().map_err(Error::from)
+    pub fn events(&self) -> Result<ZmqPollEvents> {
+        self.socket
+            .get_events()
+            .map(|poll_events| ZmqPollEvents::from_bits_truncate(poll_events.bits()))
+            .map_err(Error::from)
     }
 
     /// Defines whether communications on the socket will be encrypted, see zmq_gssapi A value of
@@ -533,8 +536,16 @@ impl<T: ZmqSocketType + Unpin> ZmqSocket<T> {
             socket_type: PhantomData,
         })
     }
+
+    pub fn poll<E: Into<ZmqPollEvents>>(&self, events: E, timeout_ms: i64) -> Result<i32> {
+        let poll_events = zmq::PollEvents::from_bits_truncate(events.into().bits());
+        self.socket
+            .poll(poll_events, timeout_ms)
+            .map_err(Error::from)
+    }
 }
 
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[from(u16)]
 pub struct MonitorFlags(u16);
@@ -559,6 +570,7 @@ bitflags! {
     }
 }
 
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ZmqRecvFlags(i32);
 
@@ -642,6 +654,7 @@ impl<T: ZmqSocketType + ZmqReceiverFlag + Unpin> Future for MessageReceivingFutu
     }
 }
 
+#[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ZmqSendFlags(i32);
 
@@ -681,5 +694,18 @@ where
 impl<T: ZmqSocketType + ZmqSenderFlag + Unpin, V: Sendable> ZmqSender<V> for ZmqSocket<T> {
     fn send_msg(&self, msg: V, flags: ZmqSendFlags) -> Result<()> {
         msg.send(&self.socket, flags.bits()).map_err(Error::from)
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ZmqPollEvents(i16);
+
+bitflags! {
+    impl ZmqPollEvents: i16 {
+        const ZMQ_POLLIN = 0b0000_0001;
+        const ZMQ_POLLOUT = 0b0000_0010;
+        const ZMQ_POLLERR = 0b0000_0100;
+        const ZMQ_POLLPRI = 0b0000_1000;
     }
 }
