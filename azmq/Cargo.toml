@@ -8,8 +8,8 @@ authors.workspace = true
 [dependencies]
 anyhow = { workspace = true, default-features = false }
 zmq = { workspace = true, default-features = false }
-futures = { workspace = true }
 
+futures = { version = ">=0.3.31", default-features = false, features = ["async-await", "alloc"]}
 bitflags = { version = ">=2.9", default-features = false, features = ["core"]}
 derive_more = { version = ">=2.0", default-features = false, features = ["from"]}
 

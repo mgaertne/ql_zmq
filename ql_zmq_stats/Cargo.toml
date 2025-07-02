@@ -7,12 +7,11 @@ authors.workspace = true
 
 [dependencies]
 azmq = { workspace = true }
-tokio = { workspace = true, features = ["default", "macros", "rt", "rt-multi-thread", "sync", "time"] }
-futures = { workspace = true }
-zmq = { workspace = true }
-anyhow = { workspace = true }
-clap = { workspace = true, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
-uuid = { workspace = true, features = ["v4"] }
+tokio = { workspace = true, default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync", "time"] }
+zmq = { workspace = true, default-features = false }
+anyhow = { workspace = true, default-features = false }
+clap = { workspace = true, default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
+uuid = { workspace = true, default-features = false, features = ["v4"] }
 
 serde_json = { version = ">=1.0.140", default-features = false, features = ["alloc"] }
 
