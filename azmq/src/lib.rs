@@ -3,6 +3,7 @@ use core::{marker::PhantomData, pin::Pin, task::Poll};
 use anyhow::{Error, Result};
 use bitflags::bitflags;
 use derive_more::From;
+use futures::future::FutureExt;
 use zmq::{Context, Mechanism, Message, PollEvents, Sendable, Socket};
 
 use crate::sealed::{ZmqReceiver, ZmqSender, ZmqSocketType};
@@ -29,7 +30,7 @@ pub struct ZmqSocket<T: ZmqSocketType> {
     socket_type: PhantomData<T>,
 }
 
-impl<T: ZmqSocketType> ZmqSocket<T> {
+impl<T: ZmqSocketType + Unpin> ZmqSocket<T> {
     pub fn try_new() -> Result<Self> {
         let context = Context::new();
         let socket = context.socket(T::raw_socket_type())?;
@@ -41,7 +42,7 @@ impl<T: ZmqSocketType> ZmqSocket<T> {
     }
 }
 
-impl<T: ZmqSocketType> ZmqSocket<T> {
+impl<T: ZmqSocketType + Unpin> ZmqSocket<T> {
     /// The `ZMQ_AFFINITY` option shall set the I/O thread affinity for newly created connections
     /// on the specified `socket`.
     ///
@@ -541,24 +542,49 @@ bitflags! {
 
 impl<T> ZmqSocket<T>
 where
-    T: ZmqSocketType + ZmqReceiver,
+    T: ZmqSocketType + ZmqReceiver + Unpin,
 {
     pub fn recv<F: Into<ZmqRecvFlags>>(&self, flags: F) -> Result<Message> {
         self.socket
             .recv_msg(flags.into().bits())
             .map_err(Error::from)
     }
+
+    pub async fn recv_msg(&self) -> Option<Message> {
+        MessageReceivingFuture { receiver: self }.now_or_never()
+    }
+
+    pub async fn recv_multipart(&self) -> Option<Vec<Vec<u8>>> {
+        MultipartReceivingFuture { receiver: self }.now_or_never()
+    }
 }
 
-impl<T> Future for ZmqSocket<T>
-where
-    T: ZmqReceiver + ZmqSocketType,
-{
+struct MessageReceivingFuture<'a, T: ZmqSocketType + ZmqReceiver + Unpin> {
+    receiver: &'a ZmqSocket<T>,
+}
+
+impl<T: ZmqSocketType + ZmqReceiver + Unpin> Future for MessageReceivingFuture<'_, T> {
     type Output = Message;
 
-    fn poll(self: Pin<&mut Self>, _ctx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        self.socket
+    fn poll(self: Pin<&mut Self>, _ctx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
+        self.receiver
+            .socket
             .recv_msg(ZmqRecvFlags::DONT_WAIT.bits())
+            .map_or(Poll::Pending, Poll::Ready)
+    }
+}
+
+struct MultipartReceivingFuture<'a, T: ZmqSocketType + ZmqReceiver + Unpin> {
+    receiver: &'a ZmqSocket<T>,
+}
+
+impl<T: ZmqSocketType + ZmqReceiver + Unpin> Future for MultipartReceivingFuture<'_, T> {
+    type Output = Vec<Vec<u8>>;
+
+    fn poll(self: Pin<&mut Self>, _ctx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
+        self.receiver
+            .socket
+            .recv_multipart(ZmqRecvFlags::DONT_WAIT.bits())
             .map_or(Poll::Pending, Poll::Ready)
     }
 }
@@ -575,7 +601,7 @@ bitflags! {
 
 impl<T> ZmqSocket<T>
 where
-    T: ZmqSocketType + ZmqSender,
+    T: ZmqSocketType + ZmqSender + Unpin,
 {
     pub fn send<V: Sendable, F: Into<ZmqSendFlags>>(&self, msg: V, flags: F) -> Result<()> {
         self.socket

@@ -5,8 +5,12 @@ use core::{
 };
 
 use anyhow::{Error, Result, anyhow};
+use futures::future::FutureExt;
 
-use crate::{MonitorFlags, ZmqRecvFlags, ZmqSocket, sealed::ZmqSocketType};
+use crate::{
+    MonitorFlags, ZmqRecvFlags, ZmqSocket,
+    sealed::{ZmqReceiver, ZmqSocketType},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u32)]
@@ -144,6 +148,8 @@ impl<T: Deref<Target = [u8]>> TryFrom<Vec<T>> for MonitorSocketEvent {
 
 pub struct Monitor {}
 
+impl ZmqReceiver for Monitor {}
+
 unsafe impl Sync for ZmqSocket<Monitor> {}
 unsafe impl Send for ZmqSocket<Monitor> {}
 
@@ -153,11 +159,22 @@ impl ZmqSocketType for Monitor {
     }
 }
 
-impl Future for ZmqSocket<Monitor> {
+impl ZmqSocket<Monitor> {
+    pub async fn recv_monitor_event(&self) -> Option<MonitorSocketEvent> {
+        MonitorSocketEventFuture { receiver: self }.now_or_never()
+    }
+}
+
+struct MonitorSocketEventFuture<'a, T: ZmqSocketType + ZmqReceiver + Unpin> {
+    receiver: &'a ZmqSocket<T>,
+}
+
+impl Future for MonitorSocketEventFuture<'_, Monitor> {
     type Output = MonitorSocketEvent;
 
     fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
         match self
+            .receiver
             .socket
             .recv_multipart(ZmqRecvFlags::DONT_WAIT.bits())
             .map(MonitorSocketEvent::try_from)

@@ -2,7 +2,6 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Error, Result};
 use azmq::{Monitor, MonitorFlags, MonitorSocketEvent, Subscriber, ZmqSocket};
-use futures::future::{FutureExt, poll_fn};
 use serde_json::Value;
 use tokio::{
     select,
@@ -91,13 +90,13 @@ impl MonitoredSubscriber {
     }
 
     async fn recv_msg(&self) -> Option<Message> {
-        let mut subscriber = self.subscriber.write().await;
-        poll_fn(|ctx| subscriber.poll_unpin(ctx)).now_or_never()
+        let subscriber = self.subscriber.read().await;
+        subscriber.recv_msg().await
     }
 
     async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
-        let mut monitor = self.monitor.write().await;
-        poll_fn(|ctx| monitor.poll_unpin(ctx)).now_or_never()
+        let monitor = self.monitor.read().await;
+        monitor.recv_monitor_event().await
     }
 }
 

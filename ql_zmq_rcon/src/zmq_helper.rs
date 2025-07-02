@@ -1,11 +1,7 @@
-use core::{
-    future::poll_fn,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Error, Result};
 use azmq::{Dealer, Monitor, MonitorFlags, MonitorSocketEvent, ZmqSendFlags, ZmqSocket};
-use futures::future::FutureExt;
 use tokio::{
     select,
     sync::{
@@ -100,13 +96,13 @@ impl MonitoredDealer {
     }
 
     async fn recv_msg(&self) -> Option<Message> {
-        let mut dealer = self.dealer.write().await;
-        poll_fn(|ctx| dealer.poll_unpin(ctx)).now_or_never()
+        let dealer = self.dealer.read().await;
+        dealer.recv_msg().await
     }
 
     async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
-        let mut monitor = self.monitor.write().await;
-        poll_fn(|ctx| monitor.poll_unpin(ctx)).now_or_never()
+        let monitor = self.monitor.read().await;
+        monitor.recv_monitor_event().await
     }
 }
 
