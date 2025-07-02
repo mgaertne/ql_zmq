@@ -1,12 +1,12 @@
 use core::{
+    ops::Deref,
     pin::Pin,
     task::{Context, Poll},
 };
-use std::ops::Deref;
 
 use anyhow::{Error, Result, anyhow};
 
-use crate::{MonitorFlags, ZmqSocket, sealed::ZmqSocketType};
+use crate::{MonitorFlags, ZmqRecvFlags, ZmqSocket, sealed::ZmqSocketType};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u32)]
@@ -159,7 +159,7 @@ impl Future for ZmqSocket<Monitor> {
     fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
         match self
             .socket
-            .recv_multipart(zmq::DONTWAIT)
+            .recv_multipart(ZmqRecvFlags::DONT_WAIT.bits())
             .map(MonitorSocketEvent::try_from)
         {
             Ok(Ok(event)) => Poll::Ready(event),
