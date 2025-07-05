@@ -9,15 +9,15 @@ use core::{
     str::FromStr,
 };
 
-use derive_more::{Debug, Display};
+use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 use num_traits::PrimInt;
 use parking_lot::FairMutex;
 
-use crate::{ZmqError, ZmqResult, sealed::ZmqSocketType, socket::ZmqPollEvents, zmq_sys_crate};
+use crate::{ZmqError, ZmqResult, sealed, socket::ZmqPollEvents, zmq_sys_crate};
 
 const MAX_OPTION_STR_LEN: usize = i32::MAX as usize;
 
-#[derive(Display, Debug)]
+#[derive(DisplayDeriveMore, DebugDeriveMore)]
 #[debug("RawContext {{ ... }}")]
 #[display("RawContext")]
 pub(crate) struct RawContext {
@@ -101,12 +101,12 @@ impl Drop for RawContext {
     }
 }
 
-pub(crate) struct RawSocket<T: ZmqSocketType> {
+pub(crate) struct RawSocket<T: sealed::ZmqSocketType> {
     pub(crate) socket: FairMutex<*mut c_void>,
     marker: PhantomData<T>,
 }
 
-impl<'a, T: ZmqSocketType> RawSocket<T> {
+impl<'a, T: sealed::ZmqSocketType> RawSocket<T> {
     pub(crate) fn from_ctx(context: &'a RawContext) -> ZmqResult<Self> {
         let context_guard = context.context.lock();
         let socket_ptr =
@@ -412,7 +412,7 @@ impl<'a, T: ZmqSocketType> RawSocket<T> {
     }
 }
 
-impl<T: ZmqSocketType> Drop for RawSocket<T> {
+impl<T: sealed::ZmqSocketType> Drop for RawSocket<T> {
     fn drop(&mut self) {
         let socket_guard = self.socket.lock();
         if unsafe { zmq_sys_crate::zmq_close(*socket_guard) } == -1 {
@@ -424,7 +424,7 @@ impl<T: ZmqSocketType> Drop for RawSocket<T> {
     }
 }
 
-#[derive(Debug)]
+#[derive(DebugDeriveMore)]
 #[debug("RawMessage {{ ... }}")]
 pub(crate) struct RawMessage {
     message: zmq_sys_crate::zmq_msg_t,
@@ -598,14 +598,14 @@ impl<'a, T: Into<RawMessage> + Clone> From<&'a T> for RawMessage {
     }
 }
 
-#[derive(Debug)]
+#[derive(DebugDeriveMore)]
 #[debug("RawPollItem {{ ... }}")]
 pub(crate) struct RawPollItem {
     pub(crate) item: FairMutex<zmq_sys_crate::zmq_pollitem_t>,
 }
 
 impl RawPollItem {
-    pub(crate) fn from_socket<T: ZmqSocketType>(
+    pub(crate) fn from_socket<T: sealed::ZmqSocketType>(
         socket: &RawSocket<T>,
         events: ZmqPollEvents,
     ) -> Self {

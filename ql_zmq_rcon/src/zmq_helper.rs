@@ -5,8 +5,8 @@ use azmq::{
     context::ZmqContextBuilder,
     message::ZmqMessage,
     socket::{
-        AsyncMonitorReceiver, AsyncZmqReceiver, Dealer, Monitor, MonitorFlags, MonitorSocketEvent,
-        ZmqSendFlags, ZmqSender, ZmqSocket,
+        AsyncMonitorReceiver, AsyncZmqReceiver, AsyncZmqSender, Dealer, Monitor, MonitorFlags,
+        MonitorSocketEvent, ZmqSendFlags, ZmqSocket,
     },
 };
 use tokio::{
@@ -98,10 +98,15 @@ impl MonitoredDealer {
         Ok(())
     }
 
-    async fn send<F: Into<ZmqSendFlags>>(&self, msg: &str, flags: F) -> Result<()> {
-        self.dealer.read().await.send_msg(msg, flags.into())?;
+    async fn send<F: Into<ZmqSendFlags>>(&self, msg: &str, flags: F) -> Option<()> {
+        let zmq_msg = ZmqMessage::from(msg);
+        self.dealer
+            .read()
+            .await
+            .send_msg_async(zmq_msg, flags.into())
+            .await?;
 
-        Ok(())
+        Some(())
     }
 
     async fn recv_msg(&self) -> Option<ZmqMessage> {
@@ -135,11 +140,12 @@ async fn check_monitor(
                 sender.send("ZMQ registering with the server.".to_string())?;
             }
 
-            if let Err(e) = monitored_dealer
+            if monitored_dealer
                 .send("register", ZmqSendFlags::DONT_WAIT)
                 .await
+                .is_none()
             {
-                sender.send(format!("error registering with ZMQ: {e:?}."))?;
+                sender.send("error registering with ZMQ.".to_string())?;
             }
         }
 
@@ -202,7 +208,7 @@ pub(crate) async fn run_zmq(
             }
 
             Some(line) = zmq_receiver.recv(), if !zmq_receiver.is_empty() => {
-                monitored_dealer.send(&line, ZmqSendFlags::DONT_WAIT).await?;
+                monitored_dealer.send(&line, ZmqSendFlags::DONT_WAIT).await;
             },
 
             Ok(()) = check_monitor(&monitored_dealer, &display_sender, &args.host) => (),

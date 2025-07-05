@@ -1,20 +1,16 @@
-use crate::{
-    ZmqResult,
-    sealed::{ZmqReceiverFlag, ZmqSocketType},
-    socket::{ZmqSocket, ZmqSocketOptions},
-    zmq_sys_crate,
-};
+use super::{ZmqSocket, ZmqSocketOptions, ZmqSocketType};
+use crate::{ZmqResult, sealed};
 
 pub struct Subscriber {}
 
-impl ZmqReceiverFlag for Subscriber {}
+impl sealed::ZmqReceiverFlag for Subscriber {}
 
 unsafe impl Sync for ZmqSocket<Subscriber> {}
 unsafe impl Send for ZmqSocket<Subscriber> {}
 
-impl ZmqSocketType for Subscriber {
-    fn raw_socket_type() -> u32 {
-        zmq_sys_crate::ZMQ_SUB
+impl sealed::ZmqSocketType for Subscriber {
+    fn raw_socket_type() -> ZmqSocketType {
+        ZmqSocketType::Subscriber
     }
 }
 

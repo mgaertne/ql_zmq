@@ -1,16 +1,11 @@
 use alloc::sync::Arc;
 use core::ops::Deref;
 
-use derive_more::{Debug, Display};
+use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 
-use crate::{
-    ZmqResult,
-    ffi::RawMessage,
-    sealed::{ZmqSenderFlag, ZmqSocketType},
-    socket::ZmqSocket,
-};
+use crate::{ZmqResult, ffi::RawMessage, sealed, socket::ZmqSocket};
 
-#[derive(Debug, Display)]
+#[derive(DebugDeriveMore, DisplayDeriveMore)]
 #[debug("ZmqMessage {{ ... }}")]
 #[display("{inner}")]
 pub struct ZmqMessage {
@@ -71,11 +66,11 @@ impl<T: Into<RawMessage>> From<T> for ZmqMessage {
     }
 }
 
-pub trait ZmqSendable<S: ZmqSocketType + ZmqSenderFlag> {
+pub trait ZmqSendable<S: sealed::ZmqSocketType + sealed::ZmqSenderFlag> {
     fn send(self, socket: &ZmqSocket<S>, flags: i32) -> ZmqResult<()>;
 }
 
-impl<M, S: ZmqSocketType + ZmqSenderFlag> ZmqSendable<S> for M
+impl<M, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag> ZmqSendable<S> for M
 where
     M: Into<ZmqMessage>,
 {

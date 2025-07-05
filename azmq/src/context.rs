@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use derive_more::{Debug, Display};
+use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 
 use crate::{ZmqResult, ffi::RawContext, zmq_sys_crate};
 
@@ -76,7 +76,7 @@ impl From<ZmqGetContextOption> for i32 {
     }
 }
 
-#[derive(Debug, Display)]
+#[derive(DebugDeriveMore, DisplayDeriveMore)]
 #[debug("ZmqContext {{ ... }}")]
 #[display("ZmqContext")]
 pub struct ZmqContext {

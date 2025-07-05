@@ -12,8 +12,7 @@ use crate::{
     context::ZmqContext,
     ffi::RawSocket,
     message::{ZmqMessage, ZmqSendable},
-    sealed::{ZmqReceiverFlag, ZmqSenderFlag, ZmqSocketType},
-    zmq_sys_crate,
+    sealed, zmq_sys_crate,
 };
 
 mod dealer;
@@ -23,6 +22,31 @@ mod subscriber;
 pub use dealer::Dealer;
 pub use monitor::{AsyncMonitorReceiver, Monitor, MonitorSocketEvent};
 pub use subscriber::Subscriber;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[repr(i32)]
+pub enum ZmqSocketType {
+    Pair = zmq_sys_crate::ZMQ_PAIR as i32,
+    Dealer = zmq_sys_crate::ZMQ_DEALER as i32,
+    Publisher = zmq_sys_crate::ZMQ_PUB as i32,
+    Pull = zmq_sys_crate::ZMQ_PULL as i32,
+    Push = zmq_sys_crate::ZMQ_PUSH as i32,
+    Requester = zmq_sys_crate::ZMQ_REQ as i32,
+    Reply = zmq_sys_crate::ZMQ_REP as i32,
+    Router = zmq_sys_crate::ZMQ_ROUTER as i32,
+    Subscriber = zmq_sys_crate::ZMQ_SUB as i32,
+    XPublisher = zmq_sys_crate::ZMQ_XPUB as i32,
+    XSubscriber = zmq_sys_crate::ZMQ_XSUB as i32,
+    Stream = zmq_sys_crate::ZMQ_STREAM as i32,
+    Server = 12i32,
+    Client = 13i32,
+    Radio = 14i32,
+    Dish = 15i32,
+    Gather = 16i32,
+    Scatter = 17i32,
+    Peer = 19i32,
+    Channel = 20i32,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[repr(i32)]
@@ -112,12 +136,12 @@ impl From<ZmqSocketOptions> for i32 {
     }
 }
 
-pub struct ZmqSocket<T: ZmqSocketType> {
+pub struct ZmqSocket<T: sealed::ZmqSocketType> {
     context: ZmqContext,
     pub(crate) socket: Arc<RawSocket<T>>,
 }
 
-impl<T: ZmqSocketType + Unpin> ZmqSocket<T> {
+impl<T: sealed::ZmqSocketType + Unpin> ZmqSocket<T> {
     pub fn from_context(context: &ZmqContext) -> ZmqResult<Self> {
         let socket = RawSocket::<T>::from_ctx(&context.inner)?;
         Ok(Self {
@@ -170,6 +194,14 @@ impl<T: ZmqSocketType + Unpin> ZmqSocket<T> {
 
     pub fn affinity(&self) -> ZmqResult<u64> {
         self.get_sockopt_int(ZmqSocketOptions::Affinity as i32)
+    }
+
+    pub fn set_backlog(&self, value: i32) -> ZmqResult<()> {
+        self.set_sockopt_int(ZmqSocketOptions::Backlog as i32, value)
+    }
+
+    pub fn backlog(&self) -> ZmqResult<i32> {
+        self.get_sockopt_int(ZmqSocketOptions::Backlog as i32)
     }
 
     pub fn set_connect_timeout(&self, value: i32) -> ZmqResult<()> {
@@ -611,8 +643,8 @@ where
     }
 }
 
-impl<T: ZmqSocketType + ZmqReceiverFlag + Unpin, F: Into<ZmqRecvFlags> + Copy> ZmqReceiver<F>
-    for ZmqSocket<T>
+impl<T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin, F: Into<ZmqRecvFlags> + Copy>
+    ZmqReceiver<F> for ZmqSocket<T>
 {
     fn recv_msg(&self, flags: F) -> ZmqResult<ZmqMessage> {
         self.socket
@@ -641,7 +673,8 @@ pub trait AsyncZmqReceiver<'a> {
 }
 
 #[async_trait]
-impl<'a, T: ZmqSocketType + ZmqReceiverFlag + Unpin> AsyncZmqReceiver<'a> for ZmqSocket<T>
+impl<'a, T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin> AsyncZmqReceiver<'a>
+    for ZmqSocket<T>
 where
     ZmqSocket<T>: Sync,
 {
@@ -650,11 +683,13 @@ where
     }
 }
 
-struct MessageReceivingFuture<'a, T: ZmqSocketType + ZmqReceiverFlag + Unpin> {
+struct MessageReceivingFuture<'a, T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin> {
     receiver: &'a ZmqSocket<T>,
 }
 
-impl<T: ZmqSocketType + ZmqReceiverFlag + Unpin> Future for MessageReceivingFuture<'_, T> {
+impl<T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin> Future
+    for MessageReceivingFuture<'_, T>
+{
     type Output = ZmqMessage;
 
     fn poll(self: Pin<&mut Self>, _ctx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
@@ -677,7 +712,7 @@ bitflags! {
     }
 }
 
-pub trait ZmqSender<V, S: ZmqSocketType + ZmqSenderFlag + Unpin>
+pub trait ZmqSender<V, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin>
 where
     V: ZmqSendable<S>,
 {
@@ -703,9 +738,81 @@ where
     }
 }
 
-impl<T: ZmqSocketType + ZmqSenderFlag + Unpin, V: ZmqSendable<T>> ZmqSender<V, T> for ZmqSocket<T> {
+impl<T: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin, V: ZmqSendable<T>> ZmqSender<V, T>
+    for ZmqSocket<T>
+{
     fn send_msg(&self, msg: V, flags: ZmqSendFlags) -> ZmqResult<()> {
         msg.send(self, flags.bits())
+    }
+}
+
+#[async_trait]
+pub trait AsyncZmqSender<'a, M, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin>
+where
+    M: Into<ZmqMessage> + Clone + Send,
+{
+    async fn send_msg_async(&'a self, msg: M, flags: ZmqSendFlags) -> Option<()>;
+
+    async fn send_multipart_async<I>(&'a self, iter: I, flags: ZmqSendFlags) -> Option<()>
+    where
+        I: Iterator<Item = M> + Send,
+    {
+        let mut last_part: Option<M> = None;
+        for part in iter {
+            let maybe_last = last_part.take();
+            if let Some(last) = maybe_last {
+                self.send_msg_async(last, flags | ZmqSendFlags::SEND_MORE)
+                    .await?;
+            }
+            last_part = Some(part);
+        }
+        if let Some(last) = last_part {
+            self.send_msg_async(last, flags).await
+        } else {
+            None
+        }
+    }
+}
+
+#[async_trait]
+impl<'a, S, M> AsyncZmqSender<'a, M, S> for ZmqSocket<S>
+where
+    for<'async_trait> M: 'async_trait + Into<ZmqMessage> + Clone + Send,
+    S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin,
+    ZmqSocket<S>: Sync,
+{
+    async fn send_msg_async(&'a self, msg: M, flags: ZmqSendFlags) -> Option<()> {
+        MessageSendingFuture {
+            receiver: self,
+            message: msg,
+            flags,
+        }
+        .now_or_never()
+    }
+}
+
+struct MessageSendingFuture<'a, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin, M>
+where
+    M: Into<ZmqMessage> + Clone + Send,
+{
+    receiver: &'a ZmqSocket<S>,
+    message: M,
+    flags: ZmqSendFlags,
+}
+
+impl<'a, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin, M> Future
+    for MessageSendingFuture<'a, S, M>
+where
+    M: Into<ZmqMessage> + Clone + Send,
+{
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, _ctx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
+        let message = self.message.clone().into();
+
+        message
+            .send(self.receiver, self.flags.bits())
+            .map_or(Poll::Pending, Poll::Ready)
     }
 }
 
