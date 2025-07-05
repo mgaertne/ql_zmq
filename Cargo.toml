@@ -24,7 +24,6 @@ azmq = { path = "azmq" }
 
 anyhow = { version = ">=1.0", default-features = false }
 tokio = { version = ">=1.46", default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync"] }
-zmq = { version = ">=0.10", default-features = false }
 uuid = { version = ">=1.17", default-features = false, features = ["v4"] }
 clap = { version = ">=4.5", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
 

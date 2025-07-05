@@ -1,9 +1,13 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use anyhow::{Error, Result};
+use anyhow::Result;
 use azmq::{
-    AsyncMonitorReceiver, AsyncZmqReceiver, Monitor, MonitorFlags, MonitorSocketEvent, Subscriber,
-    ZmqSocket,
+    context::ZmqContextBuilder,
+    message::ZmqMessage,
+    socket::{
+        AsyncMonitorReceiver, AsyncZmqReceiver, Monitor, MonitorFlags, MonitorSocketEvent,
+        Subscriber, ZmqSocket,
+    },
 };
 use serde_json::Value;
 use tokio::{
@@ -11,7 +15,6 @@ use tokio::{
     sync::{RwLock, mpsc::UnboundedSender},
 };
 use uuid::Uuid;
-use zmq::Message;
 
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
@@ -25,7 +28,12 @@ unsafe impl Sync for MonitoredSubscriber {}
 
 impl MonitoredSubscriber {
     fn new() -> Result<Self> {
-        let subscriber = ZmqSocket::try_new()?;
+        let context = ZmqContextBuilder::new()
+            .blocky(false)
+            .max_sockets(10)
+            .io_threads(1)
+            .build()?;
+        let subscriber = ZmqSocket::from_context(&context)?;
         let monitor = subscriber.monitor(
             MonitorFlags::HandshakeSucceeded
                 | MonitorFlags::HandshakeFailedAuth
@@ -84,15 +92,13 @@ impl MonitoredSubscriber {
 
     async fn disconnect(&self) -> Result<()> {
         let subscriber = self.subscriber.read().await;
-        subscriber
-            .last_endpoint()?
-            .map_err(|_err| Error::from(zmq::Error::EFAULT))
-            .and_then(|last_endpoint| subscriber.disconnect(&last_endpoint))?;
+        let last_endpoint = subscriber.last_endpoint()?;
+        subscriber.disconnect(&last_endpoint)?;
 
         Ok(())
     }
 
-    async fn recv_msg(&self) -> Option<Message> {
+    async fn recv_msg(&self) -> Option<ZmqMessage> {
         let subscriber = self.subscriber.read().await;
         subscriber.recv_msg_async().await
     }
@@ -182,9 +188,8 @@ pub(crate) async fn run_zmq(
             biased;
 
             Some(zmq_msg) = monitored_dealer.recv_msg() => {
-                if let Some(zmq_str) = zmq_msg.as_str() {
-                    display_sender.send(format_ql_json(zmq_str, &args))?;
-                }
+                let zmq_str = zmq_msg.to_string();
+                display_sender.send(format_ql_json(&zmq_str, &args))?;
             }
 
             Ok(()) = check_monitor(&monitored_dealer, &display_sender, &args.host) => (),
