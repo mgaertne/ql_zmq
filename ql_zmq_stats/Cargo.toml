@@ -6,7 +6,7 @@ rust-version.workspace = true
 authors.workspace = true
 
 [dependencies]
-azmq = { workspace = true }
+azmq = { workspace = true, features = ["futures", "builder"] }
 tokio = { workspace = true, default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync", "time"] }
 anyhow = { workspace = true, default-features = false }
 clap = { workspace = true, default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }

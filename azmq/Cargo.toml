@@ -14,8 +14,19 @@ bitflags = { version = ">=2.9", default-features = false, features = ["core"]}
 derive_more = { version = ">=2.0", default-features = false, features = ["from", "debug", "display", "deref"]}
 thiserror = { version = ">=2.0.12", default-features = false }
 parking_lot = { version = ">=0.12.4", default-features = false, features = ["arc_lock"] }
-async-trait = { version = ">=0.1.88", default-features = false }
-futures = { version = ">=0.3.31", default-features = false, features = ["async-await", "alloc"]}
+
+serde = { version = ">=1.0.219", default-features = false, optional = true, features = ["derive"] }
+async-trait = { version = ">=0.1.88", default-features = false, optional = true }
+futures = { version = ">=0.3.31", default-features = false, features = ["async-await", "alloc"], optional = true}
+
+[features]
+default = ["builder"]
+builder = ["dep:serde"]
+futures = ["dep:async-trait", "dep:futures"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [lints]
 workspace = true

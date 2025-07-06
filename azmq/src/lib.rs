@@ -1,15 +1,27 @@
-#![feature(cold_path)]
+#![feature(cold_path, doc_cfg)]
+#![doc(test(no_crate_inject))]
 extern crate alloc;
 
 pub mod context;
+#[doc(hidden)]
 pub mod error;
 mod ffi;
 pub mod message;
 pub mod socket;
 
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub mod builder;
+
+#[cfg(feature = "futures")]
+#[doc(cfg(feature = "futures"))]
+pub mod futures;
+
 use alloc::ffi::CString;
 
+#[doc(inline)]
 pub use error::{ZmqError, ZmqResult};
+#[doc(hidden)]
 pub(crate) use zmq_sys as zmq_sys_crate;
 
 mod sealed {

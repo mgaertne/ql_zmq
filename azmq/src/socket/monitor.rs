@@ -1,13 +1,6 @@
-use core::{
-    ops::Deref,
-    pin::Pin,
-    task::{Context, Poll},
-};
+use core::ops::Deref;
 
-use async_trait::async_trait;
-use futures::future::FutureExt;
-
-use super::{MonitorFlags, ZmqReceiver, ZmqRecvFlags, ZmqSocketType};
+use super::{MonitorFlags, ZmqSocketType};
 use crate::{ZmqError, sealed, socket::ZmqSocket, zmq_sys_crate};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -172,36 +165,5 @@ unsafe impl Send for ZmqSocket<Monitor> {}
 impl sealed::ZmqSocketType for Monitor {
     fn raw_socket_type() -> ZmqSocketType {
         ZmqSocketType::Pair
-    }
-}
-
-#[async_trait]
-pub trait AsyncMonitorReceiver<'a> {
-    async fn recv_monitor_event_async(&'a self) -> Option<MonitorSocketEvent>;
-}
-
-#[async_trait]
-impl<'a> AsyncMonitorReceiver<'a> for ZmqSocket<Monitor> {
-    async fn recv_monitor_event_async(&'a self) -> Option<MonitorSocketEvent> {
-        MonitorSocketEventFuture { receiver: self }.now_or_never()
-    }
-}
-
-struct MonitorSocketEventFuture<'a, T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin> {
-    receiver: &'a ZmqSocket<T>,
-}
-
-impl Future for MonitorSocketEventFuture<'_, Monitor> {
-    type Output = MonitorSocketEvent;
-
-    fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
-        match self
-            .receiver
-            .recv_multipart(ZmqRecvFlags::DONT_WAIT)
-            .map(MonitorSocketEvent::try_from)
-        {
-            Ok(Ok(event)) => Poll::Ready(event),
-            _ => Poll::Pending,
-        }
     }
 }

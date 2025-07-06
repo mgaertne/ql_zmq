@@ -2,12 +2,10 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use azmq::{
-    context::ZmqContextBuilder,
+    builder::ZmqContextBuilder,
+    futures::{AsyncMonitorReceiver, AsyncZmqReceiver},
     message::ZmqMessage,
-    socket::{
-        AsyncMonitorReceiver, AsyncZmqReceiver, Monitor, MonitorFlags, MonitorSocketEvent,
-        Subscriber, ZmqSocket,
-    },
+    socket::{Monitor, MonitorFlags, MonitorSocketEvent, Subscriber, ZmqSocket},
 };
 use serde_json::Value;
 use tokio::{

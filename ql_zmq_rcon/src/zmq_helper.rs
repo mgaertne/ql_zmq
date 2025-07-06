@@ -2,12 +2,10 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use azmq::{
-    context::ZmqContextBuilder,
+    builder::ZmqContextBuilder,
+    futures::{AsyncMonitorReceiver, AsyncZmqReceiver, AsyncZmqSender},
     message::ZmqMessage,
-    socket::{
-        AsyncMonitorReceiver, AsyncZmqReceiver, AsyncZmqSender, Dealer, Monitor, MonitorFlags,
-        MonitorSocketEvent, ZmqSendFlags, ZmqSocket,
-    },
+    socket::{Dealer, Monitor, MonitorFlags, MonitorSocketEvent, ZmqSendFlags, ZmqSocket},
 };
 use tokio::{
     select,
