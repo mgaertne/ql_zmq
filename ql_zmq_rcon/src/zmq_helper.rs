@@ -98,12 +98,15 @@ impl MonitoredDealer {
         Ok(())
     }
 
-    async fn send<F: Into<ZmqSendFlags>>(&self, msg: &str, flags: F) -> Option<()> {
-        let zmq_msg = ZmqMessage::from(msg);
+    async fn send<M: Into<ZmqMessage>, F: Into<ZmqSendFlags>>(
+        &self,
+        msg: M,
+        flags: F,
+    ) -> Option<()> {
         self.dealer
             .read()
             .await
-            .send_msg_async(zmq_msg, flags.into())
+            .send_msg_async(msg.into(), flags.into())
             .await?;
 
         Some(())
