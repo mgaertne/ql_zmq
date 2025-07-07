@@ -674,6 +674,22 @@ impl<T: sealed::ZmqSocketType> ZmqSocket<T> {
         self.get_sockopt_string(ZmqSocketOptions::ZapDomain as i32)
     }
 
+    pub fn bind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
+        self.socket.bind(endpoint.as_ref())
+    }
+
+    pub fn unbind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
+        self.socket.unbind(endpoint.as_ref())
+    }
+
+    pub fn connect<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
+        self.socket.connect(endpoint.as_ref())
+    }
+
+    pub fn disconnect<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
+        self.socket.disconnect(endpoint.as_ref())
+    }
+
     pub fn monitor<F: Into<MonitorFlags>>(&self, events: F) -> ZmqResult<ZmqSocket<Monitor>> {
         let fd = self
             .socket

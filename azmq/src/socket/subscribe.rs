@@ -30,12 +30,4 @@ impl ZmqSocket<Subscribe> {
     pub fn unsubscribe<V: AsRef<[u8]>>(&self, topic: V) -> ZmqResult<()> {
         self.set_sockopt_bytes(ZmqSocketOptions::Unsubscribe as i32, topic.as_ref())
     }
-
-    pub fn connect<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.connect(endpoint.as_ref())
-    }
-
-    pub fn disconnect<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.disconnect(endpoint.as_ref())
-    }
 }

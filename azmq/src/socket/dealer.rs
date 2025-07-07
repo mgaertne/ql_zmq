@@ -37,20 +37,4 @@ impl ZmqSocket<Dealer> {
     pub fn set_hello_message<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
         self.set_sockopt_string(ZmqSocketOptions::HelloMessage as i32, value)
     }
-
-    pub fn bind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.bind(endpoint.as_ref())
-    }
-
-    pub fn unbind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.unbind(endpoint.as_ref())
-    }
-
-    pub fn connect<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.connect(endpoint.as_ref())
-    }
-
-    pub fn disconnect<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.disconnect(endpoint.as_ref())
-    }
 }

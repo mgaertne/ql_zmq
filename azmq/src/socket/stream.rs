@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{ZmqSendFlags, ZmqSender, ZmqSocket, ZmqSocketOptions, ZmqSocketType},
+    socket::{ZmqSocket, ZmqSocketOptions, ZmqSocketType},
 };
 
 pub struct Stream {}
@@ -34,23 +34,5 @@ impl ZmqSocket<Stream> {
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_stream_notify(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(ZmqSocketOptions::StreamNotify as i32, value)
-    }
-
-    pub fn bind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.bind(endpoint.as_ref())
-    }
-
-    pub fn unbind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.unbind(endpoint.as_ref())
-    }
-
-    pub fn connect<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.connect(endpoint.as_ref())
-    }
-
-    pub fn disconnect<V: AsRef<str>>(&self) -> ZmqResult<()> {
-        let routing_id = self.routing_id()?;
-        self.send_msg(&routing_id, ZmqSendFlags::SEND_MORE)?;
-        self.send_msg(vec![], ZmqSendFlags::DONT_WAIT)
     }
 }

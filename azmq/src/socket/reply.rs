@@ -25,12 +25,4 @@ impl ZmqSocket<Reply> {
     pub fn routing_id(&self) -> ZmqResult<String> {
         self.get_sockopt_string(ZmqSocketOptions::RoutingId as i32)
     }
-
-    pub fn bind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.bind(endpoint.as_ref())
-    }
-
-    pub fn unbind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.unbind(endpoint.as_ref())
-    }
 }

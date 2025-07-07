@@ -3,7 +3,7 @@ use std::thread;
 use azmq::{
     ZmqResult,
     context::ZmqContext,
-    socket::{Request, Reply, ZmqReceiver, ZmqRecvFlags, ZmqSendFlags, ZmqSender, ZmqSocket},
+    socket::{Reply, Request, ZmqReceiver, ZmqRecvFlags, ZmqSendFlags, ZmqSender, ZmqSocket},
 };
 
 fn main() -> ZmqResult<()> {

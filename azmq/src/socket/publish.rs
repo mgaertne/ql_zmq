@@ -39,12 +39,4 @@ impl ZmqSocket<Publish> {
     pub fn topic_count(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(ZmqSocketOptions::TopicsCount as i32)
     }
-
-    pub fn bind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.bind(endpoint.as_ref())
-    }
-
-    pub fn unbind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.unbind(endpoint.as_ref())
-    }
 }

@@ -77,12 +77,4 @@ impl ZmqSocket<Router> {
         self.get_sockopt_int(ZmqSocketOptions::RouterNotify as i32)
             .map(RouterNotify::from_bits_truncate)
     }
-
-    pub fn bind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.bind(endpoint.as_ref())
-    }
-
-    pub fn unbind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
-        self.socket.unbind(endpoint.as_ref())
-    }
 }
