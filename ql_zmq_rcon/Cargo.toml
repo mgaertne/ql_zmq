@@ -21,33 +21,3 @@ regex = { version = ">=1.11", default-features = false, features = ["perf", "uni
 
 [lints]
 workspace = true
-
-[profile.release]
-panic = "abort"
-strip = "symbols"
-opt-level = "z"
-lto = "fat"
-codegen-units = 1
-
-[profile.release.build-override]
-rustflags = ["-Zlocation-detail=none"]
-
-[profile.release.azmq]
-panic = "abort"
-strip = "symbols"
-opt-level = "z"
-lto = "fat"
-codegen-units = 1
-
-[profile.release.azmq.build-override]
-rustflags = ["-Zlocation-detail=none"]
-
-[profile.release.azmq_sys]
-panic = "abort"
-strip = "symbols"
-opt-level = "z"
-lto = "fat"
-codegen-units = 1
-
-[profile.release.azmq_sys.build-override]
-rustflags = ["-Zlocation-detail=none"]

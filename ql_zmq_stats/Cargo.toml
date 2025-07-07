@@ -17,33 +17,3 @@ serde_json = { version = ">=1.0.140", default-features = false, features = ["all
 
 [lints]
 workspace = true
-
-[profile.release]
-panic = "abort"
-strip = "symbols"
-opt-level = "z"
-lto = "fat"
-codegen-units = 1
-
-[profile.release.build-override]
-rustflags = ["-Zlocation-detail=none"]
-
-[profile.release.azmq]
-panic = "abort"
-strip = "symbols"
-opt-level = "z"
-lto = "fat"
-codegen-units = 1
-
-[profile.release.azmq.build-override]
-rustflags = ["-Zlocation-detail=none"]
-
-[profile.release.azmq_sys]
-panic = "abort"
-strip = "symbols"
-opt-level = "z"
-lto = "fat"
-codegen-units = 1
-
-[profile.release.azmq_sys.build-override]
-rustflags = ["-Zlocation-detail=none"]
