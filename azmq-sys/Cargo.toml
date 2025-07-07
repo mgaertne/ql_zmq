@@ -26,6 +26,6 @@ draft-api = []
 zeromq-src = { version = "0.3.5" }
 bindgen = { version = "0.72" }
 
-[target."cfg(not(target_os=\"windows\"))".dependencies]
+[target."cfg(unix)".dependencies]
 libc = { version = "1.0.0-alpha.1", default-features = false }
 
