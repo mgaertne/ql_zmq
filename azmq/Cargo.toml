@@ -52,3 +52,11 @@ path = "examples/rustdoc/publish_subscribe.rs"
 [[example]]
 name = "rustdoc_request_reply"
 path = "examples/rustdoc/request_reply.rs"
+
+[[example]]
+name = "rustdoc_request_router"
+path = "examples/rustdoc/request_router.rs"
+
+[[example]]
+name = "rustdoc_dealer_reply"
+path = "examples/rustdoc/dealer_reply.rs"
