@@ -15,21 +15,21 @@ use crate::{
 
 mod dealer;
 mod monitor;
+mod publish;
 mod reply;
 mod request;
 mod router;
 mod stream;
 mod subscribe;
-mod publish;
 
 pub use dealer::Dealer;
 pub use monitor::{Monitor, MonitorSocketEvent};
+pub use publish::Publish;
 pub use reply::Reply;
 pub use request::Request;
 pub use router::Router;
 pub use stream::Stream;
 pub use subscribe::Subscribe;
-pub use publish::Publish;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i32)]

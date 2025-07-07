@@ -4,8 +4,14 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
+autotests = true
 
 [lib]
+crate-type = ["lib", "staticlib", "dylib"]
+test = true
+harness = true
+doctest = true
+doc = true
 doc-scrape-examples = true
 
 [dependencies]
@@ -36,5 +42,13 @@ rustdoc-args = ["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples", "--cf
 workspace = true
 
 [[example]]
-name = "version"
+name = "rustdoc_version"
 path = "examples/rustdoc/version.rs"
+
+[[example]]
+name = "rustdoc_publish_subscribe"
+path = "examples/rustdoc/publish_subscribe.rs"
+
+[[example]]
+name = "rustdoc_request_reply"
+path = "examples/rustdoc/request_reply.rs"
