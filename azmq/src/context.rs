@@ -7,17 +7,19 @@ use crate::{ZmqResult, ffi::RawContext, zmq_sys_crate};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(i32)]
 pub enum ZmqSetContextOption {
-    Blocky = zmq_sys_crate::ZMQ_BLOCKY as i32,
     IoThreads = zmq_sys_crate::ZMQ_IO_THREADS as i32,
-    ThreadSchedulingPolicy = zmq_sys_crate::ZMQ_THREAD_SCHED_POLICY as i32,
+    MaxSockets = zmq_sys_crate::ZMQ_MAX_SOCKETS as i32,
     ThreadPriority = zmq_sys_crate::ZMQ_THREAD_PRIORITY as i32,
+    ThreadSchedulingPolicy = zmq_sys_crate::ZMQ_THREAD_SCHED_POLICY as i32,
+    MaxMessageSize = zmq_sys_crate::ZMQ_MAX_MSGSZ as i32,
     ThreadAffinityCPUAdd = zmq_sys_crate::ZMQ_THREAD_AFFINITY_CPU_ADD as i32,
     ThreadAffinityCPURemove = zmq_sys_crate::ZMQ_THREAD_AFFINITY_CPU_REMOVE as i32,
     ThreadNamePrefix = zmq_sys_crate::ZMQ_THREAD_NAME_PREFIX as i32,
-    MaxMessageSize = zmq_sys_crate::ZMQ_MAX_MSGSZ as i32,
-    ZeroCopyReceiving = 10i32,
-    MaxSockets = zmq_sys_crate::ZMQ_MAX_SOCKETS as i32,
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    ZeroCopyReceiving = zmq_sys_crate::ZMQ_ZERO_COPY_RECV as i32,
     IPv6 = zmq_sys_crate::ZMQ_IPV6 as i32,
+    Blocky = zmq_sys_crate::ZMQ_BLOCKY as i32,
 }
 
 impl From<ZmqSetContextOption> for i32 {
@@ -37,9 +39,10 @@ impl From<ZmqSetContextOption> for i32 {
             }
             ZmqSetContextOption::ThreadNamePrefix => zmq_sys_crate::ZMQ_THREAD_NAME_PREFIX as i32,
             ZmqSetContextOption::MaxMessageSize => zmq_sys_crate::ZMQ_MAX_MSGSZ as i32,
-            ZmqSetContextOption::ZeroCopyReceiving => 10i32,
             ZmqSetContextOption::MaxSockets => zmq_sys_crate::ZMQ_MAX_SOCKETS as i32,
             ZmqSetContextOption::IPv6 => zmq_sys_crate::ZMQ_IPV6 as i32,
+            #[cfg(feature = "draft-api")]
+            ZmqSetContextOption::ZeroCopyReceiving => zmq_sys_crate::ZMQ_ZERO_COPY_RECV as i32,
         }
     }
 }
@@ -49,13 +52,15 @@ impl From<ZmqSetContextOption> for i32 {
 pub enum ZmqGetContextOption {
     IoThreads = zmq_sys_crate::ZMQ_IO_THREADS as i32,
     MaxSockets = zmq_sys_crate::ZMQ_MAX_SOCKETS as i32,
-    MaxMessageSize = zmq_sys_crate::ZMQ_MAX_MSGSZ as i32,
-    ZeroCopyReceiving = 10i32,
     SocketLimit = zmq_sys_crate::ZMQ_SOCKET_LIMIT as i32,
+    ThreadSchedulingPolicy = zmq_sys_crate::ZMQ_THREAD_SCHED_POLICY as i32,
+    MaxMessageSize = zmq_sys_crate::ZMQ_MAX_MSGSZ as i32,
+    ThreadNamePrefix = zmq_sys_crate::ZMQ_THREAD_NAME_PREFIX as i32,
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    ZeroCopyReceiving = zmq_sys_crate::ZMQ_ZERO_COPY_RECV as i32,
     IPv6 = zmq_sys_crate::ZMQ_IPV6 as i32,
     Blocky = zmq_sys_crate::ZMQ_BLOCKY as i32,
-    ThreadSchedulingPolicy = zmq_sys_crate::ZMQ_THREAD_SCHED_POLICY as i32,
-    ThreadNamePrefix = zmq_sys_crate::ZMQ_THREAD_NAME_PREFIX as i32,
 }
 
 impl From<ZmqGetContextOption> for i32 {
@@ -68,10 +73,11 @@ impl From<ZmqGetContextOption> for i32 {
             }
             ZmqGetContextOption::ThreadNamePrefix => zmq_sys_crate::ZMQ_THREAD_NAME_PREFIX as i32,
             ZmqGetContextOption::MaxMessageSize => zmq_sys_crate::ZMQ_MAX_MSGSZ as i32,
-            ZmqGetContextOption::ZeroCopyReceiving => 10i32,
             ZmqGetContextOption::MaxSockets => zmq_sys_crate::ZMQ_MAX_SOCKETS as i32,
             ZmqGetContextOption::IPv6 => zmq_sys_crate::ZMQ_IPV6 as i32,
             ZmqGetContextOption::SocketLimit => zmq_sys_crate::ZMQ_SOCKET_LIMIT as i32,
+            #[cfg(feature = "draft-api")]
+            ZmqGetContextOption::ZeroCopyReceiving => zmq_sys_crate::ZMQ_ZERO_COPY_RECV as i32,
         }
     }
 }
@@ -102,16 +108,30 @@ impl ZmqContext {
         &self.inner
     }
 
-    pub fn set_context_option<O: Into<ZmqSetContextOption>>(
-        &self,
-        option: O,
-        value: i32,
-    ) -> ZmqResult<()> {
+    pub fn set_option<O: Into<ZmqSetContextOption>>(&self, option: O, value: i32) -> ZmqResult<()> {
         self.inner.set(option.into().into(), value)
     }
 
-    pub fn get_context_option<O: Into<ZmqGetContextOption>>(&self, option: O) -> ZmqResult<i32> {
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn set_option_ext<O: Into<ZmqSetContextOption>, V: AsRef<str>>(
+        &self,
+        option: O,
+        value: V,
+    ) -> ZmqResult<()> {
+        let zmq_option = option.into();
+        self.inner.set_ext(zmq_option.into(), value.as_ref())
+    }
+
+    pub fn get_option<O: Into<ZmqGetContextOption>>(&self, option: O) -> ZmqResult<i32> {
         self.inner.get(option.into().into())
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn get_option_ext<O: Into<ZmqGetContextOption>>(&self, option: O) -> ZmqResult<String> {
+        let zmq_option = option.into();
+        self.inner.get_ext(zmq_option.into())
     }
 
     pub fn set_blocky(&self, value: bool) -> ZmqResult<()> {
@@ -119,40 +139,40 @@ impl ZmqContext {
             false => 0,
             _ => 1,
         };
-        self.set_context_option(ZmqSetContextOption::Blocky, option_value)
+        self.set_option(ZmqSetContextOption::Blocky, option_value)
     }
 
     pub fn get_blocky(&self) -> ZmqResult<bool> {
-        let option_value = self.get_context_option(ZmqGetContextOption::Blocky)?;
+        let option_value = self.get_option(ZmqGetContextOption::Blocky)?;
         Ok(option_value != 0)
     }
 
     pub fn set_io_threads(&self, value: i32) -> ZmqResult<()> {
-        self.set_context_option(ZmqSetContextOption::IoThreads, value)
+        self.set_option(ZmqSetContextOption::IoThreads, value)
     }
 
     pub fn get_io_threads(&self) -> ZmqResult<i32> {
-        self.get_context_option(ZmqGetContextOption::IoThreads)
+        self.get_option(ZmqGetContextOption::IoThreads)
     }
 
     pub fn set_max_message_size(&self, value: i32) -> ZmqResult<()> {
-        self.set_context_option(ZmqSetContextOption::MaxMessageSize, value)
+        self.set_option(ZmqSetContextOption::MaxMessageSize, value)
     }
 
     pub fn get_max_message_size(&self) -> ZmqResult<i32> {
-        self.get_context_option(ZmqGetContextOption::MaxMessageSize)
+        self.get_option(ZmqGetContextOption::MaxMessageSize)
     }
 
     pub fn set_max_sockets(&self, value: i32) -> ZmqResult<()> {
-        self.set_context_option(ZmqSetContextOption::MaxSockets, value)
+        self.set_option(ZmqSetContextOption::MaxSockets, value)
     }
 
     pub fn get_max_sockets(&self) -> ZmqResult<i32> {
-        self.get_context_option(ZmqGetContextOption::MaxSockets)
+        self.get_option(ZmqGetContextOption::MaxSockets)
     }
 
     pub fn get_socket_limit(&self) -> ZmqResult<i32> {
-        self.get_context_option(ZmqGetContextOption::SocketLimit)
+        self.get_option(ZmqGetContextOption::SocketLimit)
     }
 
     pub fn set_ipv6(&self, value: bool) -> ZmqResult<()> {
@@ -160,11 +180,11 @@ impl ZmqContext {
             false => 0,
             _ => 1,
         };
-        self.set_context_option(ZmqSetContextOption::IPv6, option_value)
+        self.set_option(ZmqSetContextOption::IPv6, option_value)
     }
 
     pub fn get_ipv6(&self) -> ZmqResult<bool> {
-        let option_value = self.get_context_option(ZmqGetContextOption::IPv6)?;
+        let option_value = self.get_option(ZmqGetContextOption::IPv6)?;
         Ok(option_value != 0)
     }
 

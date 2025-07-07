@@ -64,15 +64,12 @@ impl MonitoredSubscriber {
             identity.to_string()
         };
 
-        subscriber.set_identity(identity_str)?;
+        subscriber.set_routing_id(identity_str)?;
 
         subscriber.set_rcvtimeo(0)?;
         subscriber.set_rcvhwm(0)?;
         subscriber.set_sndtimeo(0)?;
         subscriber.set_sndhwm(0)?;
-
-        subscriber.set_heartbeat_ivl(600_000)?;
-        subscriber.set_heartbeat_timeout(600_000)?;
 
         subscriber.set_zap_domain("stats")?;
 

@@ -6,7 +6,7 @@ rust-version.workspace = true
 authors.workspace = true
 
 [dependencies]
-zmq-sys = { version = ">=0.12", default-features = false }
+azmq-sys = {workspace = true }
 z85 = { version = ">=3.0.6", default-features = false }
 
 num-traits = { version = ">=0.2.19", default-features = false }
@@ -23,6 +23,7 @@ futures = { version = ">=0.3.31", default-features = false, features = ["async-a
 default = ["builder"]
 builder = ["dep:serde"]
 futures = ["dep:async-trait", "dep:futures"]
+draft-api = ["azmq-sys/draft-api"]
 
 [package.metadata.docs.rs]
 all-features = true

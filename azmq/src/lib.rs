@@ -1,4 +1,4 @@
-#![feature(cold_path, doc_cfg)]
+#![feature(cold_path, doc_cfg, stmt_expr_attributes)]
 #![doc(test(no_crate_inject))]
 extern crate alloc;
 
@@ -19,10 +19,10 @@ pub mod futures;
 
 use alloc::ffi::CString;
 
+#[doc(hidden)]
+pub(crate) use azmq_sys as zmq_sys_crate;
 #[doc(inline)]
 pub use error::{ZmqError, ZmqResult};
-#[doc(hidden)]
-pub(crate) use zmq_sys as zmq_sys_crate;
 
 mod sealed {
     use crate::socket;

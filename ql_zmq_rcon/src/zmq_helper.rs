@@ -15,7 +15,7 @@ use tokio::{
     },
 };
 use uuid::Uuid;
-
+use azmq::socket::ZmqSocketOptions;
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
 struct MonitoredDealer {
@@ -31,7 +31,7 @@ impl MonitoredDealer {
         let context = ZmqContextBuilder::new()
             .blocky(false)
             .max_sockets(10)
-            .io_threads(1)
+            .io_threads(2)
             .build()?;
         let dealer = ZmqSocket::from_context(&context)?;
         let monitor = dealer.monitor(
@@ -67,7 +67,9 @@ impl MonitoredDealer {
             identity.to_string()
         };
 
-        dealer.set_identity(identity_str)?;
+        dealer.set_sockopt_string(ZmqSocketOptions::HelloMessage as i32, "register")?;
+        dealer.set_routing_id(identity_str)?;
+        dealer.set_immediate(true)?;
 
         dealer.set_rcvtimeo(0)?;
         dealer.set_rcvhwm(0)?;
@@ -139,14 +141,6 @@ async fn check_monitor(
             if FIRST_TIME.load(Ordering::Acquire) {
                 FIRST_TIME.store(false, Ordering::Release);
                 sender.send("ZMQ registering with the server.".to_string())?;
-            }
-
-            if monitored_dealer
-                .send("register", ZmqSendFlags::DONT_WAIT)
-                .await
-                .is_none()
-            {
-                sender.send("error registering with ZMQ.".to_string())?;
             }
         }
 

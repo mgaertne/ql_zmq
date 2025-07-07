@@ -126,20 +126,14 @@ impl From<i32> for ZmqError {
             zmq_sys_crate::errno::EINPROGRESS => Self::OperationInProgress,
             zmq_sys_crate::errno::ENOTSOCK => Self::SocketNull,
             zmq_sys_crate::errno::EMSGSIZE => Self::MessageTooLong,
-            // EAFNOSUPPORT
-            102i32 => Self::AddressFamilyNotSupported,
-            // ENETUNREACH
-            118i32 => Self::NetworkUnreachable,
-            // ECONNABORTED
-            106i32 => Self::ConnectionAborted,
-            // ECONNRESET
-            108i32 => Self::ConnectionReset,
+            zmq_sys_crate::errno::EAFNOSUPPORT => Self::AddressFamilyNotSupported,
+            zmq_sys_crate::errno::ENETUNREACH => Self::NetworkUnreachable,
+            zmq_sys_crate::errno::ECONNABORTED => Self::ConnectionAborted,
+            zmq_sys_crate::errno::ECONNRESET => Self::ConnectionReset,
             zmq_sys_crate::errno::ENOTCONN => Self::NotConnected,
-            // ETIMEDOUT
-            138i32 => Self::ConnectionTimeout,
+            zmq_sys_crate::errno::ETIMEDOUT => Self::ConnectionTimeout,
             zmq_sys_crate::errno::EHOSTUNREACH => Self::HostUnreachable,
-            // ENETRESET
-            117i32 => Self::NetworkReset,
+            zmq_sys_crate::errno::ENETRESET => Self::NetworkReset,
 
             zmq_sys_crate::errno::EFSM => Self::OperationNotPossible,
             zmq_sys_crate::errno::ENOCOMPATPROTO => Self::ProtocolIncompatible,

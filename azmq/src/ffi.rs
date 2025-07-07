@@ -55,6 +55,33 @@ impl RawContext {
         Ok(())
     }
 
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn set_ext(&self, option: i32, value: &str) -> ZmqResult<()> {
+        let c_value = CString::from_str(value)?;
+
+        let context = self.context.lock();
+        if unsafe {
+            zmq_sys_crate::zmq_ctx_set_ext(
+                *context,
+                option,
+                c_value.as_ptr() as *const c_void,
+                value.len(),
+            )
+        } == -1
+        {
+            cold_path();
+            match unsafe { zmq_sys_crate::zmq_errno() } {
+                errno @ (zmq_sys_crate::errno::EINVAL | zmq_sys_crate::errno::EFAULT) => {
+                    return Err(ZmqError::from(errno));
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        Ok(())
+    }
+
     pub(crate) fn get(&self, option: i32) -> ZmqResult<i32> {
         let context = self.context.lock();
         match unsafe { zmq_sys_crate::zmq_ctx_get(*context, option) } {
@@ -66,6 +93,35 @@ impl RawContext {
             },
             value => Ok(value),
         }
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn get_ext(&self, option: i32) -> ZmqResult<String> {
+        let mut buffer: [u8; MAX_OPTION_STR_LEN] = [0; MAX_OPTION_STR_LEN];
+
+        let context = self.context.lock();
+        if unsafe {
+            zmq_sys_crate::zmq_ctx_get_ext(
+                *context,
+                option,
+                buffer.as_mut_ptr() as *mut c_void,
+                &mut buffer.len(),
+            )
+        } == -1
+        {
+            cold_path();
+            match unsafe { zmq_sys_crate::zmq_errno() } {
+                errno @ (zmq_sys_crate::errno::EINVAL | zmq_sys_crate::errno::EFAULT) => {
+                    return Err(ZmqError::from(errno));
+                }
+                _ => unreachable!(),
+            }
+        }
+        CStr::from_bytes_until_nul(&buffer)?
+            .to_owned()
+            .into_string()
+            .map_err(ZmqError::from)
     }
 
     pub(crate) fn shutdown(&self) -> ZmqResult<()> {
@@ -542,6 +598,7 @@ impl From<Vec<u8>> for RawMessage {
     }
 }
 
+#[cfg(not(feature = "draft-api"))]
 unsafe extern "C" fn drop_zmq_msg_t(data: *mut c_void, hint: *mut c_void) {
     let _ = unsafe { Box::from_raw(slice::from_raw_parts_mut(data as *mut u8, hint as usize)) };
 }
@@ -556,6 +613,11 @@ impl From<Box<[u8]>> for RawMessage {
         let data = Box::into_raw(value);
 
         let mut message = zmq_sys_crate::zmq_msg_t::default();
+        #[cfg(feature = "draft-api")]
+        unsafe {
+            zmq_sys_crate::zmq_msg_init_buffer(&mut message, data as *mut c_void, size)
+        };
+        #[cfg(not(feature = "draft-api"))]
         unsafe {
             zmq_sys_crate::zmq_msg_init_data(
                 &mut message,
