@@ -24,6 +24,20 @@ impl ZmqSocket<Dealer> {
         self.get_sockopt_bool(ZmqSocketOptions::Conflate as i32)
     }
 
+    pub fn set_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
+        self.set_sockopt_string(ZmqSocketOptions::RoutingId as i32, value)
+    }
+
+    pub fn routing_id(&self) -> ZmqResult<String> {
+        self.get_sockopt_string(ZmqSocketOptions::RoutingId as i32)
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn set_hello_message<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
+        self.set_sockopt_string(ZmqSocketOptions::HelloMessage as i32, value)
+    }
+
     pub fn bind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
         self.socket.bind(endpoint.as_ref())
     }

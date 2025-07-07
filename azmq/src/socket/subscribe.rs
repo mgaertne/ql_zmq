@@ -1,20 +1,20 @@
 use super::{ZmqSocket, ZmqSocketOptions, ZmqSocketType};
 use crate::{ZmqResult, sealed};
 
-pub struct Subscriber {}
+pub struct Subscribe {}
 
-impl sealed::ZmqReceiverFlag for Subscriber {}
+impl sealed::ZmqReceiverFlag for Subscribe {}
 
-unsafe impl Sync for ZmqSocket<Subscriber> {}
-unsafe impl Send for ZmqSocket<Subscriber> {}
+unsafe impl Sync for ZmqSocket<Subscribe> {}
+unsafe impl Send for ZmqSocket<Subscribe> {}
 
-impl sealed::ZmqSocketType for Subscriber {
+impl sealed::ZmqSocketType for Subscribe {
     fn raw_socket_type() -> ZmqSocketType {
-        ZmqSocketType::Subscriber
+        ZmqSocketType::Subscribe
     }
 }
 
-impl ZmqSocket<Subscriber> {
+impl ZmqSocket<Subscribe> {
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(ZmqSocketOptions::Conflate as i32, value)
     }

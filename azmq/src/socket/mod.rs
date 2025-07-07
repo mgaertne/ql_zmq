@@ -15,26 +15,36 @@ use crate::{
 
 mod dealer;
 mod monitor;
-mod subscriber;
+mod reply;
+mod request;
+mod router;
+mod stream;
+mod subscribe;
+mod publish;
 
 pub use dealer::Dealer;
 pub use monitor::{Monitor, MonitorSocketEvent};
-pub use subscriber::Subscriber;
+pub use reply::Reply;
+pub use request::Request;
+pub use router::Router;
+pub use stream::Stream;
+pub use subscribe::Subscribe;
+pub use publish::Publish;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i32)]
 pub enum ZmqSocketType {
     Pair = zmq_sys_crate::ZMQ_PAIR as i32,
-    Publisher = zmq_sys_crate::ZMQ_PUB as i32,
-    Subscriber = zmq_sys_crate::ZMQ_SUB as i32,
-    Requester = zmq_sys_crate::ZMQ_REQ as i32,
+    Publish = zmq_sys_crate::ZMQ_PUB as i32,
+    Subscribe = zmq_sys_crate::ZMQ_SUB as i32,
+    Request = zmq_sys_crate::ZMQ_REQ as i32,
     Reply = zmq_sys_crate::ZMQ_REP as i32,
     Dealer = zmq_sys_crate::ZMQ_DEALER as i32,
     Router = zmq_sys_crate::ZMQ_ROUTER as i32,
     Pull = zmq_sys_crate::ZMQ_PULL as i32,
     Push = zmq_sys_crate::ZMQ_PUSH as i32,
-    XPublisher = zmq_sys_crate::ZMQ_XPUB as i32,
-    XSubscriber = zmq_sys_crate::ZMQ_XSUB as i32,
+    XPublishe = zmq_sys_crate::ZMQ_XPUB as i32,
+    XSubscribe = zmq_sys_crate::ZMQ_XSUB as i32,
     Stream = zmq_sys_crate::ZMQ_STREAM as i32,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
@@ -119,7 +129,7 @@ pub enum ZmqSocketOptions {
     IpcFilterProcessId = zmq_sys_crate::ZMQ_IPC_FILTER_PID as i32,
     IpcFilterUserId = zmq_sys_crate::ZMQ_IPC_FILTER_UID as i32,
     IpcFilterGroupId = zmq_sys_crate::ZMQ_IPC_FILTER_GID as i32,
-    ConnectRountingId = zmq_sys_crate::ZMQ_CONNECT_ROUTING_ID as i32,
+    ConnectRoutingId = zmq_sys_crate::ZMQ_CONNECT_ROUTING_ID as i32,
     GssApiServer = zmq_sys_crate::ZMQ_GSSAPI_SERVER as i32,
     GssApiPrincipal = zmq_sys_crate::ZMQ_GSSAPI_PRINCIPAL as i32,
     GssApiServicePrincipal = zmq_sys_crate::ZMQ_GSSAPI_SERVICE_PRINCIPAL as i32,
@@ -261,7 +271,7 @@ pub struct ZmqSocket<T: sealed::ZmqSocketType> {
     pub(crate) socket: Arc<RawSocket<T>>,
 }
 
-impl<T: sealed::ZmqSocketType + Unpin> ZmqSocket<T> {
+impl<T: sealed::ZmqSocketType> ZmqSocket<T> {
     pub fn from_context(context: &ZmqContext) -> ZmqResult<Self> {
         let socket = RawSocket::<T>::from_ctx(&context.inner)?;
         Ok(Self {
@@ -428,14 +438,6 @@ impl<T: sealed::ZmqSocketType + Unpin> ZmqSocket<T> {
         self.get_sockopt_int(ZmqSocketOptions::HeartbeatTimeToLive as i32)
     }
 
-    pub fn set_routing_id<V: AsRef<[u8]>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(ZmqSocketOptions::RoutingId as i32, value.as_ref())
-    }
-
-    pub fn routing_id(&self) -> ZmqResult<Vec<u8>> {
-        self.get_sockopt_bytes(ZmqSocketOptions::RoutingId as i32)
-    }
-
     pub fn set_immediate(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(ZmqSocketOptions::Immediate as i32, value)
     }
@@ -585,14 +587,6 @@ impl<T: sealed::ZmqSocketType + Unpin> ZmqSocket<T> {
 
     pub fn set_req_relaxed(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(ZmqSocketOptions::RequestRelaxed as i32, value)
-    }
-
-    pub fn set_router_handover(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(ZmqSocketOptions::RouterHandover as i32, value)
-    }
-
-    pub fn set_router_mandatory(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(ZmqSocketOptions::RouterMandatory as i32, value)
     }
 
     pub fn set_sndbuf(&self, value: i32) -> ZmqResult<()> {

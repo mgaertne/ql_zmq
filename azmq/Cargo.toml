@@ -5,6 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 
+[lib]
+doc-scrape-examples = true
+
 [dependencies]
 azmq-sys = {workspace = true }
 z85 = { version = ">=3.0.6", default-features = false }
@@ -27,7 +30,11 @@ draft-api = ["azmq-sys/draft-api"]
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+rustdoc-args = ["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples", "--cfg", "docsrs"]
 
 [lints]
 workspace = true
+
+[[example]]
+name = "version"
+path = "examples/rustdoc/version.rs"

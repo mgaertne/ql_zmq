@@ -5,19 +5,18 @@ use azmq::{
     builder::ZmqContextBuilder,
     futures::{AsyncMonitorReceiver, AsyncZmqReceiver},
     message::ZmqMessage,
-    socket::{Monitor, MonitorFlags, MonitorSocketEvent, Subscriber, ZmqSocket},
+    socket::{Monitor, MonitorFlags, MonitorSocketEvent, Subscribe, ZmqSocket},
 };
 use serde_json::Value;
 use tokio::{
     select,
     sync::{RwLock, mpsc::UnboundedSender},
 };
-use uuid::Uuid;
 
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
 struct MonitoredSubscriber {
-    subscriber: RwLock<ZmqSocket<Subscriber>>,
+    subscriber: RwLock<ZmqSocket<Subscribe>>,
     monitor: RwLock<ZmqSocket<Monitor>>,
 }
 
@@ -48,7 +47,7 @@ impl MonitoredSubscriber {
         })
     }
 
-    async fn configure(&self, password: &str, identity: &str) -> Result<()> {
+    async fn configure(&self, password: &str) -> Result<()> {
         let subscriber = self.subscriber.read().await;
         subscriber.set_plain_username(Some("stats"))?;
         if !password.is_empty() {
@@ -56,15 +55,6 @@ impl MonitoredSubscriber {
         } else {
             subscriber.set_plain_password(None::<&str>)?;
         }
-
-        let identity_str = if identity.is_empty() {
-            let identity = Uuid::new_v4();
-            identity.to_string().replace("-", "")
-        } else {
-            identity.to_string()
-        };
-
-        subscriber.set_routing_id(identity_str)?;
 
         subscriber.set_rcvtimeo(0)?;
         subscriber.set_rcvhwm(0)?;
@@ -172,9 +162,7 @@ pub(crate) async fn run_zmq(
     display_sender.send(format!("ZMQ connecting to {}...", &args.host))?;
 
     let monitored_dealer = MonitoredSubscriber::new()?;
-    monitored_dealer
-        .configure(&args.password, &args.identity)
-        .await?;
+    monitored_dealer.configure(&args.password).await?;
 
     monitored_dealer.connect(&args.host).await?;
 

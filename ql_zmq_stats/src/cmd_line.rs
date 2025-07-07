@@ -10,9 +10,6 @@ pub(crate) struct CommandLineOptions {
     /// The ZMQ password.
     #[arg(long, default_value = "")]
     pub(crate) password: String,
-    /// Specify the socket identity. Random UUID used by default
-    #[arg(long, default_value = "")]
-    pub(crate) identity: String,
     /// Pretty print received json data
     #[arg(long)]
     pub(crate) pretty_print: bool,

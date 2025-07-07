@@ -15,7 +15,7 @@ use tokio::{
     },
 };
 use uuid::Uuid;
-use azmq::socket::ZmqSocketOptions;
+
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
 struct MonitoredDealer {
@@ -67,7 +67,7 @@ impl MonitoredDealer {
             identity.to_string()
         };
 
-        dealer.set_sockopt_string(ZmqSocketOptions::HelloMessage as i32, "register")?;
+        dealer.set_hello_message("register")?;
         dealer.set_routing_id(identity_str)?;
         dealer.set_immediate(true)?;
 
