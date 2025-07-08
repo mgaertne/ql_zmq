@@ -1,9 +1,11 @@
 //! Convenience traits and implementations for using 0MQ asynchronously
-use core::{pin::Pin, task::Poll};
-use std::task::Context;
+use core::{
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use async_trait::async_trait;
-use futures::{FutureExt, StreamExt, TryStreamExt};
+use futures::FutureExt;
 
 use crate::{
     message::{ZmqMessage, ZmqSendable},
@@ -14,19 +16,18 @@ use crate::{
 #[async_trait]
 pub trait AsyncZmqReceiver<'a> {
     async fn recv_msg_async(&'a self) -> Option<ZmqMessage>;
-    async fn recv_multipart_async(&'a self) -> Option<Vec<Vec<u8>>> {
-        futures::stream::repeat_with(|| async move { self.recv_msg_async().await })
-            .then(|item| async move { item.await.ok_or("filtered value") })
-            .try_fold(vec![], |mut parts, zmq_msg| async move {
-                parts.push(zmq_msg.to_vec());
+    async fn recv_multipart_async(&'a self) -> Vec<Vec<u8>> {
+        let mut result = vec![];
 
-                if zmq_msg.get_more() {
-                    return Err("End reached");
+        loop {
+            if let Some(item) = self.recv_msg_async().await {
+                result.push(item.to_vec());
+
+                if !item.get_more() {
+                    return result;
                 }
-                Ok(parts)
-            })
-            .await
-            .ok()
+            }
+        }
     }
 }
 
@@ -50,7 +51,7 @@ impl<T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin> Future
 {
     type Output = ZmqMessage;
 
-    fn poll(self: Pin<&mut Self>, _ctx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
         self.receiver
             .socket
             .recv(ZmqRecvFlags::DONT_WAIT.bits())
@@ -66,18 +67,19 @@ where
 {
     async fn send_msg_async(&'a self, msg: M, flags: ZmqSendFlags) -> Option<()>;
 
-    async fn send_multipart_async<I>(&'a self, iter: I, flags: ZmqSendFlags) -> Option<()>
+    async fn send_multipart_async<I>(&'a self, items: I, flags: ZmqSendFlags) -> Option<()>
     where
-        I: Iterator<Item = M> + Send,
+        I: Iterator + Send + 'a,
+        I::Item: Into<M> + Send + 'a,
     {
-        let mut last_part: Option<M> = None;
-        for part in iter {
+        let mut last_part = None;
+        for part in items {
             let maybe_last = last_part.take();
             if let Some(last) = maybe_last {
                 self.send_msg_async(last, flags | ZmqSendFlags::SEND_MORE)
                     .await?;
             }
-            last_part = Some(part);
+            last_part = Some(part.into());
         }
         if let Some(last) = last_part {
             self.send_msg_async(last, flags).await
@@ -120,7 +122,7 @@ where
 {
     type Output = ();
 
-    fn poll(self: Pin<&mut Self>, _ctx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
         let message = self.message.clone().into();
 
         message

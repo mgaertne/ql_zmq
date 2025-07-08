@@ -122,6 +122,7 @@ jobs:
         example: [
           rustdoc_publish_subscribe_async_tokio,
           rustdoc_request_reply_async_tokio,
+          rustdoc_dealer_reply_async_tokio,
         ]
 
     runs-on: ${{ matrix.os }}
