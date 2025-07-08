@@ -144,6 +144,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         example: [
           rustdoc_publish_subscribe_async_async_std,
+          rustdoc_request_reply_async_async_std,
         ]
 
     runs-on: ${{ matrix.os }}
