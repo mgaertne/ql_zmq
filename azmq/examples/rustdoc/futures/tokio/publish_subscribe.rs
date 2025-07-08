@@ -8,26 +8,23 @@ use azmq::{
     futures::{AsyncZmqReceiver, AsyncZmqSender},
     socket::{Publish, Subscribe, ZmqSendFlags, ZmqSocket},
 };
-use tokio::{join, select, task::spawn};
+use tokio::{join, task::spawn};
 
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);
 
 async fn run_subscriber(subscribe: ZmqSocket<Subscribe>) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
-        select!(
-            Some(zmq_msg) = subscribe.recv_msg_async() => {
-                let zmq_str = zmq_msg.to_string();
-                let pubsub_item = zmq_str.split_once(" ");
-                assert_eq!(Some(("azmq-example", "important update")), pubsub_item);
+        if let Some(zmq_msg) = subscribe.recv_msg_async().await {
+            let zmq_str = zmq_msg.to_string();
+            let pubsub_item = zmq_str.split_once(" ");
+            assert_eq!(Some(("azmq-example", "important update")), pubsub_item);
 
-                let (topic, item) = pubsub_item.unwrap();
-                println!("Received msg for topic {topic:?}: {item:?}",);
+            let (topic, item) = pubsub_item.unwrap();
+            println!("Received msg for topic {topic:?}: {item:?}",);
 
-                ITERATIONS.fetch_sub(1, Ordering::Release);
-            },
-            else => ()
-        )
+            ITERATIONS.fetch_sub(1, Ordering::Release);
+        };
     }
 
     KEEP_RUNNING.store(false, Ordering::Release);
