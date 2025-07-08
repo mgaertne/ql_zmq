@@ -1,16 +1,14 @@
 #![cfg(feature = "examples-tokio")]
 
-use core::sync::atomic::{AtomicBool, AtomicI32};
-use core::sync::atomic::Ordering;
+use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use azmq::{
     ZmqResult,
     context::ZmqContext,
     futures::{AsyncZmqReceiver, AsyncZmqSender},
-    socket::{ZmqSendFlags, ZmqSocket},
+    socket::{Reply, Request, ZmqSendFlags, ZmqSocket},
 };
 use tokio::{join, task};
-use azmq::socket::{Reply, Request};
 
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);

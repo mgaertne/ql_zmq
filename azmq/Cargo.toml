@@ -88,3 +88,8 @@ required-features = ["examples-async-std"]
 name = "rustdoc_publish_subscribe_async_futures"
 path = "examples/rustdoc/futures/futures/publish_subscribe.rs"
 required-features = ["examples-futures"]
+
+[[example]]
+name = "rustdoc_request_reply_async_futures"
+path = "examples/rustdoc/futures/futures/request_reply.rs"
+required-features = ["examples-futures"]
