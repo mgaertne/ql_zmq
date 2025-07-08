@@ -71,15 +71,15 @@ path = "examples/rustdoc/dealer_reply.rs"
 
 [[example]]
 name = "rustdoc_publish_subscribe_async_tokio"
-path = "examples/rustdoc/futures/publish_subscribe/tokio.rs"
+path = "examples/rustdoc/futures/tokio/publish_subscribe.rs"
 required-features = ["examples-tokio"]
 
 [[example]]
 name = "rustdoc_publish_subscribe_async_async_std"
-path = "examples/rustdoc/futures/publish_subscribe/async_std.rs"
+path = "examples/rustdoc/futures/async-std/publish_subscribe.rs"
 required-features = ["examples-async-std"]
 
 [[example]]
 name = "rustdoc_publish_subscribe_async_futures"
-path = "examples/rustdoc/futures/publish_subscribe/futures.rs"
+path = "examples/rustdoc/futures/futures/publish_subscribe.rs"
 required-features = ["examples-futures"]
