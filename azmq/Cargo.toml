@@ -75,6 +75,11 @@ path = "examples/rustdoc/futures/tokio/publish_subscribe.rs"
 required-features = ["examples-tokio"]
 
 [[example]]
+name = "rustdoc_request_reply_async_tokio"
+path = "examples/rustdoc/futures/tokio/request_reply.rs"
+required-features = ["examples-tokio"]
+
+[[example]]
 name = "rustdoc_publish_subscribe_async_async_std"
 path = "examples/rustdoc/futures/async-std/publish_subscribe.rs"
 required-features = ["examples-async-std"]
