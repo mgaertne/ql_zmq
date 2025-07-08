@@ -22,7 +22,7 @@ jobs:
           toolchain: nightly
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack check --all-features --clean-per-run
+      - run: cargo hack check --each-feature --clean-per-run
 
   check-examples:
     name: Check (examples)
@@ -42,7 +42,7 @@ jobs:
           toolchain: nightly
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack check --all-features --clean-per-run --examples
+      - run: cargo hack check --each-feature --clean-per-run --examples
 
   clippy:
     name: Clippy
@@ -63,7 +63,7 @@ jobs:
           components: clippy
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack clippy --all-features --clean-per-run -- -D warnings
+      - run: cargo hack clippy --each-feature --clean-per-run -- -D warnings
 
   clippy-examples:
     name: Clippy (examples)
@@ -84,7 +84,7 @@ jobs:
           components: clippy
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack clippy --all-features --clean-per-run --examples -- -D warnings
+      - run: cargo hack clippy --each-feature --clean-per-run --examples -- -D warnings
 
   example:
     name: example
@@ -93,7 +93,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        example: [rustdoc_version, rustdoc_publish_subscribe, rustdoc_request_reply, rustdoc_request_router, rustdoc_dealer_reply]
+        example: [
+          rustdoc_version,
+          rustdoc_publish_subscribe,
+          rustdoc_request_reply,
+          rustdoc_request_router,
+          rustdoc_dealer_reply,
+        ]
 
     runs-on: ${{ matrix.os }}
 
