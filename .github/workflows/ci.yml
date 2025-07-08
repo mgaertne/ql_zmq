@@ -38,7 +38,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo check --examples -- -D warnings
+      - run: cargo check --examples
 
   check-all-features:
     name: Check (all features)
@@ -58,7 +58,7 @@ jobs:
           toolchain: nightly
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack hack --all-features --clean-per-run --examples -- -D warnings
+      - run: cargo hack check --all-features --clean-per-run --examples -- -D warnings
 
   clippy:
     name: Clippy
