@@ -21,7 +21,7 @@ fn main() -> ZmqResult<()> {
     subscribe.connect(format!("tcp://localhost:{port}"))?;
 
     thread::spawn(move || {
-        thread::sleep(Duration::from_millis(1));
+        thread::sleep(Duration::from_millis(100));
         let published_msg = format!("{subscribed_topic} important update");
         publish
             .send_msg(&published_msg, ZmqSendFlags::empty())
