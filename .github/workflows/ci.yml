@@ -112,6 +112,72 @@ jobs:
           toolchain: nightly
       - run: cargo run --release --verbose --example ${{ matrix.example }}
 
+  example-tokio:
+    name: example (tokio)
+    needs: [ check, check-examples, clippy, clippy-examples ]
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        example: [
+          rustdoc_publish_subscribe_async_tokio,
+        ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - run: cargo run --features examples-tokio --release --verbose --example ${{ matrix.example }}
+
+  example-async-std:
+    name: example (async-std)
+    needs: [ check, check-examples, clippy, clippy-examples ]
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        example: [
+          rustdoc_publish_subscribe_async_async_std,
+        ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - run: cargo run --features examples-async-std --release --verbose --example ${{ matrix.example }}
+
+  example-futures:
+    name: example (futures)
+    needs: [ check, check-examples, clippy, clippy-examples ]
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        example: [
+          rustdoc_publish_subscribe_async_futures,
+        ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - run: cargo run --features examples-futures --release --verbose --example ${{ matrix.example }}
+
   build:
     name: build
     needs: [ check, clippy ]
