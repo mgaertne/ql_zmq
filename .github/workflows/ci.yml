@@ -20,28 +20,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo check
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack check --all-features --clean-per-run
 
   check-examples:
     name: Check (examples)
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-      - run: cargo check --examples
-
-  check-all-features:
-    name: Check (all features)
 
     strategy:
       matrix:
@@ -77,28 +61,11 @@ jobs:
         with:
           toolchain: nightly
           components: clippy
-      - run: cargo clippy -- -D warnings
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack clippy --all-features --clean-per-run -- -D warnings
 
   clippy-examples:
-    name: Clippy (examples)
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-          components: clippy
-      - run: cargo clippy --examples -- -D warnings
-
-  clippy-all-features:
     name: Clippy (examples)
 
     strategy:
@@ -121,7 +88,7 @@ jobs:
 
   example:
     name: example
-    needs: [ check, clippy, clippy-examples ]
+    needs: [ check, check-examples, clippy, clippy-examples ]
 
     strategy:
       matrix:
