@@ -14,6 +14,13 @@ impl sealed::ZmqSocketType for Subscribe {
     }
 }
 
+/// A Publisher socket `ZMQ_SUB`
+///
+/// A socket of type [`Subscribe`] is used by a subscriber to subscribe to data distributed by a
+/// [`Publish`](struct@super::Publish). Initially a [`Subscribe`] socket is not subscribed
+/// to any messages, use the
+/// [`subscribe()`](method@super::ZmqSocket<Subscriber>::subscribe) function specify
+/// which messages to subscribe to.
 impl ZmqSocket<Subscribe> {
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(ZmqSocketOptions::Conflate as i32, value)
