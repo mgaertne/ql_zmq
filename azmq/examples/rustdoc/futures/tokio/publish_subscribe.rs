@@ -41,7 +41,7 @@ async fn run_publisher(publisher: ZmqSocket<Publish>) -> ZmqResult<()> {
     Ok(())
 }
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 5)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() -> ZmqResult<()> {
     ITERATIONS.store(10, Ordering::Release);
 
