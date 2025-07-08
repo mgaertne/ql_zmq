@@ -1,5 +1,4 @@
 #![cfg(feature = "examples-tokio")]
-
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use azmq::{
