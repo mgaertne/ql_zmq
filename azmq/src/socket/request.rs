@@ -17,6 +17,18 @@ impl sealed::ZmqSocketType for Request {
 unsafe impl Sync for ZmqSocket<Request> {}
 unsafe impl Send for ZmqSocket<Request> {}
 
+/// A Requester socket `ZMQ_REQ`
+///
+/// A socket of type [`Request`] is used by a client to send requests to and receive replies from
+/// a service. This socket type allows only an alternating sequence of
+/// [`send_msg()`](method@super::ZmqSender::send_msg()) and subsequent
+/// [`recv_msg()`](method@super::ZmqReceiver::recv_msg()) calls. Each request sent is round-robined
+/// among all services, and each reply received is matched with the last issued request.
+///
+/// For connection-oriented transports, If the [`immediate()`](method@super::ZmqSocket::immediate())
+/// option is set and there is no service available, then any send operation on the socket shall
+/// block until at least one service becomes available. The [`Request`] socket shall not discard
+/// messages.
 impl ZmqSocket<Request> {
     pub fn set_correlate(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(ZmqSocketOptions::RequestCorrelate as i32, value)
