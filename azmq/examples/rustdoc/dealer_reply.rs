@@ -3,9 +3,8 @@ use std::thread;
 use azmq::{
     ZmqResult,
     context::ZmqContext,
-    socket::{Reply, ZmqReceiver, ZmqRecvFlags, ZmqSendFlags, ZmqSender, ZmqSocket},
+    socket::{Dealer, Reply, ZmqReceiver, ZmqRecvFlags, ZmqSendFlags, ZmqSender, ZmqSocket},
 };
-use azmq::socket::Dealer;
 
 fn main() -> ZmqResult<()> {
     let port = 5556;
@@ -25,7 +24,9 @@ fn main() -> ZmqResult<()> {
             let up_to_last_idx = message.len() - 1;
             let mut multipart: Vec<Vec<u8>> = message.into_iter().take(up_to_last_idx).collect();
             multipart.push("World".as_bytes().to_vec());
-            reply.send_multipart(multipart, ZmqSendFlags::empty()).unwrap();
+            reply
+                .send_multipart(multipart, ZmqSendFlags::empty())
+                .unwrap();
         }
     });
 
@@ -40,7 +41,10 @@ fn main() -> ZmqResult<()> {
         let message = request.recv_multipart(ZmqRecvFlags::empty())?;
         let content = message.iter().last().unwrap();
         if !content.is_empty() {
-            println!("Received reply {request_no:2} [{}]", str::from_utf8(content).unwrap());
+            println!(
+                "Received reply {request_no:2} [{}]",
+                str::from_utf8(content).unwrap()
+            );
         }
     }
 
