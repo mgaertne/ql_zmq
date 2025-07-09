@@ -1,4 +1,4 @@
-#![cfg(feature = "examples-tokio")]
+#![cfg(feature = "examples-futures")]
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use azmq::{
@@ -7,7 +7,7 @@ use azmq::{
     futures::{AsyncZmqReceiver, AsyncZmqSender},
     socket::{Request, Router, ZmqSendFlags, ZmqSocket},
 };
-use tokio::{join, task};
+use futures::{executor::ThreadPool, join, task::SpawnExt};
 
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);
@@ -52,24 +52,27 @@ async fn run_requester(request: ZmqSocket<Request>) -> ZmqResult<()> {
     Ok(())
 }
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
-async fn main() -> ZmqResult<()> {
-    ITERATIONS.store(10, Ordering::Release);
+#[cfg(feature = "examples-futures")]
+fn main() -> ZmqResult<()> {
+    let executor = ThreadPool::new().unwrap();
+    futures::executor::block_on(async {
+        ITERATIONS.store(10, Ordering::Release);
 
-    let port = 5556;
+        let port = 5556;
 
-    let context = ZmqContext::new()?;
+        let context = ZmqContext::new()?;
 
-    let router = ZmqSocket::<Router>::from_context(&context)?;
-    router.bind(format!("tcp://*:{port}"))?;
+        let router = ZmqSocket::<Router>::from_context(&context)?;
+        router.bind(format!("tcp://*:{port}"))?;
 
-    let request = ZmqSocket::<Request>::from_context(&context)?;
-    request.connect(format!("tcp://localhost:{port}"))?;
+        let request = ZmqSocket::<Request>::from_context(&context)?;
+        request.connect(format!("tcp://localhost:{port}"))?;
 
-    let request_handle = task::spawn(run_requester(request));
-    let router_handle = task::spawn(run_router(router));
+        let request_handle = executor.spawn_with_handle(run_requester(request)).unwrap();
+        let router_handle = executor.spawn_with_handle(run_router(router)).unwrap();
 
-    let _ = join!(router_handle, request_handle);
+        let _ = join!(router_handle, request_handle);
 
-    Ok(())
+        Ok(())
+    })
 }

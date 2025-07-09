@@ -1,13 +1,14 @@
-#![cfg(feature = "examples-tokio")]
+#![cfg(feature = "examples-async-std")]
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
+use async_std::task;
 use azmq::{
     ZmqResult,
     context::ZmqContext,
     futures::{AsyncZmqReceiver, AsyncZmqSender},
     socket::{Request, Router, ZmqSendFlags, ZmqSocket},
 };
-use tokio::{join, task};
+use futures::join;
 
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);
@@ -52,7 +53,7 @@ async fn run_requester(request: ZmqSocket<Request>) -> ZmqResult<()> {
     Ok(())
 }
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+#[async_std::main]
 async fn main() -> ZmqResult<()> {
     ITERATIONS.store(10, Ordering::Release);
 
@@ -67,9 +68,9 @@ async fn main() -> ZmqResult<()> {
     request.connect(format!("tcp://localhost:{port}"))?;
 
     let request_handle = task::spawn(run_requester(request));
-    let router_handle = task::spawn(run_router(router));
+    let reply_handle = task::spawn(run_router(router));
 
-    let _ = join!(router_handle, request_handle);
+    let _ = join!(reply_handle, request_handle);
 
     Ok(())
 }

@@ -147,6 +147,8 @@ jobs:
         example: [
           rustdoc_publish_subscribe_async_async_std,
           rustdoc_request_reply_async_async_std,
+          rustdoc_dealer_reply_async_async_std,
+          rustdoc_request_router_async_async_std,
         ]
 
     runs-on: ${{ matrix.os }}
@@ -170,6 +172,8 @@ jobs:
         example: [
           rustdoc_publish_subscribe_async_futures,
           rustdoc_request_reply_async_futures,
+          rustdoc_dealer_reply_async_futures,
+          rustdoc_request_router_async_futures,
         ]
 
     runs-on: ${{ matrix.os }}
