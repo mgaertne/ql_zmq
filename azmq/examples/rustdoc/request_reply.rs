@@ -18,7 +18,9 @@ fn main() -> ZmqResult<()> {
         for _ in 1..=10 {
             let message = reply.recv_msg(ZmqRecvFlags::empty()).unwrap();
             println!("Received request: {message}");
-            reply.send_msg("World".into(), ZmqSendFlags::empty()).unwrap();
+            reply
+                .send_msg("World".into(), ZmqSendFlags::empty())
+                .unwrap();
         }
     });
 
