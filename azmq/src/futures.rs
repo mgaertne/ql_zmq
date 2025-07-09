@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use futures::FutureExt;
 
 use crate::{
-    message::{ZmqMessage, ZmqSendable},
+    message::{ZmqMessage, ZmqMultipartMessage, ZmqSendable},
     sealed,
     socket::{Monitor, MonitorSocketEvent, ZmqReceiver, ZmqRecvFlags, ZmqSendFlags, ZmqSocket},
 };
@@ -16,14 +16,15 @@ use crate::{
 #[async_trait]
 pub trait AsyncZmqReceiver<'a> {
     async fn recv_msg_async(&'a self) -> Option<ZmqMessage>;
-    async fn recv_multipart_async(&'a self) -> Vec<Vec<u8>> {
-        let mut result = vec![];
+    async fn recv_multipart_async(&'a self) -> ZmqMultipartMessage {
+        let mut result = ZmqMultipartMessage::new();
 
         loop {
             if let Some(item) = self.recv_msg_async().await {
-                result.push(item.to_vec());
+                let got_more = item.get_more();
+                result.push_back(item);
 
-                if !item.get_more() {
+                if !got_more {
                     return result;
                 }
             }
@@ -61,25 +62,22 @@ impl<T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin> Future
 }
 
 #[async_trait]
-pub trait AsyncZmqSender<'a, M, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin>
-where
-    M: Into<ZmqMessage> + Clone + Send,
-{
-    async fn send_msg_async(&'a self, msg: M, flags: ZmqSendFlags) -> Option<()>;
+pub trait AsyncZmqSender<'a, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin> {
+    async fn send_msg_async(&'a self, msg: ZmqMessage, flags: ZmqSendFlags) -> Option<()>;
 
-    async fn send_multipart_async<I>(&'a self, items: I, flags: ZmqSendFlags) -> Option<()>
-    where
-        I: Iterator + Send + 'a,
-        I::Item: Into<M> + Send + 'a,
-    {
+    async fn send_multipart_async(
+        &'a self,
+        multipart: ZmqMultipartMessage,
+        flags: ZmqSendFlags,
+    ) -> Option<()> {
         let mut last_part = None;
-        for part in items {
+        for part in multipart {
             let maybe_last = last_part.take();
             if let Some(last) = maybe_last {
                 self.send_msg_async(last, flags | ZmqSendFlags::SEND_MORE)
                     .await?;
             }
-            last_part = Some(part.into());
+            last_part = Some(part);
         }
         if let Some(last) = last_part {
             self.send_msg_async(last, flags).await
@@ -90,13 +88,12 @@ where
 }
 
 #[async_trait]
-impl<'a, S, M> AsyncZmqSender<'a, M, S> for ZmqSocket<S>
+impl<'a, S> AsyncZmqSender<'a, S> for ZmqSocket<S>
 where
-    for<'async_trait> M: Into<ZmqMessage> + Clone + Send + 'async_trait,
     S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin,
     ZmqSocket<S>: Sync,
 {
-    async fn send_msg_async(&'a self, msg: M, flags: ZmqSendFlags) -> Option<()> {
+    async fn send_msg_async(&'a self, msg: ZmqMessage, flags: ZmqSendFlags) -> Option<()> {
         MessageSendingFuture {
             receiver: self,
             message: msg,

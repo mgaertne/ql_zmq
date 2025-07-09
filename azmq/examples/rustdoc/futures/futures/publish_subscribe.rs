@@ -20,7 +20,7 @@ async fn run_subscriber(subscribe: ZmqSocket<Subscribe>) -> ZmqResult<()> {
             assert_eq!(Some(("azmq-example", "important update")), pubsub_item);
 
             let (topic, item) = pubsub_item.unwrap();
-            println!("Received msg for topic {topic:?}: {item:?}",);
+            println!("Received msg for topic {topic:?}: {item}",);
 
             ITERATIONS.fetch_sub(1, Ordering::Release);
         }
@@ -33,7 +33,10 @@ async fn run_subscriber(subscribe: ZmqSocket<Subscribe>) -> ZmqResult<()> {
 async fn run_publisher(publisher: ZmqSocket<Publish>) -> ZmqResult<()> {
     while KEEP_RUNNING.load(Ordering::Acquire) {
         publisher
-            .send_msg_async("azmq-example important update", ZmqSendFlags::empty())
+            .send_msg_async(
+                "azmq-example important update".into(),
+                ZmqSendFlags::empty(),
+            )
             .await;
     }
 

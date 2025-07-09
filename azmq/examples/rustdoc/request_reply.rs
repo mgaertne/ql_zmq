@@ -18,7 +18,7 @@ fn main() -> ZmqResult<()> {
         for _ in 1..=10 {
             let message = reply.recv_msg(ZmqRecvFlags::empty()).unwrap();
             println!("Received request: {message}");
-            reply.send_msg("World", ZmqSendFlags::empty()).unwrap();
+            reply.send_msg("World".into(), ZmqSendFlags::empty()).unwrap();
         }
     });
 
@@ -27,10 +27,10 @@ fn main() -> ZmqResult<()> {
 
     for request_no in 1..=10 {
         println!("Sending request {request_no}");
-        request.send_msg("Hello", ZmqSendFlags::empty())?;
+        request.send_msg("Hello".into(), ZmqSendFlags::empty())?;
 
         let message = request.recv_msg(ZmqRecvFlags::empty())?;
-        println!("Received reply {request_no:2} [{message}]");
+        println!("Received reply {request_no:2} {message}");
     }
 
     request.disconnect(format!("tcp://localhost:{port}"))?;

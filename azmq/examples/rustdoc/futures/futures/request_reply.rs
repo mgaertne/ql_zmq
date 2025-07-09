@@ -16,7 +16,9 @@ async fn run_replier(reply: ZmqSocket<Reply>) -> ZmqResult<()> {
     while KEEP_RUNNING.load(Ordering::Acquire) {
         if let Some(message) = reply.recv_msg_async().await {
             println!("Received request: {message}");
-            reply.send_msg_async("World", ZmqSendFlags::empty()).await;
+            reply
+                .send_msg_async("World".into(), ZmqSendFlags::empty())
+                .await;
         }
     }
 
@@ -27,11 +29,13 @@ async fn run_requester(request: ZmqSocket<Request>) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         let request_no = ITERATIONS.load(Ordering::Acquire);
         println!("Sending request {request_no}");
-        let _ = request.send_msg_async("Hello", ZmqSendFlags::empty()).await;
+        let _ = request
+            .send_msg_async("Hello".into(), ZmqSendFlags::empty())
+            .await;
 
         loop {
             if let Some(message) = request.recv_msg_async().await {
-                println!("Received reply {request_no:2} [{message}]");
+                println!("Received reply {request_no}: {message}");
 
                 ITERATIONS.fetch_sub(1, Ordering::Release);
 

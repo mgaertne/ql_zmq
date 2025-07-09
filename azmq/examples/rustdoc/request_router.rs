@@ -16,15 +16,15 @@ fn main() -> ZmqResult<()> {
 
     thread::spawn(move || {
         for _ in 1..=10 {
-            let message = router.recv_multipart(ZmqRecvFlags::empty()).unwrap();
-            let content = message.iter().last().unwrap();
+            let mut multipart = router.recv_multipart(ZmqRecvFlags::empty()).unwrap();
+            let content = multipart.pop_back().unwrap();
             if !content.is_empty() {
-                println!("Received request: {:?}", str::from_utf8(content).unwrap());
+                println!("Received request: {content}");
             }
-            let up_to_last_idx = message.len() - 1;
-            let mut reply: Vec<Vec<u8>> = message.into_iter().take(up_to_last_idx).collect();
-            reply.push("World".as_bytes().to_vec());
-            router.send_multipart(reply, ZmqSendFlags::empty()).unwrap();
+            multipart.push_back("World".into());
+            router
+                .send_multipart(multipart, ZmqSendFlags::empty())
+                .unwrap();
         }
     });
 
@@ -34,10 +34,10 @@ fn main() -> ZmqResult<()> {
 
     for request_no in 1..=10 {
         println!("Sending request {request_no}");
-        request.send_msg("Hello", ZmqSendFlags::empty())?;
+        request.send_msg("Hello".into(), ZmqSendFlags::empty())?;
 
         let message = request.recv_msg(ZmqRecvFlags::empty())?;
-        println!("Received reply {request_no:2} [{message}]");
+        println!("Received reply {request_no:2} {message}");
     }
 
     request.disconnect(format!("tcp://localhost:{port}"))?;

@@ -24,7 +24,7 @@ fn main() -> ZmqResult<()> {
         thread::sleep(Duration::from_millis(100));
         let published_msg = format!("{subscribed_topic} important update");
         publish
-            .send_msg(&published_msg, ZmqSendFlags::empty())
+            .send_msg(published_msg.as_str().into(), ZmqSendFlags::empty())
             .unwrap();
     });
 
@@ -34,7 +34,7 @@ fn main() -> ZmqResult<()> {
     assert_eq!(Some((subscribed_topic, "important update")), pubsub_item);
 
     let (topic, item) = pubsub_item.unwrap();
-    println!("Received msg for topic {topic:?}: {item:?}",);
+    println!("Received msg for topic {topic:?}: {item}",);
 
     subscribe.disconnect(format!("tcp://localhost:{port}"))?;
 

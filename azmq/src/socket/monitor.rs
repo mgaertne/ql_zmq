@@ -1,7 +1,7 @@
 use core::ops::Deref;
 
 use super::{MonitorFlags, ZmqSocketType};
-use crate::{ZmqError, sealed, socket::ZmqSocket, zmq_sys_crate};
+use crate::{ZmqError, message::ZmqMultipartMessage, sealed, socket::ZmqSocket, zmq_sys_crate};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u32)]
@@ -96,15 +96,15 @@ pub enum MonitorSocketEvent {
     UnSupported(MonitorFlags, u32),
 }
 
-impl<T: Deref<Target = [u8]>> TryFrom<Vec<T>> for MonitorSocketEvent {
+impl TryFrom<ZmqMultipartMessage> for MonitorSocketEvent {
     type Error = ZmqError;
 
-    fn try_from(zmq_msgs: Vec<T>) -> Result<Self, Self::Error> {
+    fn try_from(zmq_msgs: ZmqMultipartMessage) -> Result<Self, Self::Error> {
         if zmq_msgs.len() != 2 {
             return Err(ZmqError::InvalidArgument);
         }
 
-        let Some(first_msg) = zmq_msgs.first() else {
+        let Some(first_msg) = zmq_msgs.get(0) else {
             return Err(ZmqError::InvalidArgument);
         };
 

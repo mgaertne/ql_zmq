@@ -8,6 +8,7 @@ use core::{
     ptr, slice,
     str::FromStr,
 };
+use std::io::Read;
 
 use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 use num_traits::PrimInt;
@@ -587,8 +588,10 @@ impl AsMut<[u8]> for RawMessage {
 
 impl core::fmt::Display for RawMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        let msg_str = str::from_utf8(self).map_err(|_err| core::fmt::Error)?;
-        write!(f, "{msg_str}")
+        match str::from_utf8(self) {
+            Ok(msg_str) => write!(f, "{msg_str}"),
+            Err(_) => write!(f, "{:?}", self.bytes()),
+        }
     }
 }
 

@@ -31,6 +31,8 @@ pub use router::Router;
 pub use stream::Stream;
 pub use subscribe::Subscribe;
 
+use crate::message::ZmqMultipartMessage;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i32)]
 pub enum ZmqSocketType {
@@ -755,19 +757,23 @@ where
     F: Into<ZmqRecvFlags> + Copy,
 {
     fn recv_msg(&self, flags: F) -> ZmqResult<ZmqMessage>;
-    fn recv_multipart(&self, flags: F) -> ZmqResult<Vec<Vec<u8>>> {
+    fn recv_multipart(&self, flags: F) -> ZmqResult<ZmqMultipartMessage> {
         iter::repeat_with(|| self.recv_msg(flags))
-            .try_fold(vec![], |mut parts, zmq_result| match zmq_result {
-                Err(e) => ControlFlow::Break(Err(e)),
-                Ok(zmq_msg) => {
-                    parts.push(zmq_msg.to_vec());
-                    if !zmq_msg.get_more() {
-                        ControlFlow::Break(Ok(parts))
-                    } else {
-                        ControlFlow::Continue(parts)
+            .try_fold(
+                ZmqMultipartMessage::new(),
+                |mut parts, zmq_result| match zmq_result {
+                    Err(e) => ControlFlow::Break(Err(e)),
+                    Ok(zmq_msg) => {
+                        let got_more = zmq_msg.get_more();
+                        parts.push_back(zmq_msg);
+                        if got_more {
+                            ControlFlow::Continue(parts)
+                        } else {
+                            ControlFlow::Break(Ok(parts))
+                        }
                     }
-                }
-            })
+                },
+            )
             .break_value()
             .unwrap()
     }
@@ -794,17 +800,11 @@ bitflags! {
     }
 }
 
-pub trait ZmqSender<V, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin>
-where
-    V: ZmqSendable<S>,
-{
-    fn send_msg(&self, msg: V, flags: ZmqSendFlags) -> ZmqResult<()>;
+pub trait ZmqSender<S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin> {
+    fn send_msg(&self, msg: ZmqMessage, flags: ZmqSendFlags) -> ZmqResult<()>;
 
-    fn send_multipart<I>(&self, iter: I, flags: ZmqSendFlags) -> ZmqResult<()>
-    where
-        I: IntoIterator<Item = V>,
-    {
-        let mut last_part: Option<V> = None;
+    fn send_multipart(&self, iter: ZmqMultipartMessage, flags: ZmqSendFlags) -> ZmqResult<()> {
+        let mut last_part: Option<ZmqMessage> = None;
         for part in iter {
             let maybe_last = last_part.take();
             if let Some(last) = maybe_last {
@@ -820,10 +820,8 @@ where
     }
 }
 
-impl<T: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin, V: ZmqSendable<T>> ZmqSender<V, T>
-    for ZmqSocket<T>
-{
-    fn send_msg(&self, msg: V, flags: ZmqSendFlags) -> ZmqResult<()> {
+impl<T: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin> ZmqSender<T> for ZmqSocket<T> {
+    fn send_msg(&self, msg: ZmqMessage, flags: ZmqSendFlags) -> ZmqResult<()> {
         msg.send(self, flags.bits())
     }
 }
