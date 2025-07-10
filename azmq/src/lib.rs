@@ -27,10 +27,10 @@ pub use error::{ZmqError, ZmqResult};
 mod sealed {
     use crate::socket;
 
-    pub trait ZmqReceiverFlag {}
-    pub trait ZmqSenderFlag {}
-    pub trait ZmqSocketType {
-        fn raw_socket_type() -> socket::ZmqSocketType;
+    pub trait ReceiverFlag {}
+    pub trait SenderFlag {}
+    pub trait SocketType {
+        fn raw_socket_type() -> socket::SocketType;
     }
 }
 

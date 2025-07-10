@@ -7,9 +7,9 @@ use num_traits::PrimInt;
 
 use crate::{
     ZmqResult,
-    context::ZmqContext,
+    context::Context,
     ffi::RawSocket,
-    message::{ZmqMessage, ZmqSendable},
+    message::{Message, MultipartMessage, Sendable},
     sealed, zmq_sys_crate,
 };
 
@@ -31,11 +31,9 @@ pub use router::Router;
 pub use stream::Stream;
 pub use subscribe::Subscribe;
 
-use crate::message::ZmqMultipartMessage;
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i32)]
-pub enum ZmqSocketType {
+pub enum SocketType {
     Pair = zmq_sys_crate::ZMQ_PAIR as i32,
     Publish = zmq_sys_crate::ZMQ_PUB as i32,
     Subscribe = zmq_sys_crate::ZMQ_SUB as i32,
@@ -80,7 +78,7 @@ pub enum ZmqSocketType {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[repr(i32)]
 #[non_exhaustive]
-pub enum ZmqSocketOptions {
+pub enum SocketOptions {
     Affinity = zmq_sys_crate::ZMQ_AFFINITY as i32,
     RoutingId = zmq_sys_crate::ZMQ_ROUTING_ID as i32,
     Subscribe = zmq_sys_crate::ZMQ_SUBSCRIBE as i32,
@@ -242,7 +240,7 @@ pub enum ZmqSocketOptions {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[repr(i32)]
 #[non_exhaustive]
-pub enum ZmqMechanism {
+pub enum Mechanism {
     Null = zmq_sys_crate::ZMQ_NULL as i32,
     Plain = zmq_sys_crate::ZMQ_PLAIN as i32,
     Curve = zmq_sys_crate::ZMQ_CURVE as i32,
@@ -250,31 +248,31 @@ pub enum ZmqMechanism {
     Unsupported(i32),
 }
 
-impl From<i32> for ZmqMechanism {
+impl From<i32> for Mechanism {
     fn from(value: i32) -> Self {
         match value {
-            _ if value == zmq_sys_crate::ZMQ_NULL as i32 => ZmqMechanism::Null,
-            _ if value == zmq_sys_crate::ZMQ_PLAIN as i32 => ZmqMechanism::Plain,
-            _ if value == zmq_sys_crate::ZMQ_CURVE as i32 => ZmqMechanism::Curve,
-            _ if value == zmq_sys_crate::ZMQ_GSSAPI as i32 => ZmqMechanism::GssApi,
-            value => ZmqMechanism::Unsupported(value),
+            _ if value == zmq_sys_crate::ZMQ_NULL as i32 => Mechanism::Null,
+            _ if value == zmq_sys_crate::ZMQ_PLAIN as i32 => Mechanism::Plain,
+            _ if value == zmq_sys_crate::ZMQ_CURVE as i32 => Mechanism::Curve,
+            _ if value == zmq_sys_crate::ZMQ_GSSAPI as i32 => Mechanism::GssApi,
+            value => Mechanism::Unsupported(value),
         }
     }
 }
 
-impl From<ZmqSocketOptions> for i32 {
-    fn from(value: ZmqSocketOptions) -> Self {
+impl From<SocketOptions> for i32 {
+    fn from(value: SocketOptions) -> Self {
         value as i32
     }
 }
 
-pub struct ZmqSocket<T: sealed::ZmqSocketType> {
-    context: ZmqContext,
+pub struct Socket<T: sealed::SocketType> {
+    context: Context,
     pub(crate) socket: Arc<RawSocket<T>>,
 }
 
-impl<T: sealed::ZmqSocketType> ZmqSocket<T> {
-    pub fn from_context(context: &ZmqContext) -> ZmqResult<Self> {
+impl<T: sealed::SocketType> Socket<T> {
+    pub fn from_context(context: &Context) -> ZmqResult<Self> {
         let socket = RawSocket::<T>::from_ctx(&context.inner)?;
         Ok(Self {
             context: context.clone(),
@@ -320,360 +318,385 @@ impl<T: sealed::ZmqSocketType> ZmqSocket<T> {
         self.socket.get_sockopt_bool(option)
     }
 
+    /// # Set I/O thread affinity `ZMQ_AFFINITY`
+    ///
+    /// The [`SocketOptions::Affinity`] option shall set the I/O thread affinity for newly
+    /// created connections on the specified [`Socket`].
+    ///
+    /// Affinity determines which threads from the 0MQ I/O thread pool associated with the
+    /// socket’s context shall handle newly created connections. A value of zero specifies no
+    /// affinity, meaning that work shall be distributed fairly among all 0MQ I/O threads in the
+    /// thread pool. For non-zero values, the lowest bit corresponds to thread 1, second lowest bit
+    /// to thread 2 and so on. For example, a value of 3 specifies that subsequent connections on
+    /// [`Socket`] shall be handled exclusively by I/O threads 1 and 2.
+    ///
+    /// | Default value           | Applicable socket types |
+    /// | :---------------------: | :---------------------: |
+    /// | 0                       | N/A                     |
     pub fn set_affinity(&self, value: u64) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::Affinity as i32, value)
+        self.set_sockopt_int(SocketOptions::Affinity as i32, value)
     }
 
+    /// # Retrieve I/O thread affinity `ZMQ_AFFINITY`
+    ///
+    /// The [`SocketOptions::Affinity`] option shall retrieve the I/O thread affinity for newly
+    /// created connections on the specified [`Socket`].
+    ///
+    /// Affinity determines which threads from the 0MQ I/O thread pool associated with the
+    /// socket’s context shall handle newly created connections. A value of zero specifies no
+    /// affinity, meaning that work shall be distributed fairly among all 0MQ I/O threads in the
+    /// thread pool. For non-zero values, the lowest bit corresponds to thread 1, second lowest bit
+    /// to thread 2 and so on. For example, a value of 3 specifies that subsequent connections on
+    /// [`Socket`] shall be handled exclusively by I/O threads 1 and 2.
+    ///
+    /// | Default value           | Applicable socket types |
+    /// | :---------------------: | :---------------------: |
+    /// | 0                       | N/A                     |
     pub fn affinity(&self) -> ZmqResult<u64> {
-        self.get_sockopt_int(ZmqSocketOptions::Affinity as i32)
+        self.get_sockopt_int(SocketOptions::Affinity as i32)
     }
 
     pub fn set_backlog(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::Backlog as i32, value)
+        self.set_sockopt_int(SocketOptions::Backlog as i32, value)
     }
 
     pub fn backlog(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::Backlog as i32)
+        self.get_sockopt_int(SocketOptions::Backlog as i32)
     }
 
     pub fn set_connect_timeout(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::ConnectTimeout as i32, value)
+        self.set_sockopt_int(SocketOptions::ConnectTimeout as i32, value)
     }
 
     pub fn connect_timeout(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::ConnectTimeout as i32)
+        self.get_sockopt_int(SocketOptions::ConnectTimeout as i32)
     }
 
     pub fn set_curve_publickey<V: AsRef<[u8]>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(ZmqSocketOptions::CurvePublicKey as i32, value.as_ref())
+        self.set_sockopt_bytes(SocketOptions::CurvePublicKey as i32, value.as_ref())
     }
 
     pub fn curve_publickey(&self) -> ZmqResult<Vec<u8>> {
-        self.get_sockopt_bytes(ZmqSocketOptions::CurvePublicKey as i32)
+        self.get_sockopt_bytes(SocketOptions::CurvePublicKey as i32)
     }
 
     pub fn set_curve_secretkey<V: AsRef<[u8]>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(ZmqSocketOptions::CurveSecretKey as i32, value.as_ref())
+        self.set_sockopt_bytes(SocketOptions::CurveSecretKey as i32, value.as_ref())
     }
 
     pub fn curve_secretkey(&self) -> ZmqResult<Vec<u8>> {
-        self.get_sockopt_bytes(ZmqSocketOptions::CurveSecretKey as i32)
+        self.get_sockopt_bytes(SocketOptions::CurveSecretKey as i32)
     }
 
     pub fn set_curve_serverkey<V: AsRef<[u8]>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(ZmqSocketOptions::CurveServerKey as i32, value.as_ref())
+        self.set_sockopt_bytes(SocketOptions::CurveServerKey as i32, value.as_ref())
     }
 
     pub fn curve_serverkey(&self) -> ZmqResult<Vec<u8>> {
-        self.get_sockopt_bytes(ZmqSocketOptions::CurveServerKey as i32)
+        self.get_sockopt_bytes(SocketOptions::CurveServerKey as i32)
     }
 
-    pub fn events(&self) -> ZmqResult<ZmqPollEvents> {
-        self.get_sockopt_int::<i16>(ZmqSocketOptions::Events as i32)
-            .map(ZmqPollEvents::from_bits_truncate)
+    pub fn events(&self) -> ZmqResult<PollEvents> {
+        self.get_sockopt_int::<i16>(SocketOptions::Events as i32)
+            .map(PollEvents::from_bits_truncate)
     }
 
     pub fn set_gssapi_plaintext(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(ZmqSocketOptions::GssApiPlainText as i32, value)
+        self.set_sockopt_bool(SocketOptions::GssApiPlainText as i32, value)
     }
 
     pub fn gssapi_plaintext(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(ZmqSocketOptions::GssApiPlainText as i32)
+        self.get_sockopt_bool(SocketOptions::GssApiPlainText as i32)
     }
 
     pub fn set_gssapi_principal<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_string(ZmqSocketOptions::GssApiPrincipal as i32, value.as_ref())
+        self.set_sockopt_string(SocketOptions::GssApiPrincipal as i32, value.as_ref())
     }
 
     pub fn gssapi_principal(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(ZmqSocketOptions::GssApiPrincipal as i32)
+        self.get_sockopt_string(SocketOptions::GssApiPrincipal as i32)
     }
 
     pub fn set_gssapi_server(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(ZmqSocketOptions::GssApiServer as i32, value)
+        self.set_sockopt_bool(SocketOptions::GssApiServer as i32, value)
     }
 
     pub fn gssapi_server(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(ZmqSocketOptions::GssApiServer as i32)
+        self.get_sockopt_bool(SocketOptions::GssApiServer as i32)
     }
 
     pub fn set_gssapi_service_principal<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_string(
-            ZmqSocketOptions::GssApiServicePrincipal as i32,
-            value.as_ref(),
-        )
+        self.set_sockopt_string(SocketOptions::GssApiServicePrincipal as i32, value.as_ref())
     }
 
     pub fn gssapi_service_principal(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(ZmqSocketOptions::GssApiServicePrincipal as i32)
+        self.get_sockopt_string(SocketOptions::GssApiServicePrincipal as i32)
     }
 
     pub fn set_handshake_ivl(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::HandshakeInterval as i32, value)
+        self.set_sockopt_int(SocketOptions::HandshakeInterval as i32, value)
     }
 
     pub fn handshake_ivl(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::HandshakeInterval as i32)
+        self.get_sockopt_int(SocketOptions::HandshakeInterval as i32)
     }
 
     pub fn set_heartbeat_ivl(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::HeartbeatInterval as i32, value)
+        self.set_sockopt_int(SocketOptions::HeartbeatInterval as i32, value)
     }
 
     pub fn heartbeat_ivl(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::HeartbeatInterval as i32)
+        self.get_sockopt_int(SocketOptions::HeartbeatInterval as i32)
     }
 
     pub fn set_heartbeat_timeout(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::HeartbeatTimeout as i32, value)
+        self.set_sockopt_int(SocketOptions::HeartbeatTimeout as i32, value)
     }
 
     pub fn heartbeat_timeout(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::HeartbeatTimeout as i32)
+        self.get_sockopt_int(SocketOptions::HeartbeatTimeout as i32)
     }
 
     pub fn set_heartbeat_ttl(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::HeartbeatTimeToLive as i32, value)
+        self.set_sockopt_int(SocketOptions::HeartbeatTimeToLive as i32, value)
     }
 
     pub fn heartbeat_ttl(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::HeartbeatTimeToLive as i32)
+        self.get_sockopt_int(SocketOptions::HeartbeatTimeToLive as i32)
     }
 
     pub fn set_immediate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(ZmqSocketOptions::Immediate as i32, value)
+        self.set_sockopt_bool(SocketOptions::Immediate as i32, value)
     }
 
     pub fn immediate(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(ZmqSocketOptions::Immediate as i32)
+        self.get_sockopt_bool(SocketOptions::Immediate as i32)
     }
 
     pub fn set_ipv6(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(ZmqSocketOptions::IPv6 as i32, value)
+        self.set_sockopt_bool(SocketOptions::IPv6 as i32, value)
     }
 
     pub fn ipv6(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(ZmqSocketOptions::IPv6 as i32)
+        self.get_sockopt_bool(SocketOptions::IPv6 as i32)
     }
 
     pub fn set_linger(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::Linger as i32, value)
+        self.set_sockopt_int(SocketOptions::Linger as i32, value)
     }
 
     pub fn linger(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::Linger as i32)
+        self.get_sockopt_int(SocketOptions::Linger as i32)
     }
 
     pub fn last_endpoint(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(ZmqSocketOptions::LastEndpoint as i32)
+        self.get_sockopt_string(SocketOptions::LastEndpoint as i32)
     }
 
     pub fn set_maxmsgsize(&self, value: i64) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::MaxMessageSize as i32, value)
+        self.set_sockopt_int(SocketOptions::MaxMessageSize as i32, value)
     }
 
     pub fn maxmsgsize(&self) -> ZmqResult<i64> {
-        self.get_sockopt_int(ZmqSocketOptions::MaxMessageSize as i32)
+        self.get_sockopt_int(SocketOptions::MaxMessageSize as i32)
     }
 
-    pub fn mechanism(&self) -> ZmqResult<ZmqMechanism> {
-        self.get_sockopt_int::<i32>(ZmqSocketOptions::Mechanism as i32)
-            .map(ZmqMechanism::from)
+    pub fn mechanism(&self) -> ZmqResult<Mechanism> {
+        self.get_sockopt_int::<i32>(SocketOptions::Mechanism as i32)
+            .map(Mechanism::from)
     }
 
     pub fn set_multicast_hops(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::MulticastHops as i32, value)
+        self.set_sockopt_int(SocketOptions::MulticastHops as i32, value)
     }
 
     pub fn multicast_hops(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::MulticastHops as i32)
+        self.get_sockopt_int(SocketOptions::MulticastHops as i32)
     }
 
     pub fn set_plain_password<V: AsRef<str>>(&self, value: Option<V>) -> ZmqResult<()> {
         match value {
-            None => self.set_sockopt_bytes(ZmqSocketOptions::PlainPassword as i32, vec![]),
+            None => self.set_sockopt_bytes(SocketOptions::PlainPassword as i32, vec![]),
             Some(ref_value) => {
-                self.set_sockopt_string(ZmqSocketOptions::PlainPassword as i32, ref_value)
+                self.set_sockopt_string(SocketOptions::PlainPassword as i32, ref_value)
             }
         }
     }
 
     pub fn plain_password(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(ZmqSocketOptions::PlainPassword as i32)
+        self.get_sockopt_string(SocketOptions::PlainPassword as i32)
     }
 
     pub fn set_plain_server(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(ZmqSocketOptions::PlainServer as i32, value)
+        self.set_sockopt_bool(SocketOptions::PlainServer as i32, value)
     }
 
     pub fn plain_server(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(ZmqSocketOptions::PlainServer as i32)
+        self.get_sockopt_bool(SocketOptions::PlainServer as i32)
     }
 
     pub fn set_plain_username<V: AsRef<str>>(&self, value: Option<V>) -> ZmqResult<()> {
         match value {
-            None => self.set_sockopt_bytes(ZmqSocketOptions::PlainUsername as i32, vec![]),
+            None => self.set_sockopt_bytes(SocketOptions::PlainUsername as i32, vec![]),
             Some(ref_value) => {
-                self.set_sockopt_string(ZmqSocketOptions::PlainUsername as i32, ref_value)
+                self.set_sockopt_string(SocketOptions::PlainUsername as i32, ref_value)
             }
         }
     }
 
     pub fn plain_username(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(ZmqSocketOptions::PlainUsername as i32)
+        self.get_sockopt_string(SocketOptions::PlainUsername as i32)
     }
 
     pub fn set_probe_router(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(ZmqSocketOptions::ProbeRouter as i32, value)
+        self.set_sockopt_bool(SocketOptions::ProbeRouter as i32, value)
     }
 
     pub fn set_rate(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::Rate as i32, value)
+        self.set_sockopt_int(SocketOptions::Rate as i32, value)
     }
 
     pub fn rate(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::Rate as i32)
+        self.get_sockopt_int(SocketOptions::Rate as i32)
     }
 
     pub fn set_rcvbuf(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::ReceiveBuffer as i32, value)
+        self.set_sockopt_int(SocketOptions::ReceiveBuffer as i32, value)
     }
 
     pub fn rcvbuf(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::ReceiveBuffer as i32)
+        self.get_sockopt_int(SocketOptions::ReceiveBuffer as i32)
     }
 
     pub fn set_rcvhwm(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::ReceiveHighWatermark as i32, value)
+        self.set_sockopt_int(SocketOptions::ReceiveHighWatermark as i32, value)
     }
 
     pub fn rcvhwm(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::ReceiveHighWatermark as i32)
+        self.get_sockopt_int(SocketOptions::ReceiveHighWatermark as i32)
     }
 
     pub fn set_rcvtimeo(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::ReceiveTimeout as i32, value)
+        self.set_sockopt_int(SocketOptions::ReceiveTimeout as i32, value)
     }
 
     pub fn rcvtimeo(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::ReceiveTimeout as i32)
+        self.get_sockopt_int(SocketOptions::ReceiveTimeout as i32)
     }
 
     pub fn set_reconnect_ivl(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::ReconnectInterval as i32, value)
+        self.set_sockopt_int(SocketOptions::ReconnectInterval as i32, value)
     }
 
     pub fn reconnect_ivl(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::ReconnectInterval as i32)
+        self.get_sockopt_int(SocketOptions::ReconnectInterval as i32)
     }
 
     pub fn set_reconnect_ivl_max(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::ReconnectIntervalMax as i32, value)
+        self.set_sockopt_int(SocketOptions::ReconnectIntervalMax as i32, value)
     }
 
     pub fn reconnect_ivl_max(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::ReconnectIntervalMax as i32)
+        self.get_sockopt_int(SocketOptions::ReconnectIntervalMax as i32)
     }
 
     pub fn set_recovery_ivl(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::RecoveryInterval as i32, value)
+        self.set_sockopt_int(SocketOptions::RecoveryInterval as i32, value)
     }
 
     pub fn recovery_ivl(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::RecoveryInterval as i32)
+        self.get_sockopt_int(SocketOptions::RecoveryInterval as i32)
     }
 
     pub fn set_req_correlate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(ZmqSocketOptions::RequestCorrelate as i32, value)
+        self.set_sockopt_bool(SocketOptions::RequestCorrelate as i32, value)
     }
 
     pub fn set_req_relaxed(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(ZmqSocketOptions::RequestRelaxed as i32, value)
+        self.set_sockopt_bool(SocketOptions::RequestRelaxed as i32, value)
     }
 
     pub fn set_sndbuf(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::SendBuffer as i32, value)
+        self.set_sockopt_int(SocketOptions::SendBuffer as i32, value)
     }
 
     pub fn sndbuf(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::SendBuffer as i32)
+        self.get_sockopt_int(SocketOptions::SendBuffer as i32)
     }
 
     pub fn set_sndhwm(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::SendHighWatermark as i32, value)
+        self.set_sockopt_int(SocketOptions::SendHighWatermark as i32, value)
     }
 
     pub fn sndhwm(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::SendHighWatermark as i32)
+        self.get_sockopt_int(SocketOptions::SendHighWatermark as i32)
     }
 
     pub fn set_sndtimeo(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::SendTimeout as i32, value)
+        self.set_sockopt_int(SocketOptions::SendTimeout as i32, value)
     }
 
     pub fn sndtimeo(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::SendTimeout as i32)
+        self.get_sockopt_int(SocketOptions::SendTimeout as i32)
     }
 
     pub fn set_socks_proxy<V: AsRef<str>>(&self, value: Option<V>) -> ZmqResult<()> {
         match value {
-            None => self.set_sockopt_bytes(ZmqSocketOptions::SocksProxy as i32, vec![]),
-            Some(ref_value) => {
-                self.set_sockopt_string(ZmqSocketOptions::SocksProxy as i32, ref_value)
-            }
+            None => self.set_sockopt_bytes(SocketOptions::SocksProxy as i32, vec![]),
+            Some(ref_value) => self.set_sockopt_string(SocketOptions::SocksProxy as i32, ref_value),
         }
     }
 
     pub fn socks_proxy(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(ZmqSocketOptions::SocksProxy as i32)
+        self.get_sockopt_string(SocketOptions::SocksProxy as i32)
     }
 
     pub fn set_tcp_keepalive(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::TcpKeepalive as i32, value)
+        self.set_sockopt_int(SocketOptions::TcpKeepalive as i32, value)
     }
 
     pub fn tcp_keepalive(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::TcpKeepalive as i32)
+        self.get_sockopt_int(SocketOptions::TcpKeepalive as i32)
     }
 
     pub fn set_tcp_keepalive_cnt(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::TcpKeepaliveCount as i32, value)
+        self.set_sockopt_int(SocketOptions::TcpKeepaliveCount as i32, value)
     }
 
     pub fn tcp_keepalive_cnt(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::TcpKeepaliveCount as i32)
+        self.get_sockopt_int(SocketOptions::TcpKeepaliveCount as i32)
     }
 
     pub fn set_tcp_keepalive_idle(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::TcpKeepaliveIdle as i32, value)
+        self.set_sockopt_int(SocketOptions::TcpKeepaliveIdle as i32, value)
     }
 
     pub fn tcp_keepalive_idle(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::TcpKeepaliveIdle as i32)
+        self.get_sockopt_int(SocketOptions::TcpKeepaliveIdle as i32)
     }
 
     pub fn set_tcp_keepalive_intvl(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::TcpKeepaliveInterval as i32, value)
+        self.set_sockopt_int(SocketOptions::TcpKeepaliveInterval as i32, value)
     }
 
     pub fn tcp_keepalive_intvl(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::TcpKeepaliveInterval as i32)
+        self.get_sockopt_int(SocketOptions::TcpKeepaliveInterval as i32)
     }
 
     pub fn set_type_of_service(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(ZmqSocketOptions::TypeOfService as i32, value)
+        self.set_sockopt_int(SocketOptions::TypeOfService as i32, value)
     }
 
     pub fn type_of_service(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(ZmqSocketOptions::TypeOfService as i32)
+        self.get_sockopt_int(SocketOptions::TypeOfService as i32)
     }
 
     pub fn set_zap_domain<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_string(ZmqSocketOptions::ZapDomain as i32, value)
+        self.set_sockopt_string(SocketOptions::ZapDomain as i32, value)
     }
 
     pub fn zap_domain(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(ZmqSocketOptions::ZapDomain as i32)
+        self.get_sockopt_string(SocketOptions::ZapDomain as i32)
     }
 
     pub fn bind<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<()> {
@@ -692,10 +715,10 @@ impl<T: sealed::ZmqSocketType> ZmqSocket<T> {
         self.socket.disconnect(endpoint.as_ref())
     }
 
-    pub fn monitor<F: Into<MonitorFlags>>(&self, events: F) -> ZmqResult<ZmqSocket<Monitor>> {
+    pub fn monitor<F: Into<MonitorFlags>>(&self, events: F) -> ZmqResult<Socket<Monitor>> {
         let fd = self
             .socket
-            .get_sockopt_int::<usize>(ZmqSocketOptions::FileDescriptor as i32)?;
+            .get_sockopt_int::<usize>(SocketOptions::FileDescriptor as i32)?;
         let monitor_endpoint = format!("inproc://monitor.s-{fd}");
 
         self.socket
@@ -705,14 +728,14 @@ impl<T: sealed::ZmqSocketType> ZmqSocket<T> {
 
         monitor.connect(&monitor_endpoint)?;
 
-        Ok(ZmqSocket {
+        Ok(Socket {
             context: self.context.clone(),
             socket: monitor.into(),
         })
     }
 
-    pub fn poll<E: Into<ZmqPollEvents>>(&self, events: E, timeout_ms: i64) -> ZmqResult<i32> {
-        let poll_events = ZmqPollEvents::from_bits_truncate(events.into().bits());
+    pub fn poll<E: Into<PollEvents>>(&self, events: E, timeout_ms: i64) -> ZmqResult<i32> {
+        let poll_events = PollEvents::from_bits_truncate(events.into().bits());
         self.socket.poll(poll_events, timeout_ms)
     }
 }
@@ -744,23 +767,23 @@ bitflags! {
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ZmqRecvFlags(i32);
+pub struct RecvFlags(i32);
 
 bitflags! {
-    impl ZmqRecvFlags: i32 {
+    impl RecvFlags: i32 {
         const DONT_WAIT = 0b00000001;
     }
 }
 
-pub trait ZmqReceiver<F>
+pub trait Receiver<F>
 where
-    F: Into<ZmqRecvFlags> + Copy,
+    F: Into<RecvFlags> + Copy,
 {
-    fn recv_msg(&self, flags: F) -> ZmqResult<ZmqMessage>;
-    fn recv_multipart(&self, flags: F) -> ZmqResult<ZmqMultipartMessage> {
+    fn recv_msg(&self, flags: F) -> ZmqResult<Message>;
+    fn recv_multipart(&self, flags: F) -> ZmqResult<MultipartMessage> {
         iter::repeat_with(|| self.recv_msg(flags))
             .try_fold(
-                ZmqMultipartMessage::new(),
+                MultipartMessage::new(),
                 |mut parts, zmq_result| match zmq_result {
                     Err(e) => ControlFlow::Break(Err(e)),
                     Ok(zmq_msg) => {
@@ -779,36 +802,36 @@ where
     }
 }
 
-impl<T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin, F: Into<ZmqRecvFlags> + Copy>
-    ZmqReceiver<F> for ZmqSocket<T>
+impl<T: sealed::SocketType + sealed::ReceiverFlag + Unpin, F: Into<RecvFlags> + Copy> Receiver<F>
+    for Socket<T>
 {
-    fn recv_msg(&self, flags: F) -> ZmqResult<ZmqMessage> {
+    fn recv_msg(&self, flags: F) -> ZmqResult<Message> {
         self.socket
             .recv(flags.into().bits())
-            .map(ZmqMessage::from_raw_msg)
+            .map(Message::from_raw_msg)
     }
 }
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ZmqSendFlags(i32);
+pub struct SendFlags(i32);
 
 bitflags! {
-    impl ZmqSendFlags: i32 {
+    impl SendFlags: i32 {
         const DONT_WAIT = 0b00000001;
         const SEND_MORE = 0b00000010;
     }
 }
 
-pub trait ZmqSender<S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin> {
-    fn send_msg(&self, msg: ZmqMessage, flags: ZmqSendFlags) -> ZmqResult<()>;
+pub trait Sender<S: sealed::SocketType + sealed::SenderFlag + Unpin> {
+    fn send_msg(&self, msg: Message, flags: SendFlags) -> ZmqResult<()>;
 
-    fn send_multipart(&self, iter: ZmqMultipartMessage, flags: ZmqSendFlags) -> ZmqResult<()> {
-        let mut last_part: Option<ZmqMessage> = None;
+    fn send_multipart(&self, iter: MultipartMessage, flags: SendFlags) -> ZmqResult<()> {
+        let mut last_part: Option<Message> = None;
         for part in iter {
             let maybe_last = last_part.take();
             if let Some(last) = maybe_last {
-                self.send_msg(last, flags | ZmqSendFlags::SEND_MORE)?;
+                self.send_msg(last, flags | SendFlags::SEND_MORE)?;
             }
             last_part = Some(part);
         }
@@ -820,18 +843,18 @@ pub trait ZmqSender<S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin> {
     }
 }
 
-impl<T: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin> ZmqSender<T> for ZmqSocket<T> {
-    fn send_msg(&self, msg: ZmqMessage, flags: ZmqSendFlags) -> ZmqResult<()> {
+impl<T: sealed::SocketType + sealed::SenderFlag + Unpin> Sender<T> for Socket<T> {
+    fn send_msg(&self, msg: Message, flags: SendFlags) -> ZmqResult<()> {
         msg.send(self, flags.bits())
     }
 }
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ZmqPollEvents(i16);
+pub struct PollEvents(i16);
 
 bitflags! {
-    impl ZmqPollEvents: i16 {
+    impl PollEvents: i16 {
         const ZMQ_POLLIN = 0b0000_0001;
         const ZMQ_POLLOUT = 0b0000_0010;
         const ZMQ_POLLERR = 0b0000_0100;

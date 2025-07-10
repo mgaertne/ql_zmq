@@ -8,16 +8,16 @@ use async_trait::async_trait;
 use futures::FutureExt;
 
 use crate::{
-    message::{ZmqMessage, ZmqMultipartMessage, ZmqSendable},
+    message::{Message, MultipartMessage, Sendable},
     sealed,
-    socket::{Monitor, MonitorSocketEvent, ZmqReceiver, ZmqRecvFlags, ZmqSendFlags, ZmqSocket},
+    socket::{Monitor, MonitorSocketEvent, Receiver, RecvFlags, SendFlags, Socket},
 };
 
 #[async_trait]
-pub trait AsyncZmqReceiver<'a> {
-    async fn recv_msg_async(&'a self) -> Option<ZmqMessage>;
-    async fn recv_multipart_async(&'a self) -> ZmqMultipartMessage {
-        let mut result = ZmqMultipartMessage::new();
+pub trait AsyncReceiver<'a> {
+    async fn recv_msg_async(&'a self) -> Option<Message>;
+    async fn recv_multipart_async(&'a self) -> MultipartMessage {
+        let mut result = MultipartMessage::new();
 
         loop {
             if let Some(item) = self.recv_msg_async().await {
@@ -33,48 +33,47 @@ pub trait AsyncZmqReceiver<'a> {
 }
 
 #[async_trait]
-impl<'a, T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin> AsyncZmqReceiver<'a>
-    for ZmqSocket<T>
+impl<'a, T: sealed::SocketType + sealed::ReceiverFlag + Unpin> AsyncReceiver<'a> for Socket<T>
 where
-    ZmqSocket<T>: Sync,
+    Socket<T>: Sync,
 {
-    async fn recv_msg_async(&'a self) -> Option<ZmqMessage> {
+    async fn recv_msg_async(&'a self) -> Option<Message> {
         MessageReceivingFuture { receiver: self }.now_or_never()
     }
 }
 
-struct MessageReceivingFuture<'a, T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin> {
-    receiver: &'a ZmqSocket<T>,
+struct MessageReceivingFuture<'a, T: sealed::SocketType + sealed::ReceiverFlag + Unpin> {
+    receiver: &'a Socket<T>,
 }
 
-impl<T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin> Future
+impl<T: sealed::SocketType + sealed::ReceiverFlag + Unpin> Future
     for MessageReceivingFuture<'_, T>
 {
-    type Output = ZmqMessage;
+    type Output = Message;
 
     fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
         self.receiver
             .socket
-            .recv(ZmqRecvFlags::DONT_WAIT.bits())
-            .map(ZmqMessage::from_raw_msg)
+            .recv(RecvFlags::DONT_WAIT.bits())
+            .map(Message::from_raw_msg)
             .map_or(Poll::Pending, Poll::Ready)
     }
 }
 
 #[async_trait]
-pub trait AsyncZmqSender<'a, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin> {
-    async fn send_msg_async(&'a self, msg: ZmqMessage, flags: ZmqSendFlags) -> Option<()>;
+pub trait AsyncSender<'a, S: sealed::SocketType + sealed::SenderFlag + Unpin> {
+    async fn send_msg_async(&'a self, msg: Message, flags: SendFlags) -> Option<()>;
 
     async fn send_multipart_async(
         &'a self,
-        multipart: ZmqMultipartMessage,
-        flags: ZmqSendFlags,
+        multipart: MultipartMessage,
+        flags: SendFlags,
     ) -> Option<()> {
         let mut last_part = None;
         for part in multipart {
             let maybe_last = last_part.take();
             if let Some(last) = maybe_last {
-                self.send_msg_async(last, flags | ZmqSendFlags::SEND_MORE)
+                self.send_msg_async(last, flags | SendFlags::SEND_MORE)
                     .await?;
             }
             last_part = Some(part);
@@ -88,12 +87,12 @@ pub trait AsyncZmqSender<'a, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + 
 }
 
 #[async_trait]
-impl<'a, S> AsyncZmqSender<'a, S> for ZmqSocket<S>
+impl<'a, S> AsyncSender<'a, S> for Socket<S>
 where
-    S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin,
-    ZmqSocket<S>: Sync,
+    S: sealed::SocketType + sealed::SenderFlag + Unpin,
+    Socket<S>: Sync,
 {
-    async fn send_msg_async(&'a self, msg: ZmqMessage, flags: ZmqSendFlags) -> Option<()> {
+    async fn send_msg_async(&'a self, msg: Message, flags: SendFlags) -> Option<()> {
         MessageSendingFuture {
             receiver: self,
             message: msg,
@@ -103,19 +102,19 @@ where
     }
 }
 
-struct MessageSendingFuture<'a, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin, M>
+struct MessageSendingFuture<'a, S: sealed::SocketType + sealed::SenderFlag + Unpin, M>
 where
-    M: Into<ZmqMessage> + Clone + Send,
+    M: Into<Message> + Clone + Send,
 {
-    receiver: &'a ZmqSocket<S>,
+    receiver: &'a Socket<S>,
     message: M,
-    flags: ZmqSendFlags,
+    flags: SendFlags,
 }
 
-impl<'a, S: sealed::ZmqSocketType + sealed::ZmqSenderFlag + Unpin, M> Future
+impl<'a, S: sealed::SocketType + sealed::SenderFlag + Unpin, M> Future
     for MessageSendingFuture<'a, S, M>
 where
-    M: Into<ZmqMessage> + Clone + Send,
+    M: Into<Message> + Clone + Send,
 {
     type Output = ();
 
@@ -134,14 +133,14 @@ pub trait AsyncMonitorReceiver<'a> {
 }
 
 #[async_trait]
-impl<'a> AsyncMonitorReceiver<'a> for ZmqSocket<Monitor> {
+impl<'a> AsyncMonitorReceiver<'a> for Socket<Monitor> {
     async fn recv_monitor_event_async(&'a self) -> Option<MonitorSocketEvent> {
         MonitorSocketEventFuture { receiver: self }.now_or_never()
     }
 }
 
-struct MonitorSocketEventFuture<'a, T: sealed::ZmqSocketType + sealed::ZmqReceiverFlag + Unpin> {
-    receiver: &'a ZmqSocket<T>,
+struct MonitorSocketEventFuture<'a, T: sealed::SocketType + sealed::ReceiverFlag + Unpin> {
+    receiver: &'a Socket<T>,
 }
 
 impl Future for MonitorSocketEventFuture<'_, Monitor> {
@@ -150,7 +149,7 @@ impl Future for MonitorSocketEventFuture<'_, Monitor> {
     fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
         match self
             .receiver
-            .recv_multipart(ZmqRecvFlags::DONT_WAIT)
+            .recv_multipart(RecvFlags::DONT_WAIT)
             .map(MonitorSocketEvent::try_from)
         {
             Ok(Ok(event)) => Poll::Ready(event),

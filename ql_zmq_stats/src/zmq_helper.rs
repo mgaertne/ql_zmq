@@ -2,10 +2,10 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use azmq::{
-    builder::ZmqContextBuilder,
-    futures::{AsyncMonitorReceiver, AsyncZmqReceiver},
-    message::ZmqMessage,
-    socket::{Monitor, MonitorFlags, MonitorSocketEvent, Subscribe, ZmqSocket},
+    builder::ContextBuilder,
+    futures::{AsyncMonitorReceiver, AsyncReceiver},
+    message::Message,
+    socket::{Monitor, MonitorFlags, MonitorSocketEvent, Socket, Subscribe},
 };
 use serde_json::Value;
 use tokio::{
@@ -16,8 +16,8 @@ use tokio::{
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
 struct MonitoredSubscriber {
-    subscriber: RwLock<ZmqSocket<Subscribe>>,
-    monitor: RwLock<ZmqSocket<Monitor>>,
+    subscriber: RwLock<Socket<Subscribe>>,
+    monitor: RwLock<Socket<Monitor>>,
 }
 
 unsafe impl Send for MonitoredSubscriber {}
@@ -25,12 +25,12 @@ unsafe impl Sync for MonitoredSubscriber {}
 
 impl MonitoredSubscriber {
     fn new() -> Result<Self> {
-        let context = ZmqContextBuilder::new()
+        let context = ContextBuilder::new()
             .blocky(false)
             .max_sockets(10)
             .io_threads(1)
             .build()?;
-        let subscriber = ZmqSocket::from_context(&context)?;
+        let subscriber = Socket::from_context(&context)?;
         let monitor = subscriber.monitor(
             MonitorFlags::HandshakeSucceeded
                 | MonitorFlags::HandshakeFailedAuth
@@ -83,7 +83,7 @@ impl MonitoredSubscriber {
         Ok(())
     }
 
-    async fn recv_msg(&self) -> Option<ZmqMessage> {
+    async fn recv_msg(&self) -> Option<Message> {
         let subscriber = self.subscriber.read().await;
         subscriber.recv_msg_async().await
     }

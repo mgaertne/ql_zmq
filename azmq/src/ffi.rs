@@ -14,7 +14,7 @@ use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 use num_traits::PrimInt;
 use parking_lot::FairMutex;
 
-use crate::{ZmqError, ZmqResult, sealed, socket::ZmqPollEvents, zmq_sys_crate};
+use crate::{ZmqError, ZmqResult, sealed, socket::PollEvents, zmq_sys_crate};
 
 const MAX_OPTION_STR_LEN: usize = i32::MAX as usize;
 
@@ -158,12 +158,12 @@ impl Drop for RawContext {
     }
 }
 
-pub(crate) struct RawSocket<T: sealed::ZmqSocketType> {
+pub(crate) struct RawSocket<T: sealed::SocketType> {
     pub(crate) socket: FairMutex<*mut c_void>,
     marker: PhantomData<T>,
 }
 
-impl<'a, T: sealed::ZmqSocketType> RawSocket<T> {
+impl<'a, T: sealed::SocketType> RawSocket<T> {
     pub(crate) fn from_ctx(context: &'a RawContext) -> ZmqResult<Self> {
         let context_guard = context.context.lock();
         let socket_ptr =
@@ -447,7 +447,7 @@ impl<'a, T: sealed::ZmqSocketType> RawSocket<T> {
         Ok(msg)
     }
 
-    pub(crate) fn poll(&self, events: ZmqPollEvents, timeout_ms: i64) -> ZmqResult<i32> {
+    pub(crate) fn poll(&self, events: PollEvents, timeout_ms: i64) -> ZmqResult<i32> {
         let poll_item = RawPollItem::from_socket(self, events);
 
         let mut poll_item_guard = poll_item.item.lock();
@@ -469,7 +469,7 @@ impl<'a, T: sealed::ZmqSocketType> RawSocket<T> {
     }
 }
 
-impl<T: sealed::ZmqSocketType> Drop for RawSocket<T> {
+impl<T: sealed::SocketType> Drop for RawSocket<T> {
     fn drop(&mut self) {
         let socket_guard = self.socket.lock();
         if unsafe { zmq_sys_crate::zmq_close(*socket_guard) } == -1 {
@@ -670,9 +670,9 @@ pub(crate) struct RawPollItem {
 }
 
 impl RawPollItem {
-    pub(crate) fn from_socket<T: sealed::ZmqSocketType>(
+    pub(crate) fn from_socket<T: sealed::SocketType>(
         socket: &RawSocket<T>,
-        events: ZmqPollEvents,
+        events: PollEvents,
     ) -> Self {
         let socket_guard = socket.socket.lock();
         let poll_item = zmq_sys_crate::zmq_pollitem_t {

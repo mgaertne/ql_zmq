@@ -3,16 +3,16 @@ use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use azmq::{
     ZmqResult,
-    context::ZmqContext,
-    futures::{AsyncZmqReceiver, AsyncZmqSender},
-    socket::{Request, Router, ZmqSendFlags, ZmqSocket},
+    context::Context,
+    futures::{AsyncReceiver, AsyncSender},
+    socket::{Request, Router, SendFlags, Socket},
 };
 use futures::{executor::ThreadPool, join, task::SpawnExt};
 
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);
 
-async fn run_router(router: ZmqSocket<Router>) -> ZmqResult<()> {
+async fn run_router(router: Socket<Router>) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 1 {
         let mut multipart = router.recv_multipart_async().await;
         let content = multipart.pop_back().unwrap();
@@ -21,19 +21,19 @@ async fn run_router(router: ZmqSocket<Router>) -> ZmqResult<()> {
         }
         multipart.push_back("World".into());
         router
-            .send_multipart_async(multipart, ZmqSendFlags::empty())
+            .send_multipart_async(multipart, SendFlags::empty())
             .await;
     }
 
     Ok(())
 }
 
-async fn run_requester(request: ZmqSocket<Request>) -> ZmqResult<()> {
+async fn run_requester(request: Socket<Request>) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         let request_no = ITERATIONS.load(Ordering::Acquire);
         println!("Sending request {request_no}");
         let _ = request
-            .send_msg_async("Hello".into(), ZmqSendFlags::empty())
+            .send_msg_async("Hello".into(), SendFlags::empty())
             .await;
 
         loop {
@@ -60,12 +60,12 @@ fn main() -> ZmqResult<()> {
 
         let port = 5556;
 
-        let context = ZmqContext::new()?;
+        let context = Context::new()?;
 
-        let router = ZmqSocket::<Router>::from_context(&context)?;
+        let router = Socket::<Router>::from_context(&context)?;
         router.bind(format!("tcp://*:{port}"))?;
 
-        let request = ZmqSocket::<Request>::from_context(&context)?;
+        let request = Socket::<Request>::from_context(&context)?;
         request.connect(format!("tcp://localhost:{port}"))?;
 
         let request_handle = executor.spawn_with_handle(run_requester(request)).unwrap();

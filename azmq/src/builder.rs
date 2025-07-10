@@ -2,29 +2,29 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ZmqResult, context::ZmqContext};
+use crate::{ZmqResult, context::Context};
 
 #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ZmqContextConfig {
+pub struct ContextConfig {
     blocky: Option<bool>,
     ipv6: Option<bool>,
     io_threads: Option<i32>,
     max_sockets: Option<i32>,
 }
 
-impl ZmqContextConfig {
+impl ContextConfig {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn build(&self) -> ZmqResult<ZmqContext> {
-        let context = ZmqContext::new()?;
+    pub fn build(&self) -> ZmqResult<Context> {
+        let context = Context::new()?;
         self.apply(&context)?;
 
         Ok(context)
     }
 
-    pub fn apply(&self, context: &ZmqContext) -> ZmqResult<()> {
+    pub fn apply(&self, context: &Context) -> ZmqResult<()> {
         self.ipv6
             .iter()
             .try_for_each(|&ipv6| context.set_ipv6(ipv6))?;
@@ -75,20 +75,20 @@ impl ZmqContextConfig {
 }
 
 #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ZmqContextBuilder {
-    contig: ZmqContextConfig,
+pub struct ContextBuilder {
+    contig: ContextConfig,
 }
 
-impl ZmqContextBuilder {
+impl ContextBuilder {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn build(&self) -> ZmqResult<ZmqContext> {
+    pub fn build(&self) -> ZmqResult<Context> {
         self.contig.build()
     }
 
-    pub fn apply(&self, handle: &ZmqContext) -> ZmqResult<()> {
+    pub fn apply(&self, handle: &Context) -> ZmqResult<()> {
         self.contig.apply(handle)
     }
 

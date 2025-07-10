@@ -1,7 +1,7 @@
 use core::ops::Deref;
 
-use super::{MonitorFlags, ZmqSocketType};
-use crate::{ZmqError, message::ZmqMultipartMessage, sealed, socket::ZmqSocket, zmq_sys_crate};
+use super::{MonitorFlags, SocketType};
+use crate::{ZmqError, message::MultipartMessage, sealed, socket::Socket, zmq_sys_crate};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u32)]
@@ -96,10 +96,10 @@ pub enum MonitorSocketEvent {
     UnSupported(MonitorFlags, u32),
 }
 
-impl TryFrom<ZmqMultipartMessage> for MonitorSocketEvent {
+impl TryFrom<MultipartMessage> for MonitorSocketEvent {
     type Error = ZmqError;
 
-    fn try_from(zmq_msgs: ZmqMultipartMessage) -> Result<Self, Self::Error> {
+    fn try_from(zmq_msgs: MultipartMessage) -> Result<Self, Self::Error> {
         if zmq_msgs.len() != 2 {
             return Err(ZmqError::InvalidArgument);
         }
@@ -157,13 +157,13 @@ impl TryFrom<ZmqMultipartMessage> for MonitorSocketEvent {
 
 pub struct Monitor {}
 
-impl sealed::ZmqReceiverFlag for Monitor {}
+impl sealed::ReceiverFlag for Monitor {}
 
-unsafe impl Sync for ZmqSocket<Monitor> {}
-unsafe impl Send for ZmqSocket<Monitor> {}
+unsafe impl Sync for Socket<Monitor> {}
+unsafe impl Send for Socket<Monitor> {}
 
-impl sealed::ZmqSocketType for Monitor {
-    fn raw_socket_type() -> ZmqSocketType {
-        ZmqSocketType::Pair
+impl sealed::SocketType for Monitor {
+    fn raw_socket_type() -> SocketType {
+        SocketType::Pair
     }
 }

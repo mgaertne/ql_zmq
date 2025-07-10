@@ -2,10 +2,10 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use azmq::{
-    builder::ZmqContextBuilder,
-    futures::{AsyncMonitorReceiver, AsyncZmqReceiver, AsyncZmqSender},
-    message::ZmqMessage,
-    socket::{Dealer, Monitor, MonitorFlags, MonitorSocketEvent, ZmqSendFlags, ZmqSocket},
+    builder::ContextBuilder,
+    futures::{AsyncMonitorReceiver, AsyncReceiver, AsyncSender},
+    message::Message,
+    socket::{Dealer, Monitor, MonitorFlags, MonitorSocketEvent, SendFlags, Socket},
 };
 use tokio::{
     select,
@@ -19,8 +19,8 @@ use uuid::Uuid;
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
 struct MonitoredDealer {
-    dealer: RwLock<ZmqSocket<Dealer>>,
-    monitor: RwLock<ZmqSocket<Monitor>>,
+    dealer: RwLock<Socket<Dealer>>,
+    monitor: RwLock<Socket<Monitor>>,
 }
 
 unsafe impl Send for MonitoredDealer {}
@@ -28,12 +28,12 @@ unsafe impl Sync for MonitoredDealer {}
 
 impl MonitoredDealer {
     fn new() -> Result<Self> {
-        let context = ZmqContextBuilder::new()
+        let context = ContextBuilder::new()
             .blocky(false)
             .max_sockets(10)
             .io_threads(2)
             .build()?;
-        let dealer = ZmqSocket::from_context(&context)?;
+        let dealer = Socket::from_context(&context)?;
         let monitor = dealer.monitor(
             MonitorFlags::Connected
                 | MonitorFlags::HandshakeSucceeded
@@ -98,11 +98,7 @@ impl MonitoredDealer {
         Ok(())
     }
 
-    async fn send<M: Into<ZmqMessage>, F: Into<ZmqSendFlags>>(
-        &self,
-        msg: M,
-        flags: F,
-    ) -> Option<()> {
+    async fn send<M: Into<Message>, F: Into<SendFlags>>(&self, msg: M, flags: F) -> Option<()> {
         self.dealer
             .read()
             .await
@@ -112,7 +108,7 @@ impl MonitoredDealer {
         Some(())
     }
 
-    async fn recv_msg(&self) -> Option<ZmqMessage> {
+    async fn recv_msg(&self) -> Option<Message> {
         let dealer = self.dealer.read().await;
         dealer.recv_msg_async().await
     }
@@ -203,7 +199,7 @@ pub(crate) async fn run_zmq(
             }
 
             Some(line) = zmq_receiver.recv(), if !zmq_receiver.is_empty() => {
-                monitored_dealer.send(&line, ZmqSendFlags::DONT_WAIT).await;
+                monitored_dealer.send(&line, SendFlags::DONT_WAIT).await;
             },
 
             Ok(()) = check_monitor(&monitored_dealer, &display_sender, &args.host) => (),

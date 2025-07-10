@@ -3,20 +3,20 @@ use std::thread;
 
 use azmq::{
     ZmqResult,
-    context::ZmqContext,
-    socket::{Publish, Subscribe, ZmqReceiver, ZmqRecvFlags, ZmqSendFlags, ZmqSender, ZmqSocket},
+    context::Context,
+    socket::{Publish, Receiver, RecvFlags, SendFlags, Sender, Socket, Subscribe},
 };
 
 fn main() -> ZmqResult<()> {
     let port = 5556;
     let subscribed_topic = "azmq-example";
 
-    let context = ZmqContext::new()?;
+    let context = Context::new()?;
 
-    let publish = ZmqSocket::<Publish>::from_context(&context)?;
+    let publish = Socket::<Publish>::from_context(&context)?;
     publish.bind(format!("tcp://*:{port}"))?;
 
-    let subscribe = ZmqSocket::<Subscribe>::from_context(&context)?;
+    let subscribe = Socket::<Subscribe>::from_context(&context)?;
     subscribe.subscribe(subscribed_topic)?;
     subscribe.connect(format!("tcp://localhost:{port}"))?;
 
@@ -24,11 +24,11 @@ fn main() -> ZmqResult<()> {
         thread::sleep(Duration::from_millis(100));
         let published_msg = format!("{subscribed_topic} important update");
         publish
-            .send_msg(published_msg.as_str().into(), ZmqSendFlags::empty())
+            .send_msg(published_msg.as_str().into(), SendFlags::empty())
             .unwrap();
     });
 
-    let zmq_msg = subscribe.recv_msg(ZmqRecvFlags::empty())?;
+    let zmq_msg = subscribe.recv_msg(RecvFlags::empty())?;
     let zmq_str = zmq_msg.to_string();
     let pubsub_item = zmq_str.split_once(" ");
     assert_eq!(Some((subscribed_topic, "important update")), pubsub_item);

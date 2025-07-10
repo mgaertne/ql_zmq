@@ -4,16 +4,16 @@ use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use async_std::task::spawn;
 use azmq::{
     ZmqResult,
-    context::ZmqContext,
-    futures::{AsyncZmqReceiver, AsyncZmqSender},
-    socket::{Publish, Subscribe, ZmqSendFlags, ZmqSocket},
+    context::Context,
+    futures::{AsyncReceiver, AsyncSender},
+    socket::{Publish, SendFlags, Socket, Subscribe},
 };
 use futures::join;
 
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);
 
-async fn run_subscriber(subscribe: ZmqSocket<Subscribe>) -> ZmqResult<()> {
+async fn run_subscriber(subscribe: Socket<Subscribe>) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         if let Some(zmq_msg) = subscribe.recv_msg_async().await {
             let zmq_str = zmq_msg.to_string();
@@ -31,13 +31,10 @@ async fn run_subscriber(subscribe: ZmqSocket<Subscribe>) -> ZmqResult<()> {
     Ok(())
 }
 
-async fn run_publisher(publisher: ZmqSocket<Publish>) -> ZmqResult<()> {
+async fn run_publisher(publisher: Socket<Publish>) -> ZmqResult<()> {
     while KEEP_RUNNING.load(Ordering::Acquire) {
         publisher
-            .send_msg_async(
-                "azmq-example important update".into(),
-                ZmqSendFlags::empty(),
-            )
+            .send_msg_async("azmq-example important update".into(), SendFlags::empty())
             .await;
     }
 
@@ -50,12 +47,12 @@ async fn main() -> ZmqResult<()> {
 
     let port = 5556;
 
-    let context = ZmqContext::new()?;
+    let context = Context::new()?;
 
-    let publisher = ZmqSocket::<Publish>::from_context(&context)?;
+    let publisher = Socket::<Publish>::from_context(&context)?;
     publisher.bind(format!("tcp://*:{port}"))?;
 
-    let subscriber = ZmqSocket::<Subscribe>::from_context(&context)?;
+    let subscriber = Socket::<Subscribe>::from_context(&context)?;
     subscriber.subscribe("azmq-example")?;
     subscriber.connect(format!("tcp://localhost:{port}"))?;
 

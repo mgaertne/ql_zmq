@@ -3,21 +3,21 @@ use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use azmq::{
     ZmqResult,
-    context::ZmqContext,
-    futures::{AsyncZmqReceiver, AsyncZmqSender},
-    socket::{Reply, Request, ZmqSendFlags, ZmqSocket},
+    context::Context,
+    futures::{AsyncReceiver, AsyncSender},
+    socket::{Reply, Request, SendFlags, Socket},
 };
 use tokio::{join, task};
 
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);
 
-async fn run_replier(reply: ZmqSocket<Reply>) -> ZmqResult<()> {
+async fn run_replier(reply: Socket<Reply>) -> ZmqResult<()> {
     while KEEP_RUNNING.load(Ordering::Acquire) {
         if let Some(message) = reply.recv_msg_async().await {
             println!("Received request: {message}");
             reply
-                .send_msg_async("World".into(), ZmqSendFlags::empty())
+                .send_msg_async("World".into(), SendFlags::empty())
                 .await;
         }
     }
@@ -25,12 +25,12 @@ async fn run_replier(reply: ZmqSocket<Reply>) -> ZmqResult<()> {
     Ok(())
 }
 
-async fn run_requester(request: ZmqSocket<Request>) -> ZmqResult<()> {
+async fn run_requester(request: Socket<Request>) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         let request_no = ITERATIONS.load(Ordering::Acquire);
         println!("Sending request {request_no}");
         let _ = request
-            .send_msg_async("Hello".into(), ZmqSendFlags::empty())
+            .send_msg_async("Hello".into(), SendFlags::empty())
             .await;
 
         loop {
@@ -55,12 +55,12 @@ async fn main() -> ZmqResult<()> {
 
     let port = 5556;
 
-    let context = ZmqContext::new()?;
+    let context = Context::new()?;
 
-    let reply = ZmqSocket::<Reply>::from_context(&context)?;
+    let reply = Socket::<Reply>::from_context(&context)?;
     reply.bind(format!("tcp://*:{port}"))?;
 
-    let request = ZmqSocket::<Request>::from_context(&context)?;
+    let request = Socket::<Request>::from_context(&context)?;
     request.connect(format!("tcp://localhost:{port}"))?;
 
     let request_handle = task::spawn(run_requester(request));

@@ -3,15 +3,15 @@ use core::sync::atomic::{AtomicI32, Ordering};
 
 use azmq::{
     ZmqResult,
-    context::ZmqContext,
-    futures::{AsyncZmqReceiver, AsyncZmqSender},
-    socket::{Dealer, Reply, ZmqSendFlags, ZmqSocket},
+    context::Context,
+    futures::{AsyncReceiver, AsyncSender},
+    socket::{Dealer, Reply, SendFlags, Socket},
 };
 use futures::{executor::ThreadPool, join, task::SpawnExt};
 
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);
 
-async fn run_replier(reply: ZmqSocket<Reply>) -> ZmqResult<()> {
+async fn run_replier(reply: Socket<Reply>) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 1 {
         let mut multipart = reply.recv_multipart_async().await;
         let content = multipart.pop_back().unwrap();
@@ -20,20 +20,20 @@ async fn run_replier(reply: ZmqSocket<Reply>) -> ZmqResult<()> {
         }
         multipart.push_back("World".into());
         reply
-            .send_multipart_async(multipart, ZmqSendFlags::empty())
+            .send_multipart_async(multipart, SendFlags::empty())
             .await;
     }
 
     Ok(())
 }
 
-async fn run_dealer(dealer: ZmqSocket<Dealer>) -> ZmqResult<()> {
+async fn run_dealer(dealer: Socket<Dealer>) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         let request_no = ITERATIONS.load(Ordering::Acquire);
         println!("Sending request {request_no}");
         let multipart = vec![vec![].into(), "Hello".into()];
         let _ = dealer
-            .send_multipart_async(multipart.into(), ZmqSendFlags::empty())
+            .send_multipart_async(multipart.into(), SendFlags::empty())
             .await;
 
         let mut message = dealer.recv_multipart_async().await;
@@ -56,12 +56,12 @@ fn main() -> ZmqResult<()> {
 
         let port = 5556;
 
-        let context = ZmqContext::new()?;
+        let context = Context::new()?;
 
-        let reply = ZmqSocket::<Reply>::from_context(&context)?;
+        let reply = Socket::<Reply>::from_context(&context)?;
         reply.bind(format!("tcp://*:{port}"))?;
 
-        let dealer = ZmqSocket::<Dealer>::from_context(&context)?;
+        let dealer = Socket::<Dealer>::from_context(&context)?;
         dealer.connect(format!("tcp://localhost:{port}"))?;
 
         let dealer_handle = executor.spawn_with_handle(run_dealer(dealer)).unwrap();
