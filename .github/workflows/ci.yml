@@ -100,6 +100,7 @@ jobs:
           request_router,
           dealer_reply,
           stream_client,
+          stream_server,
         ]
 
     runs-on: ${{ matrix.os }}

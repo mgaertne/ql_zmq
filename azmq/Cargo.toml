@@ -74,6 +74,10 @@ name = "stream_client"
 path = "examples/rustdoc/stream_client.rs"
 
 [[example]]
+name = "stream_server"
+path = "examples/rustdoc/stream_server.rs"
+
+[[example]]
 name = "publish_subscribe_async_tokio"
 path = "examples/rustdoc/futures/tokio/publish_subscribe.rs"
 required-features = ["examples-tokio"]
