@@ -13,7 +13,7 @@ fn main() -> ZmqResult<()> {
     let tcp_listener = TcpListener::bind(format!("127.0.0.1:{port}")).unwrap();
     thread::spawn(move || {
         let (mut tcp_stream, _socket_addr) = tcp_listener.accept().unwrap();
-        tcp_stream.write("".as_bytes()).unwrap();
+        tcp_stream.write_all("".as_bytes()).unwrap();
         loop {
             let mut buffer = [0; 256];
             if let Ok(length) = tcp_stream.read(&mut buffer) {
@@ -25,7 +25,7 @@ fn main() -> ZmqResult<()> {
                     "Received request: {}",
                     str::from_utf8(recevied_msg).unwrap()
                 );
-                tcp_stream.write("World".as_bytes()).unwrap();
+                tcp_stream.write_all("World".as_bytes()).unwrap();
             }
         }
     });
