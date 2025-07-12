@@ -481,8 +481,6 @@ impl<T: sealed::SocketType> Drop for RawSocket<T> {
     }
 }
 
-#[derive(DebugDeriveMore)]
-#[debug("RawMessage {{ ... }}")]
 pub(crate) struct RawMessage {
     message: zmq_sys_crate::zmq_msg_t,
 }
@@ -592,6 +590,12 @@ impl core::fmt::Display for RawMessage {
             Ok(msg_str) => write!(f, "{msg_str}"),
             Err(_) => write!(f, "{:?}", self.bytes()),
         }
+    }
+}
+
+impl core::fmt::Debug for RawMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self.bytes())
     }
 }
 

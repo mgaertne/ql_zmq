@@ -14,7 +14,7 @@ impl sealed::SocketType for Subscribe {
     }
 }
 
-/// # A Publisher socket `ZMQ_SUB`
+/// # A Subscriber socket `ZMQ_SUB`
 ///
 /// A socket of type [`Subscribe`] is used by a subscriber to subscribe to data distributed by a
 /// [`Publish`](struct@super::Publish). Initially a [`Subscribe`] socket is not subscribed

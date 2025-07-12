@@ -21,6 +21,8 @@ mod request;
 mod router;
 mod stream;
 mod subscribe;
+mod xpublish;
+mod xsubscribe;
 
 pub use dealer::Dealer;
 pub use monitor::{Monitor, MonitorSocketEvent};
@@ -30,6 +32,8 @@ pub use request::Request;
 pub use router::Router;
 pub use stream::Stream;
 pub use subscribe::Subscribe;
+pub use xpublish::XPublish;
+pub use xsubscribe::XSubscribe;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i32)]
@@ -43,7 +47,7 @@ pub enum SocketType {
     Router = zmq_sys_crate::ZMQ_ROUTER as i32,
     Pull = zmq_sys_crate::ZMQ_PULL as i32,
     Push = zmq_sys_crate::ZMQ_PUSH as i32,
-    XPublishe = zmq_sys_crate::ZMQ_XPUB as i32,
+    XPublish = zmq_sys_crate::ZMQ_XPUB as i32,
     XSubscribe = zmq_sys_crate::ZMQ_XSUB as i32,
     Stream = zmq_sys_crate::ZMQ_STREAM as i32,
     #[cfg(feature = "draft-api")]

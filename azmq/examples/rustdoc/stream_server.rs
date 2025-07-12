@@ -1,8 +1,4 @@
-use std::{
-    io::prelude::*,
-    net::{TcpStream},
-    thread,
-};
+use std::{io::prelude::*, net::TcpStream, thread};
 
 use azmq::{
     ZmqResult,

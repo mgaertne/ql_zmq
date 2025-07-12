@@ -58,6 +58,18 @@ name = "publish_subscribe"
 path = "examples/rustdoc/publish_subscribe.rs"
 
 [[example]]
+name = "publish_xsubscribe"
+path = "examples/rustdoc/publish_xsubscribe.rs"
+
+[[example]]
+name = "xpublish_subscribe"
+path = "examples/rustdoc/xpublish_subscribe.rs"
+
+[[example]]
+name = "xpublish_xsubscribe"
+path = "examples/rustdoc/xpublish_xsubscribe.rs"
+
+[[example]]
 name = "request_reply"
 path = "examples/rustdoc/request_reply.rs"
 

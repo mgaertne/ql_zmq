@@ -12,7 +12,7 @@ use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 use crate::{ZmqResult, ffi::RawMessage, sealed, socket::Socket};
 
 #[derive(DebugDeriveMore, DisplayDeriveMore)]
-#[debug("ZmqMessage {{ inner: {inner} }}")]
+#[debug("ZmqMessage {{ inner: {inner:?} }}")]
 #[display("{inner}")]
 pub struct Message {
     inner: Arc<RawMessage>,
@@ -90,8 +90,8 @@ where
 }
 
 #[derive(Default, DebugDeriveMore, DisplayDeriveMore)]
-#[debug("ZmqMultipartMessage {{ ... }}")]
-#[display("ZmqMultipartMessage {{ ... }}")]
+#[debug("ZmqMultipartMessage {{ {inner:?} }}")]
+#[display("ZmqMultipartMessage {{ {inner:?} }}")]
 pub struct MultipartMessage {
     inner: VecDeque<Message>,
 }
