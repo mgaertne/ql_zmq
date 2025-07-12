@@ -1,3 +1,4 @@
+use core::error::Error;
 use std::{io::prelude::*, net::TcpListener, thread};
 
 use azmq::{
@@ -7,10 +8,8 @@ use azmq::{
     socket::{Receiver, RecvFlags, SendFlags, Sender, Socket, Stream},
 };
 
-fn main() -> ZmqResult<()> {
-    let port = 5556;
-
-    let tcp_listener = TcpListener::bind(format!("127.0.0.1:{port}")).unwrap();
+fn run_tcp_server(endpoint: &str) -> Result<(), Box<dyn Error>> {
+    let tcp_listener = TcpListener::bind(endpoint)?;
     thread::spawn(move || {
         let (mut tcp_stream, _socket_addr) = tcp_listener.accept().unwrap();
         tcp_stream.write_all("".as_bytes()).unwrap();
@@ -30,14 +29,16 @@ fn main() -> ZmqResult<()> {
         }
     });
 
-    let context = Context::new()?;
+    Ok(())
+}
 
-    let zmq_stream = Socket::<Stream>::from_context(&context)?;
-    zmq_stream.connect(format!("tcp://127.0.0.1:{port}"))?;
+fn run_stream_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
+    let zmq_stream = Socket::<Stream>::from_context(context)?;
+    zmq_stream.connect(endpoint)?;
     let mut connect_msg = zmq_stream.recv_multipart(RecvFlags::empty())?;
     let routing_id = connect_msg.pop_front().unwrap();
 
-    for request_no in 1..=10 {
+    for request_no in 1..=iterations {
         let mut multipart = MultipartMessage::new();
         multipart.push_back(routing_id.clone());
         multipart.push_back("Hello".into());
@@ -51,7 +52,20 @@ fn main() -> ZmqResult<()> {
         );
     }
 
-    zmq_stream.disconnect(format!("tcp://localhost:{port}"))?;
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let port = 5556;
+    let iterations = 10;
+
+    let tcp_endpoint = format!("127.0.0.1:{port}");
+    run_tcp_server(&tcp_endpoint)?;
+
+    let context = Context::new()?;
+
+    let stream_endpoint = format!("tcp://127.0.0.1:{port}");
+    run_stream_socket(&context, &stream_endpoint, iterations)?;
 
     Ok(())
 }

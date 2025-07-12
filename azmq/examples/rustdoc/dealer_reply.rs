@@ -6,16 +6,12 @@ use azmq::{
     socket::{Dealer, Receiver, RecvFlags, Reply, SendFlags, Sender, Socket},
 };
 
-fn main() -> ZmqResult<()> {
-    let port = 5556;
-
-    let context = Context::new()?;
-
-    let reply = Socket::<Reply>::from_context(&context)?;
-    reply.bind(format!("tcp://*:{port}"))?;
+fn run_reply_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
+    let reply = Socket::<Reply>::from_context(context)?;
+    reply.bind(endpoint)?;
 
     thread::spawn(move || {
-        for _ in 1..=10 {
+        for _ in 1..=iterations {
             let mut multipart = reply.recv_multipart(RecvFlags::empty()).unwrap();
             let content = multipart.pop_back().unwrap();
             if !content.is_empty() {
@@ -26,10 +22,14 @@ fn main() -> ZmqResult<()> {
         }
     });
 
-    let request = Socket::<Dealer>::from_context(&context)?;
-    request.connect(format!("tcp://localhost:{port}"))?;
+    Ok(())
+}
 
-    for request_no in 1..=10 {
+fn run_dealer_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
+    let request = Socket::<Dealer>::from_context(context)?;
+    request.connect(endpoint)?;
+
+    for request_no in 1..=iterations {
         println!("Sending request {request_no}");
         let multipart = vec![vec![].into(), "Hello".into()];
         request.send_multipart(multipart.into(), SendFlags::empty())?;
@@ -41,7 +41,20 @@ fn main() -> ZmqResult<()> {
         }
     }
 
-    request.disconnect(format!("tcp://localhost:{port}"))?;
+    Ok(())
+}
+
+fn main() -> ZmqResult<()> {
+    let port = 5556;
+    let iterations = 10;
+
+    let context = Context::new()?;
+
+    let reply_endpoint = format!("tcp://*:{port}");
+    run_reply_socket(&context, &reply_endpoint, iterations)?;
+
+    let dealer_endpoint = format!("tcp://localhost:{port}");
+    run_dealer_socket(&context, &dealer_endpoint, 10)?;
 
     Ok(())
 }

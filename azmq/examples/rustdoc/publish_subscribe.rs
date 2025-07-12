@@ -1,4 +1,7 @@
-use core::time::Duration;
+use core::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
 use std::thread;
 
 use azmq::{
@@ -7,36 +10,61 @@ use azmq::{
     socket::{Publish, Receiver, RecvFlags, SendFlags, Sender, Socket, Subscribe},
 };
 
+static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
+const SUBSCRIBED_TOPIC: &str = "azmq-example";
+
+fn run_publish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
+    let publish = Socket::<Publish>::from_context(context)?;
+    publish.bind(endpoint)?;
+
+    thread::spawn(move || {
+        while KEEP_RUNNING.load(Ordering::Acquire) {
+            thread::sleep(Duration::from_millis(100));
+
+            let published_msg = format!("{SUBSCRIBED_TOPIC} important update");
+            publish
+                .send_msg(published_msg.as_str().into(), SendFlags::empty())
+                .unwrap();
+        }
+    });
+
+    Ok(())
+}
+
+fn run_subscribe_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
+    let subscribe = Socket::<Subscribe>::from_context(context)?;
+    subscribe.connect(endpoint)?;
+
+    subscribe.subscribe(SUBSCRIBED_TOPIC)?;
+
+    for number in 0..iterations {
+        let zmq_msg = subscribe.recv_msg(RecvFlags::empty())?;
+        let zmq_str = zmq_msg.to_string();
+        let pubsub_item = zmq_str.split_once(" ");
+        assert_eq!(Some((SUBSCRIBED_TOPIC, "important update")), pubsub_item);
+
+        let (topic, item) = pubsub_item.unwrap();
+        println!("Received msg for topic {topic:?}: {item}",);
+
+        subscribe.subscribe(format!("topic-{number}"))?;
+    }
+
+    KEEP_RUNNING.store(false, Ordering::Release);
+
+    Ok(())
+}
+
 fn main() -> ZmqResult<()> {
     let port = 5556;
-    let subscribed_topic = "azmq-example";
+    let iterations = 10;
 
     let context = Context::new()?;
 
-    let publish = Socket::<Publish>::from_context(&context)?;
-    publish.bind(format!("tcp://*:{port}"))?;
+    let publish_endpoint = format!("tcp://*:{port}");
+    run_publish_socket(&context, &publish_endpoint)?;
 
-    let subscribe = Socket::<Subscribe>::from_context(&context)?;
-    subscribe.subscribe(subscribed_topic)?;
-    subscribe.connect(format!("tcp://localhost:{port}"))?;
-
-    thread::spawn(move || {
-        thread::sleep(Duration::from_millis(100));
-        let published_msg = format!("{subscribed_topic} important update");
-        publish
-            .send_msg(published_msg.as_str().into(), SendFlags::empty())
-            .unwrap();
-    });
-
-    let zmq_msg = subscribe.recv_msg(RecvFlags::empty())?;
-    let zmq_str = zmq_msg.to_string();
-    let pubsub_item = zmq_str.split_once(" ");
-    assert_eq!(Some((subscribed_topic, "important update")), pubsub_item);
-
-    let (topic, item) = pubsub_item.unwrap();
-    println!("Received msg for topic {topic:?}: {item}",);
-
-    subscribe.disconnect(format!("tcp://localhost:{port}"))?;
+    let subscribe_endpoint = format!("tcp://localhost:{port}");
+    run_subscribe_socket(&context, &subscribe_endpoint, iterations)?;
 
     Ok(())
 }

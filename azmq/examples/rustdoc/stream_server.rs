@@ -1,3 +1,4 @@
+use core::error::Error;
 use std::{io::prelude::*, net::TcpStream, thread};
 
 use azmq::{
@@ -6,13 +7,9 @@ use azmq::{
     socket::{Receiver, RecvFlags, SendFlags, Sender, Socket, Stream},
 };
 
-fn main() -> ZmqResult<()> {
-    let port = 5556;
-
-    let context = Context::new()?;
-
-    let zmq_stream = Socket::<Stream>::from_context(&context)?;
-    zmq_stream.bind(format!("tcp://*:{port}"))?;
+fn run_stream_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
+    let zmq_stream = Socket::<Stream>::from_context(context)?;
+    zmq_stream.bind(endpoint)?;
 
     thread::spawn(move || {
         let mut connect_msg = zmq_stream.recv_multipart(RecvFlags::empty()).unwrap();
@@ -29,8 +26,12 @@ fn main() -> ZmqResult<()> {
         }
     });
 
-    let mut tcp_stream = TcpStream::connect(format!("127.0.0.1:{port}")).unwrap();
-    for request_no in 1..=10 {
+    Ok(())
+}
+
+fn run_tcp_client(endpoint: &str, iterations: i32) -> Result<(), Box<dyn Error>> {
+    let mut tcp_stream = TcpStream::connect(endpoint)?;
+    for request_no in 1..=iterations {
         println!("Sending requrst {request_no}");
         tcp_stream.write_all("Hello".as_bytes()).unwrap();
 
@@ -46,6 +47,20 @@ fn main() -> ZmqResult<()> {
             );
         }
     }
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let port = 5556;
+    let iterations = 10;
+
+    let context = Context::new()?;
+
+    let stream_endpoint = format!("tcp://*:{port}");
+    run_stream_socket(&context, &stream_endpoint)?;
+
+    let tcp_endpoint = format!("127.0.0.1:{port}");
+    run_tcp_client(&tcp_endpoint, iterations)?;
 
     Ok(())
 }

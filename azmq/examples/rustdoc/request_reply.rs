@@ -6,26 +6,26 @@ use azmq::{
     socket::{Receiver, RecvFlags, Reply, Request, SendFlags, Sender, Socket},
 };
 
-fn main() -> ZmqResult<()> {
-    let port = 5556;
-
-    let context = Context::new()?;
-
-    let reply = Socket::<Reply>::from_context(&context)?;
-    reply.bind(format!("tcp://*:{port}"))?;
+fn run_reply_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
+    let reply = Socket::<Reply>::from_context(context)?;
+    reply.bind(endpoint)?;
 
     thread::spawn(move || {
-        for _ in 1..=10 {
+        for _ in 1..=iterations {
             let message = reply.recv_msg(RecvFlags::empty()).unwrap();
             println!("Received request: {message}");
             reply.send_msg("World".into(), SendFlags::empty()).unwrap();
         }
     });
 
-    let request = Socket::<Request>::from_context(&context)?;
-    request.connect(format!("tcp://localhost:{port}"))?;
+    Ok(())
+}
 
-    for request_no in 1..=10 {
+fn run_request_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
+    let request = Socket::<Request>::from_context(context)?;
+    request.connect(endpoint)?;
+
+    for request_no in 1..=iterations {
         println!("Sending request {request_no}");
         request.send_msg("Hello".into(), SendFlags::empty())?;
 
@@ -33,7 +33,20 @@ fn main() -> ZmqResult<()> {
         println!("Received reply {request_no:2} {message}");
     }
 
-    request.disconnect(format!("tcp://localhost:{port}"))?;
+    Ok(())
+}
+
+fn main() -> ZmqResult<()> {
+    let port = 5556;
+    let iterations = 10;
+
+    let context = Context::new()?;
+
+    let reply_endpoint = format!("tcp://*:{port}");
+    run_reply_socket(&context, &reply_endpoint, iterations)?;
+
+    let request_endpoint = format!("tcp://localhost:{port}");
+    run_request_socket(&context, &request_endpoint, iterations)?;
 
     Ok(())
 }

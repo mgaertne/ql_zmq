@@ -6,16 +6,12 @@ use azmq::{
     socket::{Receiver, RecvFlags, Request, Router, SendFlags, Sender, Socket},
 };
 
-fn main() -> ZmqResult<()> {
-    let port = 5556;
-
-    let context = Context::new()?;
-
-    let router = Socket::<Router>::from_context(&context)?;
-    router.bind(format!("tcp://*:{port}"))?;
+fn run_router_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
+    let router = Socket::<Router>::from_context(context)?;
+    router.bind(endpoint)?;
 
     thread::spawn(move || {
-        for _ in 1..=10 {
+        for _ in 1..=iterations {
             let mut multipart = router.recv_multipart(RecvFlags::empty()).unwrap();
             let content = multipart.pop_back().unwrap();
             if !content.is_empty() {
@@ -28,11 +24,15 @@ fn main() -> ZmqResult<()> {
         }
     });
 
-    let request = Socket::<Request>::from_context(&context)?;
-    request.connect(format!("tcp://localhost:{port}"))?;
+    Ok(())
+}
+
+fn run_request_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
+    let request = Socket::<Request>::from_context(context)?;
+    request.connect(endpoint)?;
     request.set_routing_id("request-router")?;
 
-    for request_no in 1..=10 {
+    for request_no in 1..=iterations {
         println!("Sending request {request_no}");
         request.send_msg("Hello".into(), SendFlags::empty())?;
 
@@ -40,7 +40,20 @@ fn main() -> ZmqResult<()> {
         println!("Received reply {request_no:2} {message}");
     }
 
-    request.disconnect(format!("tcp://localhost:{port}"))?;
+    Ok(())
+}
+
+fn main() -> ZmqResult<()> {
+    let port = 5556;
+    let iterations = 10;
+
+    let context = Context::new()?;
+
+    let router_endpoint = format!("tcp://*:{port}");
+    run_router_socket(&context, &router_endpoint, iterations)?;
+
+    let request_endpoint = format!("tcp://localhost:{port}");
+    run_request_socket(&context, &request_endpoint, iterations)?;
 
     Ok(())
 }
