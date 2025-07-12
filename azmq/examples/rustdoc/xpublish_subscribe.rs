@@ -26,7 +26,7 @@ fn main() -> ZmqResult<()> {
             (subscription[0], str::from_utf8(&subscription[1..]).unwrap());
         assert_eq!(first_byte, 1);
         assert_eq!(subscription_topic, subscribed_topic);
-        println!("{} {}", first_byte, subscription_topic);
+        println!("{first_byte} {subscription_topic}");
 
         let published_msg = format!("{subscribed_topic} important update");
         xpublish
