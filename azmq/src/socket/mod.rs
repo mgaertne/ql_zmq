@@ -16,6 +16,8 @@ use crate::{
 mod dealer;
 mod monitor;
 mod publish;
+mod pull;
+mod push;
 mod reply;
 mod request;
 mod router;
@@ -27,6 +29,8 @@ mod xsubscribe;
 pub use dealer::Dealer;
 pub use monitor::{Monitor, MonitorSocketEvent};
 pub use publish::Publish;
+pub use pull::Pull;
+pub use push::Push;
 pub use reply::Reply;
 pub use request::Request;
 pub use router::Router;

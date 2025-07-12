@@ -54,6 +54,10 @@ name = "version"
 path = "examples/rustdoc/version.rs"
 
 [[example]]
+name = "push_pull"
+path = "examples/rustdoc/push_pull.rs"
+
+[[example]]
 name = "publish_subscribe"
 path = "examples/rustdoc/publish_subscribe.rs"
 

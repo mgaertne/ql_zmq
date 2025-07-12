@@ -79,6 +79,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         example: [
           version,
+          push_pull,
           publish_subscribe,
           publish_xsubscribe,
           xpublish_subscribe,
