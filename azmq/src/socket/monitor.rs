@@ -155,6 +155,9 @@ impl TryFrom<MultipartMessage> for MonitorSocketEvent {
     }
 }
 
+/// # A monitor socket `ZMQ_PAIR`
+pub type MonitorSocket = Socket<Monitor>;
+
 pub struct Monitor {}
 
 impl sealed::ReceiverFlag for Monitor {}

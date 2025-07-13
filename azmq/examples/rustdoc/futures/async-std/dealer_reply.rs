@@ -6,13 +6,13 @@ use azmq::{
     ZmqResult,
     context::Context,
     futures::{AsyncReceiver, AsyncSender},
-    socket::{Dealer, Reply, SendFlags, Socket},
+    socket::{DealerSocket, ReplySocket, SendFlags},
 };
 use futures::join;
 
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);
 
-async fn run_replier(reply: Socket<Reply>) -> ZmqResult<()> {
+async fn run_replier(reply: ReplySocket) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 1 {
         let mut multipart = reply.recv_multipart_async().await;
         let content = multipart.pop_back().unwrap();
@@ -28,7 +28,7 @@ async fn run_replier(reply: Socket<Reply>) -> ZmqResult<()> {
     Ok(())
 }
 
-async fn run_dealer(dealer: Socket<Dealer>) -> ZmqResult<()> {
+async fn run_dealer(dealer: DealerSocket) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         let request_no = ITERATIONS.load(Ordering::Acquire);
         println!("Sending request {request_no}");
@@ -57,10 +57,10 @@ async fn main() -> ZmqResult<()> {
 
     let context = Context::new()?;
 
-    let reply = Socket::<Reply>::from_context(&context)?;
+    let reply = ReplySocket::from_context(&context)?;
     reply.bind(format!("tcp://*:{port}"))?;
 
-    let dealer = Socket::<Dealer>::from_context(&context)?;
+    let dealer = DealerSocket::from_context(&context)?;
     dealer.connect(format!("tcp://localhost:{port}"))?;
 
     let dealer_handle = task::spawn(run_dealer(dealer));

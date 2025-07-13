@@ -3,11 +3,11 @@ use std::thread;
 use azmq::{
     ZmqResult,
     context::Context,
-    socket::{Dealer, Receiver, RecvFlags, Reply, SendFlags, Sender, Socket},
+    socket::{DealerSocket, Receiver, RecvFlags, ReplySocket, SendFlags, Sender},
 };
 
 fn run_reply_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let reply = Socket::<Reply>::from_context(context)?;
+    let reply = ReplySocket::from_context(context)?;
     reply.bind(endpoint)?;
 
     thread::spawn(move || {
@@ -26,7 +26,7 @@ fn run_reply_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqRe
 }
 
 fn run_dealer_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let dealer = Socket::<Dealer>::from_context(context)?;
+    let dealer = DealerSocket::from_context(context)?;
     dealer.connect(endpoint)?;
 
     for request_no in 1..=iterations {

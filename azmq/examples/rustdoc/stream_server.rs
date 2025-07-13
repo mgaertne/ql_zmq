@@ -4,11 +4,11 @@ use std::{io::prelude::*, net::TcpStream, thread};
 use azmq::{
     ZmqResult,
     context::Context,
-    socket::{Receiver, RecvFlags, SendFlags, Sender, Socket, Stream},
+    socket::{Receiver, RecvFlags, SendFlags, Sender, StreamSocket},
 };
 
 fn run_stream_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
-    let zmq_stream = Socket::<Stream>::from_context(context)?;
+    let zmq_stream = StreamSocket::from_context(context)?;
     zmq_stream.bind(endpoint)?;
 
     thread::spawn(move || {

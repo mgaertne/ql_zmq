@@ -5,7 +5,7 @@ use azmq::{
     ZmqResult,
     context::Context,
     message::MultipartMessage,
-    socket::{Receiver, RecvFlags, SendFlags, Sender, Socket, Stream},
+    socket::{Receiver, RecvFlags, SendFlags, Sender, StreamSocket},
 };
 
 fn run_tcp_server(endpoint: &str) -> Result<(), Box<dyn Error>> {
@@ -33,7 +33,7 @@ fn run_tcp_server(endpoint: &str) -> Result<(), Box<dyn Error>> {
 }
 
 fn run_stream_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let zmq_stream = Socket::<Stream>::from_context(context)?;
+    let zmq_stream = StreamSocket::from_context(context)?;
     zmq_stream.connect(endpoint)?;
     let mut connect_msg = zmq_stream.recv_multipart(RecvFlags::empty())?;
     let routing_id = connect_msg.pop_front().unwrap();

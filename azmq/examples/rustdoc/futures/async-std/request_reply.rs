@@ -6,14 +6,14 @@ use azmq::{
     ZmqResult,
     context::Context,
     futures::{AsyncReceiver, AsyncSender},
-    socket::{Reply, Request, SendFlags, Socket},
+    socket::{ReplySocket, RequestSocket, SendFlags},
 };
 use futures::join;
 
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);
 
-async fn run_replier(reply: Socket<Reply>) -> ZmqResult<()> {
+async fn run_replier(reply: ReplySocket) -> ZmqResult<()> {
     while KEEP_RUNNING.load(Ordering::Acquire) {
         if let Some(message) = reply.recv_msg_async().await {
             println!("Received request: {message}");
@@ -26,7 +26,7 @@ async fn run_replier(reply: Socket<Reply>) -> ZmqResult<()> {
     Ok(())
 }
 
-async fn run_requester(request: Socket<Request>) -> ZmqResult<()> {
+async fn run_requester(request: RequestSocket) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         let request_no = ITERATIONS.load(Ordering::Acquire);
         println!("Sending request {request_no}");
@@ -58,10 +58,10 @@ async fn main() -> ZmqResult<()> {
 
     let context = Context::new()?;
 
-    let reply = Socket::<Reply>::from_context(&context)?;
+    let reply = ReplySocket::from_context(&context)?;
     reply.bind(format!("tcp://*:{port}"))?;
 
-    let request = Socket::<Request>::from_context(&context)?;
+    let request = RequestSocket::from_context(&context)?;
     request.connect(format!("tcp://localhost:{port}"))?;
 
     let request_handle = task::spawn(run_requester(request));

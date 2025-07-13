@@ -7,13 +7,13 @@ use std::thread;
 use azmq::{
     ZmqResult,
     context::Context,
-    socket::{Pull, Push, Receiver, RecvFlags, SendFlags, Sender, Socket},
+    socket::{PullSocket, PushSocket, Receiver, RecvFlags, SendFlags, Sender},
 };
 
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 
 fn run_push_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
-    let push = Socket::<Push>::from_context(context)?;
+    let push = PushSocket::from_context(context)?;
     push.bind(endpoint)?;
 
     thread::spawn(move || {
@@ -29,7 +29,7 @@ fn run_push_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
 }
 
 fn run_pull_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let pull = Socket::<Pull>::from_context(context)?;
+    let pull = PullSocket::from_context(context)?;
     pull.connect(endpoint)?;
 
     for i in 1..=iterations {

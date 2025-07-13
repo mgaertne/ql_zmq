@@ -6,6 +6,46 @@ use crate::{
     socket::{Socket, SocketOptions, SocketType},
 };
 
+/// # A router socket `ZMQ_ROUTER`
+///
+/// A socket of type [`Router`] is an advanced socket type used for extending request/reply
+/// sockets. When receiving messages a [`Router`] socket shall prepend a message part containing
+/// the routing id of the originating peer to the message before passing it to the application.
+/// Messages received are fair-queued from among all connected peers. When sending messages a
+/// [`Router`] socket shall remove the first part of the message and use it to determine the
+/// [`routing_id()`] of the peer the message shall be routed to. If the peer does not exist
+/// anymore, or has never existed, the message shall be silently discarded. However, if
+/// [`RouterMandatory`] socket option is set to `true`, the socket shall fail with
+/// `Err(`[`HostUnreachable`]`)` in both cases.
+///
+/// When a [`Router`] socket enters the 'mute' state due to having reached the high water mark for
+/// all peers, then any messages sent to the socket shall be dropped until the mute state ends.
+/// Likewise, any messages routed to a peer for which the individual high water mark has been
+/// reached shall also be dropped. If, [`RouterMandatory`] is set to `true`, the socket shall
+/// block or return `Err(`[`Again`]`)` in both cases.
+///
+/// When a [`Router`] socket has [`RouterMandatory`] flag set to `true`, the socket shall generate
+/// [`ZMQ_POLLIN`] events upon reception of messages from one or more peers. Likewise, the socket
+/// shall generate [`ZMQ_POLLOUT`] events when at least one message can be sent to one or more
+/// peers.
+///
+/// When a [`Request`] socket is connected to a [`Router`] socket, in addition to the routing id of
+/// the originating peer each message received shall contain an empty delimiter message part.
+/// Hence, the entire structure of each received message as seen by the application becomes: one
+/// or more routing id parts, delimiter part, one or more body parts. When sending replies to a
+/// [`Request`] socket the application must include the delimiter
+/// part.
+///
+/// [`Router`]: RouterSocket
+/// [`Request`]: super::RequestSocket
+/// [`routing_id()`]: #method.routing_id
+/// [`RouterMandatory`]: SocketOptions::RouterMandatory
+/// [`HostUnreachable`]: crate::ZmqError::HostUnreachable
+/// [`Again`]: crate::ZmqError::Again
+/// [`ZMQ_POLLIN`]: super::PollEvents::ZMQ_POLLIN
+/// [`ZMQ_POLLOUT`]: super::PollEvents::ZMQ_POLLOUT
+pub type RouterSocket = Socket<Router>;
+
 pub struct Router {}
 
 impl sealed::SenderFlag for Router {}
@@ -32,40 +72,6 @@ bitflags! {
     }
 }
 
-/// # A router socket `ZMQ_ROUTER`
-///
-/// A socket of type [`Router`] is an advanced socket type used for extending request/reply
-/// sockets. When receiving messages a [`Router`] socket shall prepend a message part containing
-/// the routing id of the originating peer to the message before passing it to the application.
-/// Messages received are fair-queued from among all connected peers. When sending messages a
-/// [`Router`] socket shall remove the first part of the message and use it to determine the
-/// [`routing_id()`](method@super::Socket::routing_id()) of the peer the message shall be
-/// routed to. If the peer does not exist anymore, or has never existed, the message shall be
-/// silently discarded. However, if
-/// [`RouterMandatory`](variant@SocketOptions::RouterMandatory) socket option is set to
-/// `true`, the socket shall fail with
-/// `Err(`[`ZmqError::HostUnreachable`](crate::ZmqError::HostUnreachable)`)` in both cases.
-///
-/// When a [`Router`] socket enters the 'mute' state due to having reached the high water mark for
-/// all peers, then any messages sent to the socket shall be dropped until the mute state ends.
-/// Likewise, any messages routed to a peer for which the individual high water mark has been
-/// reached shall also be dropped. If,
-/// [`RouterMandatory`](variant@SocketOptions::RouterMandatory) is set to `true`, the socket
-/// shall block or return `Err(`[`ZmqError::Again`](crate::ZmqError::Again)`)` in both cases.
-///
-/// When a [`Router`] socket has [`RouterMandatory`](variant@SocketOptions::RouterMandatory)
-/// flag set to `true`, the socket shall generate
-/// [`ZmqPollEvents::ZMQ_POLLIN`](const@super::PollEvents::ZMQ_POLLIN) events upon reception
-/// of messages from one or more peers. Likewise, the socket shall generate
-/// [`ZmqPollEvents::ZMQ_POLLOUT`](const@super::PollEvents::ZMQ_POLLOUT) events when at least
-/// one message can be sent to one or more peers.
-///
-/// When a [`Request`](super::Request) socket is connected to a [`Router`] socket, in addition to
-/// the routing id of the originating peer each message received shall contain an empty delimiter
-/// message part. Hence, the entire structure of each received message as seen by the application
-/// becomes: one or more routing id parts, delimiter part, one or more body parts. When sending
-/// replies to a [`Request`](super::Request) socket the application must include the delimiter
-/// part.
 impl Socket<Router> {
     pub fn set_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
         self.set_sockopt_string(SocketOptions::RoutingId as i32, value)

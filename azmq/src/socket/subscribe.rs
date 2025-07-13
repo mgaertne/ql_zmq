@@ -1,6 +1,17 @@
 use super::{Socket, SocketOptions, SocketType};
 use crate::{ZmqResult, sealed};
 
+/// # A Subscriber socket `ZMQ_SUB`
+///
+/// A socket of type [`Subscribe`] is used by a subscriber to subscribe to data distributed by a
+/// [`Publish`]. Initially a [`Subscribe`] socket is not subscribed to any messages, use the
+/// [`subscribe()`] function specify which messages to subscribe to.
+///
+/// [`Subscribe`]: SubscribeSocket
+/// [`Publish`]: super::PublishSocket
+/// [`subscribe()`]: #method.subscribe
+pub type SubscribeSocket = Socket<Subscribe>;
+
 pub struct Subscribe {}
 
 impl sealed::ReceiverFlag for Subscribe {}
@@ -14,13 +25,6 @@ impl sealed::SocketType for Subscribe {
     }
 }
 
-/// # A Subscriber socket `ZMQ_SUB`
-///
-/// A socket of type [`Subscribe`] is used by a subscriber to subscribe to data distributed by a
-/// [`Publish`](struct@super::Publish). Initially a [`Subscribe`] socket is not subscribed
-/// to any messages, use the
-/// [`subscribe()`](method@super::Socket<Subscriber>::subscribe) function specify
-/// which messages to subscribe to.
 impl Socket<Subscribe> {
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(SocketOptions::Conflate as i32, value)

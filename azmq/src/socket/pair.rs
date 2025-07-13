@@ -3,6 +3,34 @@ use crate::{
     socket::{Socket, SocketType},
 };
 
+/// # A pair socket `ZMQ_PAIR`
+///
+/// A socket of type [`Pair`] can only be connected to a single peer at any one time. No message
+/// routing or filtering is performed on messages sent over a [`Pair`] socket.
+///
+/// When a [`Pair`] socket enters the 'mute' state due to having reached the high water mark for
+/// the connected peer, or, for connection-oriented transports, if the
+/// [`immediate()`] option is set and there is no connected peer, then any
+/// [`send_msg()`] operations on the socket shall block until the peer becomes available for
+/// sending; messages are not discarded.
+///
+/// While [`Pair`] sockets can be used over transports other than `inproc`, their inability to
+/// auto-reconnect coupled with the fact new incoming connections will be terminated while any
+/// previous connections (including ones in a closing state) exist makes them unsuitable for TCP
+/// in most cases.
+///
+/// <div class="warning">
+///
+/// [`Pair`] sockets are designed for inter-thread communication across the `inproc` transport
+/// and do not implement functionality such as auto-reconnection.
+///
+/// </div>
+///
+/// [`Pair`]: PairSocket
+/// [`immediate()`]: #method.immediate
+/// [`send_msg()`]: #impl-Sender<T>-for-Socket<T>
+pub type PairSocket = Socket<Pair>;
+
 pub struct Pair {}
 
 impl sealed::SenderFlag for Pair {}
@@ -17,26 +45,4 @@ impl sealed::SocketType for Pair {
 unsafe impl Sync for Socket<Pair> {}
 unsafe impl Send for Socket<Pair> {}
 
-/// # A pair socket `ZMQ_PAIR`
-///
-/// A socket of type [`Pair`] can only be connected to a single peer at any one time. No message
-/// routing or filtering is performed on messages sent over a [`Pair`] socket.
-///
-/// When a [`Pair`] socket enters the 'mute' state due to having reached the high water mark for
-/// the connected peer, or, for connection-oriented transports, if the
-/// [`Immediate`](variant@super::SocketOptions::Immediate) option is set and there is no connected
-/// peer, then any [`send_msg`](method@super::Sender::send_msg()) operations on the socket shall
-/// block until the peer becomes available for sending; messages are not discarded.
-///
-/// While [`Pair`] sockets can be used over transports other than `inproc`, their inability to
-/// auto-reconnect coupled with the fact new incoming connections will be terminated while any
-/// previous connections (including ones in a closing state) exist makes them unsuitable for TCP
-/// in most cases.
-///
-/// <div class="warning">
-///
-/// [`Pair`] sockets are designed for inter-thread communication across the `inproc` transport
-/// and do not implement functionality such as auto-reconnection.
-///
-/// </div>
 impl Socket<Pair> {}

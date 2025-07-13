@@ -3,6 +3,23 @@ use crate::{
     socket::{Socket, SocketOptions, SocketType},
 };
 
+/// # A Requester socket `ZMQ_REQ`
+///
+/// A socket of type [`Request`] is used by a client to send requests to and receive replies from
+/// a service. This socket type allows only an alternating sequence of [`send_msg()`] and
+/// subsequent [`recv_msg()`] calls. Each request sent is round-robined among all services, and
+/// each reply received is matched with the last issued request.
+///
+/// For connection-oriented transports, If the [`immediate()`] option is set and there is no
+/// service available, then any send operation on the socket shall block until at least one service
+/// becomes available. The [`Request`] socket shall not discard messages.
+///
+/// [`Request`]: RequestSocket
+/// [`immediate()`]: #method.immediate
+/// [`send_msg()`]: #impl-Sender<T>-for-Socket<T>
+/// [`recv_msg()`]: #impl-Receiver<T>-for-Socket<T>
+pub type RequestSocket = Socket<Request>;
+
 pub struct Request {}
 
 impl sealed::SenderFlag for Request {}
@@ -17,18 +34,6 @@ impl sealed::SocketType for Request {
 unsafe impl Sync for Socket<Request> {}
 unsafe impl Send for Socket<Request> {}
 
-/// # A Requester socket `ZMQ_REQ`
-///
-/// A socket of type [`Request`] is used by a client to send requests to and receive replies from
-/// a service. This socket type allows only an alternating sequence of
-/// [`send_msg()`](method@super::Sender::send_msg()) and subsequent
-/// [`recv_msg()`](method@super::Receiver::recv_msg()) calls. Each request sent is round-robined
-/// among all services, and each reply received is matched with the last issued request.
-///
-/// For connection-oriented transports, If the [`immediate()`](method@super::Socket::immediate())
-/// option is set and there is no service available, then any send operation on the socket shall
-/// block until at least one service becomes available. The [`Request`] socket shall not discard
-/// messages.
 impl Socket<Request> {
     pub fn set_correlate(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(SocketOptions::RequestCorrelate as i32, value)

@@ -10,11 +10,11 @@ use crate::{
     context::Context,
     ffi::RawSocket,
     message::{Message, MultipartMessage, Sendable},
-    sealed, zmq_sys_crate,
+    sealed, socket, zmq_sys_crate,
 };
 
 mod dealer;
-mod monitor;
+pub(crate) mod monitor;
 mod pair;
 mod publish;
 mod pull;
@@ -27,19 +27,19 @@ mod subscribe;
 mod xpublish;
 mod xsubscribe;
 
-pub use dealer::Dealer;
-pub use monitor::{Monitor, MonitorSocketEvent};
-pub use pair::Pair;
-pub use publish::Publish;
-pub use pull::Pull;
-pub use push::Push;
-pub use reply::Reply;
-pub use request::Request;
-pub use router::Router;
-pub use stream::Stream;
-pub use subscribe::Subscribe;
-pub use xpublish::XPublish;
-pub use xsubscribe::XSubscribe;
+pub use dealer::DealerSocket;
+pub use monitor::{MonitorSocket, MonitorSocketEvent};
+pub use pair::PairSocket;
+pub use publish::PublishSocket;
+pub use pull::PullSocket;
+pub use push::PushSocket;
+pub use reply::ReplySocket;
+pub use request::RequestSocket;
+pub use router::RouterSocket;
+pub use stream::StreamSocket;
+pub use subscribe::SubscribeSocket;
+pub use xpublish::XPublishSocket;
+pub use xsubscribe::XSubscribeSocket;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i32)]
@@ -725,7 +725,7 @@ impl<T: sealed::SocketType> Socket<T> {
         self.socket.disconnect(endpoint.as_ref())
     }
 
-    pub fn monitor<F: Into<MonitorFlags>>(&self, events: F) -> ZmqResult<Socket<Monitor>> {
+    pub fn monitor<F: Into<MonitorFlags>>(&self, events: F) -> ZmqResult<MonitorSocket> {
         let fd = self
             .socket
             .get_sockopt_int::<usize>(SocketOptions::FileDescriptor as i32)?;
@@ -734,7 +734,7 @@ impl<T: sealed::SocketType> Socket<T> {
         self.socket
             .monitor(&monitor_endpoint, events.into().bits() as i32)?;
 
-        let monitor = RawSocket::<Monitor>::from_ctx(self.context.as_raw())?;
+        let monitor = RawSocket::<socket::monitor::Monitor>::from_ctx(self.context.as_raw())?;
 
         monitor.connect(&monitor_endpoint)?;
 

@@ -6,14 +6,14 @@ use azmq::{
     ZmqResult,
     context::Context,
     futures::{AsyncReceiver, AsyncSender},
-    socket::{Publish, SendFlags, Socket, Subscribe},
+    socket::{PublishSocket, SendFlags, SubscribeSocket},
 };
 use futures::join;
 
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 static ITERATIONS: AtomicI32 = AtomicI32::new(0);
 
-async fn run_subscriber(subscribe: Socket<Subscribe>) -> ZmqResult<()> {
+async fn run_subscriber(subscribe: SubscribeSocket) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         if let Some(zmq_msg) = subscribe.recv_msg_async().await {
             let zmq_str = zmq_msg.to_string();
@@ -31,7 +31,7 @@ async fn run_subscriber(subscribe: Socket<Subscribe>) -> ZmqResult<()> {
     Ok(())
 }
 
-async fn run_publisher(publisher: Socket<Publish>) -> ZmqResult<()> {
+async fn run_publisher(publisher: PublishSocket) -> ZmqResult<()> {
     while KEEP_RUNNING.load(Ordering::Acquire) {
         publisher
             .send_msg_async("azmq-example important update".into(), SendFlags::empty())
@@ -49,10 +49,10 @@ async fn main() -> ZmqResult<()> {
 
     let context = Context::new()?;
 
-    let publisher = Socket::<Publish>::from_context(&context)?;
+    let publisher = PublishSocket::from_context(&context)?;
     publisher.bind(format!("tcp://*:{port}"))?;
 
-    let subscriber = Socket::<Subscribe>::from_context(&context)?;
+    let subscriber = SubscribeSocket::from_context(&context)?;
     subscriber.subscribe("azmq-example")?;
     subscriber.connect(format!("tcp://localhost:{port}"))?;
 

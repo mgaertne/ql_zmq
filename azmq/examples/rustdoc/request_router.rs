@@ -3,11 +3,11 @@ use std::thread;
 use azmq::{
     ZmqResult,
     context::Context,
-    socket::{Receiver, RecvFlags, Request, Router, SendFlags, Sender, Socket},
+    socket::{Receiver, RecvFlags, RequestSocket, RouterSocket, SendFlags, Sender},
 };
 
 fn run_router_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let router = Socket::<Router>::from_context(context)?;
+    let router = RouterSocket::from_context(context)?;
     router.bind(endpoint)?;
 
     thread::spawn(move || {
@@ -28,7 +28,7 @@ fn run_router_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqR
 }
 
 fn run_request_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let request = Socket::<Request>::from_context(context)?;
+    let request = RequestSocket::from_context(context)?;
     request.connect(endpoint)?;
     request.set_routing_id("request-router")?;
 

@@ -9,8 +9,8 @@ use futures::FutureExt;
 
 use crate::{
     message::{Message, MultipartMessage, Sendable},
-    sealed,
-    socket::{Monitor, MonitorSocketEvent, Receiver, RecvFlags, SendFlags, Socket},
+    sealed, socket,
+    socket::{MonitorSocket, MonitorSocketEvent, Receiver, RecvFlags, SendFlags, Socket},
 };
 
 #[async_trait]
@@ -133,7 +133,7 @@ pub trait AsyncMonitorReceiver<'a> {
 }
 
 #[async_trait]
-impl<'a> AsyncMonitorReceiver<'a> for Socket<Monitor> {
+impl<'a> AsyncMonitorReceiver<'a> for MonitorSocket {
     async fn recv_monitor_event_async(&'a self) -> Option<MonitorSocketEvent> {
         MonitorSocketEventFuture { receiver: self }.now_or_never()
     }
@@ -143,7 +143,7 @@ struct MonitorSocketEventFuture<'a, T: sealed::SocketType + sealed::ReceiverFlag
     receiver: &'a Socket<T>,
 }
 
-impl Future for MonitorSocketEventFuture<'_, Monitor> {
+impl Future for MonitorSocketEventFuture<'_, socket::monitor::Monitor> {
     type Output = MonitorSocketEvent;
 
     fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {

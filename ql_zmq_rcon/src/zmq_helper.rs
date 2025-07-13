@@ -5,7 +5,7 @@ use azmq::{
     builder::ContextBuilder,
     futures::{AsyncMonitorReceiver, AsyncReceiver, AsyncSender},
     message::Message,
-    socket::{Dealer, Monitor, MonitorFlags, MonitorSocketEvent, SendFlags, Socket},
+    socket::{DealerSocket, MonitorFlags, MonitorSocket, MonitorSocketEvent, SendFlags, Socket},
 };
 use tokio::{
     select,
@@ -19,8 +19,8 @@ use uuid::Uuid;
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
 struct MonitoredDealer {
-    dealer: RwLock<Socket<Dealer>>,
-    monitor: RwLock<Socket<Monitor>>,
+    dealer: RwLock<DealerSocket>,
+    monitor: RwLock<MonitorSocket>,
 }
 
 unsafe impl Send for MonitoredDealer {}

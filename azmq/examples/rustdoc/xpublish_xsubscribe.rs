@@ -7,14 +7,14 @@ use std::thread;
 use azmq::{
     ZmqResult,
     context::Context,
-    socket::{Receiver, RecvFlags, SendFlags, Sender, Socket, XPublish, XSubscribe},
+    socket::{Receiver, RecvFlags, SendFlags, Sender, XPublishSocket, XSubscribeSocket},
 };
 
 const SUBSCRIBED_TOPIC: &str = "azmq-example";
 static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 
 fn run_xpublish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
-    let xpublish = Socket::<XPublish>::from_context(context)?;
+    let xpublish = XPublishSocket::from_context(context)?;
     xpublish.bind(endpoint)?;
 
     thread::spawn(move || {
@@ -37,7 +37,7 @@ fn run_xpublish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
 }
 
 fn run_xsubscribe_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let xsubscribe = Socket::<XSubscribe>::from_context(context)?;
+    let xsubscribe = XSubscribeSocket::from_context(context)?;
     xsubscribe.connect(endpoint)?;
 
     xsubscribe.subscribe(SUBSCRIBED_TOPIC)?;

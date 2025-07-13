@@ -5,7 +5,7 @@ use azmq::{
     builder::ContextBuilder,
     futures::{AsyncMonitorReceiver, AsyncReceiver},
     message::Message,
-    socket::{Monitor, MonitorFlags, MonitorSocketEvent, Socket, Subscribe},
+    socket::{MonitorFlags, MonitorSocket, MonitorSocketEvent, Socket, SubscribeSocket},
 };
 use serde_json::Value;
 use tokio::{
@@ -16,8 +16,8 @@ use tokio::{
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
 struct MonitoredSubscriber {
-    subscriber: RwLock<Socket<Subscribe>>,
-    monitor: RwLock<Socket<Monitor>>,
+    subscriber: RwLock<SubscribeSocket>,
+    monitor: RwLock<MonitorSocket>,
 }
 
 unsafe impl Send for MonitoredSubscriber {}
