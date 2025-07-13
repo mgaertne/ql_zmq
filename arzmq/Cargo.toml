@@ -1,0 +1,167 @@
+[package]
+name = "arzmq"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+autotests = true
+
+[lib]
+crate-type = ["lib", "staticlib", "dylib"]
+test = true
+harness = true
+doctest = true
+doc = true
+doc-scrape-examples = true
+
+[dependencies]
+arzmq-sys = {workspace = true }
+z85 = { version = ">=3.0.6", default-features = false }
+
+num-traits = { version = ">=0.2.19", default-features = false }
+bitflags = { version = ">=2.9", default-features = false, features = ["core"]}
+derive_more = { version = ">=2.0", default-features = false, features = ["from", "debug", "display", "deref"]}
+thiserror = { version = ">=2.0.12", default-features = false }
+parking_lot = { version = ">=0.12.4", default-features = false, features = ["arc_lock"] }
+
+serde = { version = ">=1.0.219", default-features = false, optional = true, features = ["derive"] }
+async-trait = { version = ">=0.1.88", default-features = false, optional = true }
+futures = { version = ">=0.3.31", default-features = false, features = ["async-await", "alloc"], optional = true}
+
+# for async examples
+tokio = { version = ">=1.46", default-features = false, features = ["macros", "rt", "rt-multi-thread", "time"], optional = true }
+async-std = { version = ">=1.13", default-features = false, features = ["attributes", "default"], optional = true }
+
+[features]
+default = ["builder"]
+builder = ["dep:serde"]
+futures = ["dep:async-trait", "dep:futures"]
+draft-api = ["arzmq-sys/draft-api"]
+
+examples-tokio = ["futures", "dep:tokio"]
+examples-async-std = ["futures", "dep:async-std"]
+examples-futures = ["futures", "futures/executor", "futures/thread-pool"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples", "--cfg", "docsrs"]
+
+[lints]
+workspace = true
+
+[[example]]
+name = "version"
+path = "examples/rustdoc/version.rs"
+
+[[example]]
+name = "push_pull"
+path = "examples/rustdoc/push_pull.rs"
+
+[[example]]
+name = "publish_subscribe"
+path = "examples/rustdoc/publish_subscribe.rs"
+
+[[example]]
+name = "publish_xsubscribe"
+path = "examples/rustdoc/publish_xsubscribe.rs"
+
+[[example]]
+name = "xpublish_subscribe"
+path = "examples/rustdoc/xpublish_subscribe.rs"
+
+[[example]]
+name = "xpublish_xsubscribe"
+path = "examples/rustdoc/xpublish_xsubscribe.rs"
+
+[[example]]
+name = "request_reply"
+path = "examples/rustdoc/request_reply.rs"
+
+[[example]]
+name = "request_router"
+path = "examples/rustdoc/request_router.rs"
+
+[[example]]
+name = "dealer_reply"
+path = "examples/rustdoc/dealer_reply.rs"
+
+[[example]]
+name = "dealer_router"
+path = "examples/rustdoc/dealer_router.rs"
+
+[[example]]
+name = "dealer_dealer"
+path = "examples/rustdoc/dealer_dealer.rs"
+
+[[example]]
+name = "stream_client"
+path = "examples/rustdoc/stream_client.rs"
+
+[[example]]
+name = "stream_server"
+path = "examples/rustdoc/stream_server.rs"
+
+[[example]]
+name = "pair_pair"
+path = "examples/rustdoc/pair_pair.rs"
+
+[[example]]
+name = "publish_subscribe_async_tokio"
+path = "examples/rustdoc/futures/tokio/publish_subscribe.rs"
+required-features = ["examples-tokio"]
+
+[[example]]
+name = "request_reply_async_tokio"
+path = "examples/rustdoc/futures/tokio/request_reply.rs"
+required-features = ["examples-tokio"]
+
+[[example]]
+name = "dealer_reply_async_tokio"
+path = "examples/rustdoc/futures/tokio/dealer_reply.rs"
+required-features = ["examples-tokio"]
+
+[[example]]
+name = "request_router_async_tokio"
+path = "examples/rustdoc/futures/tokio/request_router.rs"
+required-features = ["examples-tokio"]
+
+[[example]]
+name = "publish_subscribe_async_async_std"
+path = "examples/rustdoc/futures/async-std/publish_subscribe.rs"
+required-features = ["examples-async-std"]
+
+[[example]]
+name = "request_reply_async_async_std"
+path = "examples/rustdoc/futures/async-std/request_reply.rs"
+required-features = ["examples-async-std"]
+
+[[example]]
+name = "dealer_reply_async_async_std"
+path = "examples/rustdoc/futures/async-std/dealer_reply.rs"
+required-features = ["examples-async-std"]
+
+[[example]]
+name = "request_router_async_async_std"
+path = "examples/rustdoc/futures/async-std/request_router.rs"
+required-features = ["examples-async-std"]
+
+[[example]]
+name = "publish_subscribe_async_futures"
+path = "examples/rustdoc/futures/futures/publish_subscribe.rs"
+required-features = ["examples-futures"]
+
+[[example]]
+name = "request_reply_async_futures"
+path = "examples/rustdoc/futures/futures/request_reply.rs"
+required-features = ["examples-futures"]
+
+[[example]]
+name = "dealer_reply_async_futures"
+path = "examples/rustdoc/futures/futures/dealer_reply.rs"
+required-features = ["examples-futures"]
+
+[[example]]
+name = "request_router_async_futures"
+path = "examples/rustdoc/futures/futures/request_router.rs"
+required-features = ["examples-futures"]
+

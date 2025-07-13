@@ -1,7 +1,7 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
-use azmq::{
+use arzmq::{
     builder::ContextBuilder,
     futures::{AsyncMonitorReceiver, AsyncReceiver},
     message::Message,
