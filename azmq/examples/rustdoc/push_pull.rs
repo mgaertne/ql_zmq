@@ -14,7 +14,6 @@ static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 
 fn run_push_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
     let push = Socket::<Push>::from_context(context)?;
-
     push.bind(endpoint)?;
 
     thread::spawn(move || {

@@ -79,6 +79,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         example: [
           version,
+          pair_pair,
           push_pull,
           publish_subscribe,
           publish_xsubscribe,
@@ -87,6 +88,8 @@ jobs:
           request_reply,
           request_router,
           dealer_reply,
+          dealer_router,
+          dealer_dealer,
           stream_client,
           stream_server,
         ]

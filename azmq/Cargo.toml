@@ -86,12 +86,24 @@ name = "dealer_reply"
 path = "examples/rustdoc/dealer_reply.rs"
 
 [[example]]
+name = "dealer_router"
+path = "examples/rustdoc/dealer_router.rs"
+
+[[example]]
+name = "dealer_dealer"
+path = "examples/rustdoc/dealer_dealer.rs"
+
+[[example]]
 name = "stream_client"
 path = "examples/rustdoc/stream_client.rs"
 
 [[example]]
 name = "stream_server"
 path = "examples/rustdoc/stream_server.rs"
+
+[[example]]
+name = "pair_pair"
+path = "examples/rustdoc/pair_pair.rs"
 
 [[example]]
 name = "publish_subscribe_async_tokio"
