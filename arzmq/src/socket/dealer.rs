@@ -105,6 +105,8 @@ impl Socket<Dealer> {
     /// [`Client`]: todo!()
     /// [`Peer`]: todo!()
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
     pub fn set_hiccup_message<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
         self.set_sockopt_string(SocketOptions::HiccupMessage, value)
     }

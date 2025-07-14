@@ -192,6 +192,8 @@ impl Socket<XPublish> {
     ///
     /// It not set (default), subscribe/unsubscribe messages in a multipart message are processed
     /// as such regardless of their number and order.
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
     pub fn set_only_first_subscribe(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(SocketOptions::OnlyFirstSubscribe, value)
     }
