@@ -25,8 +25,8 @@ use crate::{
 /// block or return `Err(`[`Again`]`)` in both cases.
 ///
 /// When a [`Router`] socket has [`RouterMandatory`] flag set to `true`, the socket shall generate
-/// [`ZMQ_POLLIN`] events upon reception of messages from one or more peers. Likewise, the socket
-/// shall generate [`ZMQ_POLLOUT`] events when at least one message can be sent to one or more
+/// [`POLL_IN`] events upon reception of messages from one or more peers. Likewise, the socket
+/// shall generate [`POLL_OUT`] events when at least one message can be sent to one or more
 /// peers.
 ///
 /// When a [`Request`] socket is connected to a [`Router`] socket, in addition to the routing id of
@@ -42,8 +42,8 @@ use crate::{
 /// [`RouterMandatory`]: SocketOptions::RouterMandatory
 /// [`HostUnreachable`]: crate::ZmqError::HostUnreachable
 /// [`Again`]: crate::ZmqError::Again
-/// [`ZMQ_POLLIN`]: super::PollEvents::ZMQ_POLLIN
-/// [`ZMQ_POLLOUT`]: super::PollEvents::ZMQ_POLLOUT
+/// [`POLL_IN`]: super::PollEvents::POLL_IN
+/// [`POLL_OUT`]: super::PollEvents::POLL_OUT
 pub type RouterSocket = Socket<Router>;
 
 pub struct Router {}
@@ -158,7 +158,7 @@ impl Socket<Router> {
     /// [`DONT_WAIT`] was used. Without [`DONT_WAIT`] it will block until the [`sndtimeo()`] is
     /// reached or a spot in the send queue opens up.
     ///
-    /// When [`set_router_mandatory()`] is set to `true`, [`POLLOUT`] events will be generated if
+    /// When [`set_router_mandatory()`] is set to `true`, [`POLL_OUT`] events will be generated if
     /// one or more messages can be sent to at least one of the peers. If
     /// [`set_router_mandatory()`] is set to `false`, the socket will generate a [`POLLOUT`] event
     /// on every call to [`poll()`] resp. [`poll_wait_all()`].
@@ -170,7 +170,7 @@ impl Socket<Router> {
     /// [`Again`]: crate::ZmqError::Again
     /// [`DONT_WAIT`]: super::SendFlags::DONT_WAIT
     /// [`set_router_mandatory()`]: #method.set_router_mandatory
-    /// [`POLLOUT`]: super::PollEvents::ZMQ_POLLOUT
+    /// [`POLL_OUT`]: super::PollEvents::POLL_OUT
     /// [`poll()`]: #method.poll
     /// [`poll_wait_all()`]: todo!()
     pub fn set_router_mandatory(&self, value: bool) -> ZmqResult<()> {

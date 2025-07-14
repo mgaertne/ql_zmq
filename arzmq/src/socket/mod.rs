@@ -960,9 +960,9 @@ pub struct PollEvents(i16);
 
 bitflags! {
     impl PollEvents: i16 {
-        const ZMQ_POLLIN = 0b0000_0001;
-        const ZMQ_POLLOUT = 0b0000_0010;
-        const ZMQ_POLLERR = 0b0000_0100;
-        const ZMQ_POLLPRI = 0b0000_1000;
+        const POLL_IN = 0b0000_0001;
+        const POLL_OUT = 0b0000_0010;
+        const POLL_ERR = 0b0000_0100;
+        const POLL_PRI = 0b0000_1000;
     }
 }
