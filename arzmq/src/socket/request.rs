@@ -35,27 +35,71 @@ unsafe impl Sync for Socket<Request> {}
 unsafe impl Send for Socket<Request> {}
 
 impl Socket<Request> {
+    /// # match replies with requests `ZMQ_REQ_CORRELATE`
+    ///
+    /// The default behaviour of [`Request`] sockets is to rely on the ordering of messages to
+    /// match requests and responses and that is usually sufficient. When this option is set to
+    /// `true`, the [`Request`] socket will prefix outgoing messages with an extra frame containing
+    /// a request id. That means the full message is `(request id, 0, user frames...)`. The
+    /// [`Request`] socket will discard all incoming messages that don’t begin with these two
+    /// frames.
+    ///
+    /// [`Request`]: RequestSocket
     pub fn set_correlate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::RequestCorrelate as i32, value)
+        self.set_sockopt_bool(SocketOptions::RequestCorrelate, value)
     }
 
-    pub fn correlate(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(SocketOptions::RequestCorrelate as i32)
-    }
-
+    /// # relax strict alternation between request and reply `ZMQ_REQ_RELAXED`
+    ///
+    /// By default, a [`Request`] socket does not allow initiating a new request with
+    /// [`send_msg()`] until the reply to the previous one has been received. When set to `true`,
+    /// sending another message is allowed and previous replies will be discarded if any. The
+    /// request-reply state machine is reset and a new request is sent to the next available peer.
+    ///
+    /// If set to `true`, also enable [`set_correlate()`] to ensure correct matching of requests
+    /// and replies. Otherwise a late reply to an aborted request can be reported as the reply to
+    /// the superseding request.
+    ///
+    /// [`Request`]: RequestSocket
+    /// [`send_msg()`]: #method.send_msg
+    /// [`set_correlate()`]: #method.set_correlate
     pub fn set_relaxed(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::RequestRelaxed as i32, value)
+        self.set_sockopt_bool(SocketOptions::RequestRelaxed, value)
     }
 
-    pub fn relaxed(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(SocketOptions::RequestRelaxed as i32)
-    }
-
+    /// # Set socket routing id `ZMQ_ROUTING_ID`
+    ///
+    /// The [`set_routing_id()`] option shall set the routing id of the specified 'socket' when
+    /// connecting to a [`Router`] socket.
+    ///
+    /// A routing id must be at least one byte and at most 255 bytes long. Identities starting with
+    /// a zero byte are reserved for use by the 0MQ infrastructure.
+    ///
+    /// If two clients use the same routing id when connecting to a [`Router`], the results shall
+    /// depend on the [`set_router_handover()`] option setting. If that is not set (or set to the
+    /// default of zero), the [`Router`] socket shall reject clients trying to connect with an
+    /// already-used routing id. If that option is set to `true`, the [`Router`]socket shall
+    /// hand-over the connection to the new client and disconnect the existing one.
+    ///
+    /// [`set_routing_id()`]: #method.set_routing_id
+    /// [`Router`]: super::RouterSocket
+    /// [`set_router_handover()`]: super::RouterSocket::set_router_handover
     pub fn set_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::RoutingId as i32, value)
+        self.set_sockopt_string(SocketOptions::RoutingId, value)
     }
 
+    /// # Retrieve socket routing id `ZMQ_ROUTING_ID`
+    ///
+    /// The [`routing_id()`] option shall retrieve the routing id of the specified 'socket'.
+    /// Routing ids are used only by the request/reply pattern. Specifically, it can be used in
+    /// tandem with [`Router`] socket to route messages to the peer with a specific routing id.
+    ///
+    /// A routing id must be at least one byte and at most 255 bytes long. Identities starting
+    /// with a zero byte are reserved for use by the 0MQ infrastructure.
+    ///
+    /// [`routing_id()`]: #method.routing_id
+    /// [`Router`]: super::RouterSocket
     pub fn routing_id(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(SocketOptions::RoutingId as i32)
+        self.get_sockopt_string(SocketOptions::RoutingId)
     }
 }

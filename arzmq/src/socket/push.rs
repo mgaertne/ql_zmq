@@ -1,6 +1,6 @@
 use crate::{
-    sealed,
-    socket::{Socket, SocketType},
+    ZmqResult, sealed,
+    socket::{Socket, SocketOptions, SocketType},
 };
 
 /// # A push socket `ZMQ_PUSH`
@@ -33,4 +33,24 @@ impl sealed::SocketType for Push {
     }
 }
 
-impl Socket<Push> {}
+impl Socket<Push> {
+    /// # Keep only last message `ZMQ_CONFLATE`
+    ///
+    /// If set, a socket shall keep only one message in its inbound/outbound queue, this message
+    /// being the last message received/the last message to be sent. Ignores [`recvhwm()`] and
+    /// [`sndhwm()`] options. Does not support multi-part messages, in particular, only one part of
+    /// it is kept in the socket internal queue.
+    ///
+    /// # Note
+    ///
+    /// If [`recv_msg()`] is not called on the inbound socket, the queue and memory will grow with
+    /// each message received. Use [`events()`] to trigger the conflation of the messages.
+    ///
+    /// [`recvhwm()`]: #method.recvhwm
+    /// [`sndhwm()`]: #method.sndhwm
+    /// [`recv_msg()`]: #method.recv_msg
+    /// [`events()`]: #method.events
+    pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
+        self.set_sockopt_bool(SocketOptions::Conflate, value)
+    }
+}

@@ -32,19 +32,79 @@ impl sealed::SocketType for XSubscribe {
 }
 
 impl Socket<XSubscribe> {
-    pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::Conflate as i32, value)
+    /// # Process only first subscribe/unsubscribe in a multipart message `ZMQ_ONLY_FIRST_SUBSCRIBE`
+    ///
+    /// If set, only the first part of the multipart message is processed as a
+    /// subscribe/unsubscribe message. The rest are forwarded as user data regardless of message
+    /// contents.
+    ///
+    /// It not set (default), subscribe/unsubscribe messages in a multipart message are processed
+    /// as such regardless of their number and order.
+    pub fn set_only_first_subscribe(&self, value: bool) -> ZmqResult<()> {
+        self.set_sockopt_bool(SocketOptions::OnlyFirstSubscribe, value)
     }
 
-    pub fn conflate(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(SocketOptions::Conflate as i32)
-    }
-
+    /// # Establish message filter `ZMQ_SUBSCRIBE`
+    ///
+    /// The [`subscribe()`] option shall establish a new message filter on a [`XSubscriber`] socket.
+    /// Newly created [`XSubscriber`] sockets shall filter out all incoming messages, therefore you
+    /// should call this option to establish an initial message filter.
+    ///
+    /// An empty `topic` of length zero shall subscribe to all incoming messages. A non-empty
+    /// `topic` shall subscribe to all messages beginning with the specified prefix. Multiple
+    /// filters may be attached to a single [`XSubscriber`] socket, in which case a message shall
+    /// be accepted if it matches at least one filter.
+    ///
+    /// [`XSubscriber`]: XSubscribeSocket
+    /// [`subscribe()`]: #method.subscribe
     pub fn subscribe<V: AsRef<[u8]>>(&self, topic: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(SocketOptions::Subscribe as i32, topic.as_ref())
+        self.set_sockopt_bytes(SocketOptions::Subscribe, topic.as_ref())
     }
 
+    /// # Remove message filter `ZMQ_UNSUBSCRIBE`
+    ///
+    /// The [`unsubscribe()`] option shall remove an existing message filter on a [`XSubscriber`]
+    /// socket. The filter specified must match an existing filter previously established with the
+    /// [`subscribe()`] option. If the socket has several instances of the same filter attached
+    /// the [`unsubscribe()`] option shall remove only one instance, leaving the rest in place and
+    /// functional.
+    ///
+    /// [`XSubscriber`]: XSubscribeSocket
+    /// [`subscribe()`]: #method.subscribe
+    /// [`unsubscribe()`]: #method.unsubscribe
     pub fn unsubscribe<V: AsRef<[u8]>>(&self, topic: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(SocketOptions::Unsubscribe as i32, topic.as_ref())
+        self.set_sockopt_bytes(SocketOptions::Unsubscribe, topic.as_ref())
+    }
+
+    /// # Number of topic subscriptions received `ZMQ_TOPICS_COUNT`
+    ///
+    /// Gets the number of topic (prefix) subscriptions either
+    ///
+    /// * received on a [`Publish`]/[`XPublish`] socket from all the connected
+    ///   [`Subscribe`]/[`XSubscribe`] sockets or
+    /// * acknowledged on an [`Publish`]/[`XPublish`] socket from all the connected
+    ///   [`Subscribe`]/[`XSubscribe`] sockets
+    ///
+    /// [`Subscribe`]: super::SubscribeSocket
+    /// [`Publish`]: super::PublishSocket
+    /// [`XPublish`]: super::XPublishSocket
+    /// [`XSubscribe`]: XSubscribeSocket
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn topic_count(&self) -> ZmqResult<i32> {
+        self.get_sockopt_int(SocketOptions::TopicsCount)
+    }
+
+    /// # pass duplicate unsubscribe messages on [`XSubscribe`] socket `ZMQ_XSUB_VERBOSE_UNSUBSCRIBE`
+    ///
+    /// Sets the [`XSubscribe`] socket behaviour on duplicated unsubscriptions. If enabled, the
+    /// socket passes all unsubscribe messages to the caller. If disabled, only the last
+    /// unsubscription from each filter will be passed. The default is `false` (disabled).
+    ///
+    /// [`XSubscribe`]: XSubscribeSocket
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn set_verbose_unsubscribe(&self, value: bool) -> ZmqResult<()> {
+        self.set_sockopt_bool(SocketOptions::XsubVerboseUnsubscribe, value)
     }
 }

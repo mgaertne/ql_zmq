@@ -26,19 +26,119 @@ impl sealed::SocketType for Subscribe {
 }
 
 impl Socket<Subscribe> {
+    /// # Keep only last message `ZMQ_CONFLATE`
+    ///
+    /// If set, a socket shall keep only one message in its inbound/outbound queue, this message
+    /// being the last message received/the last message to be sent. Ignores [`recvhwm()`] and
+    /// [`sndhwm()`] options. Does not support multi-part messages, in particular, only one part of
+    /// it is kept in the socket internal queue.
+    ///
+    /// # Note
+    ///
+    /// If [`recv_msg()`] is not called on the inbound socket, the queue and memory will grow with
+    /// each message received. Use [`events()`] to trigger the conflation of the messages.
+    ///
+    /// [`recvhwm()`]: #method.recvhwm
+    /// [`sndhwm()`]: #method.sndhwm
+    /// [`recv_msg()`]: #method.recv_msg
+    /// [`events()`]: #method.events
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::Conflate as i32, value)
+        self.set_sockopt_bool(SocketOptions::Conflate, value)
     }
 
-    pub fn conflate(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(SocketOptions::Conflate as i32)
+    /// # Invert message filtering `ZMQ_INVERT_MATCHING`
+    ///
+    /// Reverses the filtering behavior of [`Publish`]-[`Subscribe`] sockets, when set to `true`.
+    ///
+    /// On [`Publish`] and [`XPublish`] sockets, this causes messages to be sent to all connected
+    /// sockets *except* those subscribed to a prefix that matches the message. On [`Subscribe`]
+    /// sockets, this causes only incoming messages that do *not* match any of the socket’s
+    /// subscriptions to be received by the user.
+    ///
+    /// Whenever `ZMQ_INVERT_MATCHING` is set to `true` on a [`Publish`] socket, all [`Subscribe`]
+    /// sockets connecting to it must also have the option set to `true`. Failure to do so will
+    /// have the [`Subscribe`] sockets reject everything the [`Publish`] socket sends them.
+    /// [`XSubscribe`] sockets do not need to do this because they do not filter incoming messages.
+    ///
+    /// [`Subscribe`]: SubscribeSocket
+    /// [`Publish`]: super::PublishSocket
+    /// [`XPublish`]: super::XPublishSocket
+    /// [`XSubscribe`]: super::XSubscribeSocket
+    pub fn set_invert_matching(&self, value: bool) -> ZmqResult<()> {
+        self.set_sockopt_bool(SocketOptions::InvertMatching, value)
     }
 
+    /// # Retrieve inverted filtering status `ZMQ_INVERT_MATCHING`
+    ///
+    /// Returns the value of the `ZMQ_INVERT_MATCHING` option. A value of `true` means the socket
+    /// uses inverted prefix matching.
+    ///
+    /// On [`Publish`] and [`XPublish`] sockets, this causes messages to be sent to all connected
+    /// sockets *except* those subscribed to a prefix that matches the message. On [`Subscribe`]
+    /// sockets, this causes only incoming messages that do *not* match any of the socket’s
+    /// subscriptions to be received by the user.
+    ///
+    /// Whenever `ZMQ_INVERT_MATCHING` is set to `true` on a [`Publish`] socket, all [`Publish`]
+    /// sockets connecting to it must also have the option set to `true`. Failure to do so will
+    /// have the [`Subscribe`] sockets reject everything the [`Publish`] socket sends them.
+    /// [`XSubscribe`] sockets do not need to do this because they do not filter incoming messages.
+    ///
+    /// [`Subscribe`]: SubscribeSocket
+    /// [`Publish`]: super::PublishSocket
+    /// [`XPublish`]: super::XPublishSocket
+    /// [`XSubscribe`]: super::XSubscribeSocket
+    pub fn invert_matching(&self) -> ZmqResult<bool> {
+        self.get_sockopt_bool(SocketOptions::InvertMatching)
+    }
+
+    /// # Establish message filter `ZMQ_SUBSCRIBE`
+    ///
+    /// The [`subscribe()`] option shall establish a new message filter on a [`Subscriber`] socket.
+    /// Newly created [`Subscriber`] sockets shall filter out all incoming messages, therefore you
+    /// should call this option to establish an initial message filter.
+    ///
+    /// An empty `topic` of length zero shall subscribe to all incoming messages. A non-empty
+    /// `topic` shall subscribe to all messages beginning with the specified prefix. Multiple
+    /// filters may be attached to a single [`Subscriber`] socket, in which case a message shall
+    /// be accepted if it matches at least one filter.
+    ///
+    /// [`Subscriber`]: SubscribeSocket
+    /// [`subscribe()`]: #method.subscribe
     pub fn subscribe<V: AsRef<[u8]>>(&self, topic: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(SocketOptions::Subscribe as i32, topic.as_ref())
+        self.set_sockopt_bytes(SocketOptions::Subscribe, topic.as_ref())
     }
 
+    /// # Remove message filter `ZMQ_UNSUBSCRIBE`
+    ///
+    /// The [`unsubscribe()`] option shall remove an existing message filter on a [`Subscriber`]
+    /// socket. The filter specified must match an existing filter previously established with the
+    /// [`subscribe()`] option. If the socket has several instances of the same filter attached
+    /// the [`unsubscribe()`] option shall remove only one instance, leaving the rest in place and
+    /// functional.
+    ///
+    /// [`Subscriber`]: SubscribeSocket
+    /// [`subscribe()`]: #method.subscribe
+    /// [`unsubscribe()`]: #method.unsubscribe
     pub fn unsubscribe<V: AsRef<[u8]>>(&self, topic: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(SocketOptions::Unsubscribe as i32, topic.as_ref())
+        self.set_sockopt_bytes(SocketOptions::Unsubscribe, topic.as_ref())
+    }
+
+    /// # Number of topic subscriptions received `ZMQ_TOPICS_COUNT`
+    ///
+    /// Gets the number of topic (prefix) subscriptions either
+    ///
+    /// * received on a [`Publish`]/[`XPublish`] socket from all the connected
+    ///   [`Subscribe`]/[`XSubscribe`] sockets or
+    /// * acknowledged on an [`Publish`]/[`XPublish`] socket from all the connected
+    ///   [`Subscribe`]/[`XSubscribe`] sockets
+    ///
+    /// [`Subscribe`]: SubscribeSocket
+    /// [`Publish`]: super::PublishSocket
+    /// [`XPublish`]: super::XPublishSocket
+    /// [`XSubscribe`]: super::XSubscribeSocket
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn topic_count(&self) -> ZmqResult<i32> {
+        self.get_sockopt_int(SocketOptions::TopicsCount)
     }
 }

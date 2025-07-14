@@ -52,21 +52,78 @@ unsafe impl Sync for Socket<Stream> {}
 unsafe impl Send for Socket<Stream> {}
 
 impl Socket<Stream> {
+    /// # Set socket routing id `ZMQ_ROUTING_ID`
+    ///
+    /// The [`set_routing_id()`] option shall set the routing id of the specified 'socket' when
+    /// connecting to a [`Router`] socket.
+    ///
+    /// A routing id must be at least one byte and at most 255 bytes long. Identities starting with
+    /// a zero byte are reserved for use by the 0MQ infrastructure.
+    ///
+    /// If two clients use the same routing id when connecting to a [`Router`], the results shall
+    /// depend on the [`set_router_handover()`] option setting. If that is not set (or set to the
+    /// default of zero), the [`Router`] socket shall reject clients trying to connect with an
+    /// already-used routing id. If that option is set to `true`, the [`Router`]socket shall
+    /// hand-over the connection to the new client and disconnect the existing one.
+    ///
+    /// [`set_routing_id()`]: #method.set_routing_id
+    /// [`Router`]: super::RouterSocket
+    /// [`set_router_handover()`]: super::RouterSocket::set_router_handover
     pub fn set_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::RoutingId as i32, value)
+        self.set_sockopt_string(SocketOptions::RoutingId, value)
     }
 
+    /// # Retrieve socket routing id `ZMQ_ROUTING_ID`
+    ///
+    /// The [`routing_id()`] option shall retrieve the routing id of the specified 'socket'.
+    /// Routing ids are used only by the request/reply pattern. Specifically, it can be used in
+    /// tandem with [`Router`] socket to route messages to the peer with a specific routing id.
+    ///
+    /// A routing id must be at least one byte and at most 255 bytes long. Identities starting
+    /// with a zero byte are reserved for use by the 0MQ infrastructure.
+    ///
+    /// [`routing_id()`]: #method.routing_id
+    /// [`Router`]: super::RouterSocket
     pub fn routing_id(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(SocketOptions::RoutingId as i32)
+        self.get_sockopt_string(SocketOptions::RoutingId)
     }
 
+    /// # Assign the next outbound routing id `ZMQ_CONNECT_ROUTING_ID`
+    ///
+    /// The [`set_connect_routing_id()`] option sets the peer id of the peer connected via the next
+    /// [`connect()`] call, such that that connection is immediately ready for data transfer with
+    /// the given routing id. This option applies only to the first subsequent call to
+    /// [`connect()`], [`connect()`] calls thereafter use the default connection behaviour.
+    ///
+    /// Typical use is to set this socket option ahead of each [`connect()`] call. Each connection
+    /// MUST be assigned a unique routing id. Assigning a routing id that is already in use is not
+    /// allowed.
+    ///
+    /// Useful when connecting [`Router`] to [`Router`], or [`Stream`] to [`Stream`], as it allows
+    /// for immediate sending to peers. Outbound routing id framing requirements for [`Router`] and
+    /// [`Stream`] sockets apply.
+    ///
+    /// The routing id must be from 1 to 255 bytes long and MAY NOT start with a zero byte (such
+    /// routing ids are reserved for internal use by the 0MQ infrastructure).
+    ///
+    /// [`Stream`]: StreamSocket
+    /// [`Router`]: super::RouterSocket
+    /// [`connect()`]: #method.connect
+    /// [`set_connect_routing_id()`]: #method.set_connect_routing_id
     pub fn set_connect_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::ConnectRoutingId as i32, value)
+        self.set_sockopt_string(SocketOptions::ConnectRoutingId, value)
     }
 
+    /// # send connect and disconnect notifications `ZMQ_STREAM_NOTIFY`
+    ///
+    /// Enables connect and disconnect notifications on a [`Stream`] socket, when set to `true`.
+    /// When notifications are enabled, the socket delivers a zero-length message when a peer
+    /// connects or disconnects.
+    ///
+    /// [`Stream`]: StreamSocket
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_stream_notify(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::StreamNotify as i32, value)
+        self.set_sockopt_bool(SocketOptions::StreamNotify, value)
     }
 }

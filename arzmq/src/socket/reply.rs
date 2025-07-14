@@ -31,11 +31,39 @@ unsafe impl Sync for Socket<Reply> {}
 unsafe impl Send for Socket<Reply> {}
 
 impl Socket<Reply> {
+    /// # Set socket routing id `ZMQ_ROUTING_ID`
+    ///
+    /// The [`set_routing_id()`] option shall set the routing id of the specified 'socket' when
+    /// connecting to a [`Router`] socket.
+    ///
+    /// A routing id must be at least one byte and at most 255 bytes long. Identities starting with
+    /// a zero byte are reserved for use by the 0MQ infrastructure.
+    ///
+    /// If two clients use the same routing id when connecting to a [`Router`], the results shall
+    /// depend on the [`set_router_handover()`] option setting. If that is not set (or set to the
+    /// default of zero), the [`Router`] socket shall reject clients trying to connect with an
+    /// already-used routing id. If that option is set to `true`, the [`Router`]socket shall
+    /// hand-over the connection to the new client and disconnect the existing one.
+    ///
+    /// [`set_routing_id()`]: #method.set_routing_id
+    /// [`Router`]: super::RouterSocket
+    /// [`set_router_handover()`]: super::RouterSocket::set_router_handover
     pub fn set_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::RoutingId as i32, value)
+        self.set_sockopt_string(SocketOptions::RoutingId, value)
     }
 
+    /// # Retrieve socket routing id `ZMQ_ROUTING_ID`
+    ///
+    /// The [`routing_id()`] option shall retrieve the routing id of the specified 'socket'.
+    /// Routing ids are used only by the request/reply pattern. Specifically, it can be used in
+    /// tandem with [`Router`] socket to route messages to the peer with a specific routing id.
+    ///
+    /// A routing id must be at least one byte and at most 255 bytes long. Identities starting
+    /// with a zero byte are reserved for use by the 0MQ infrastructure.
+    ///
+    /// [`routing_id()`]: #method.routing_id
+    /// [`Router`]: super::RouterSocket
     pub fn routing_id(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(SocketOptions::RoutingId as i32)
+        self.get_sockopt_string(SocketOptions::RoutingId)
     }
 }
