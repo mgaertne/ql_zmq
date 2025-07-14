@@ -160,7 +160,7 @@ impl Socket<Router> {
     ///
     /// When [`set_router_mandatory()`] is set to `true`, [`POLL_OUT`] events will be generated if
     /// one or more messages can be sent to at least one of the peers. If
-    /// [`set_router_mandatory()`] is set to `false`, the socket will generate a [`POLLOUT`] event
+    /// [`set_router_mandatory()`] is set to `false`, the socket will generate a [`POLL_OUT`] event
     /// on every call to [`poll()`] resp. [`poll_wait_all()`].
     ///
     /// [`Router`]: RouterSocket
