@@ -1,5 +1,6 @@
 use alloc::sync::Arc;
 use core::{iter, ops::ControlFlow};
+use std::marker::PhantomData;
 
 use bitflags::bitflags;
 use derive_more::From;
@@ -10,7 +11,7 @@ use crate::{
     context::Context,
     ffi::RawSocket,
     message::{Message, MultipartMessage, Sendable},
-    sealed, socket, zmq_sys_crate,
+    sealed, zmq_sys_crate,
 };
 
 mod dealer;
@@ -28,6 +29,7 @@ mod xpublish;
 mod xsubscribe;
 
 pub use dealer::DealerSocket;
+use monitor::Monitor;
 pub use monitor::{MonitorSocket, MonitorSocketEvent};
 pub use pair::PairSocket;
 pub use publish::PublishSocket;
@@ -278,15 +280,17 @@ impl From<SocketOptions> for i32 {
 
 pub struct Socket<T: sealed::SocketType> {
     context: Context,
-    pub(crate) socket: Arc<RawSocket<T>>,
+    pub(crate) socket: Arc<RawSocket>,
+    marker: PhantomData<T>,
 }
 
 impl<T: sealed::SocketType> Socket<T> {
     pub fn from_context(context: &Context) -> ZmqResult<Self> {
-        let socket = RawSocket::<T>::from_ctx(&context.inner)?;
+        let socket = RawSocket::from_ctx(&context.inner, T::raw_socket_type() as i32)?;
         Ok(Self {
             context: context.clone(),
             socket: socket.into(),
+            marker: PhantomData,
         })
     }
 
@@ -330,8 +334,8 @@ impl<T: sealed::SocketType> Socket<T> {
 
     /// # Set I/O thread affinity `ZMQ_AFFINITY`
     ///
-    /// The [`SocketOptions::Affinity`] option shall set the I/O thread affinity for newly
-    /// created connections on the specified [`Socket`].
+    /// The [`Affinity`] option shall set the I/O thread affinity for newly created connections on
+    /// the specified [`Socket`].
     ///
     /// Affinity determines which threads from the 0MQ I/O thread pool associated with the
     /// socket’s context shall handle newly created connections. A value of zero specifies no
@@ -340,16 +344,19 @@ impl<T: sealed::SocketType> Socket<T> {
     /// to thread 2 and so on. For example, a value of 3 specifies that subsequent connections on
     /// [`Socket`] shall be handled exclusively by I/O threads 1 and 2.
     ///
-    /// | Default value           | Applicable socket types |
-    /// | :---------------------: | :---------------------: |
-    /// | 0                       | N/A                     |
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | 0             | N/A                     |
+    ///
+    /// [`Socket`]: Socket
+    /// [`Affinity`]: SocketOptions::Affinity
     pub fn set_affinity(&self, value: u64) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOptions::Affinity as i32, value)
     }
 
     /// # Retrieve I/O thread affinity `ZMQ_AFFINITY`
     ///
-    /// The [`SocketOptions::Affinity`] option shall retrieve the I/O thread affinity for newly
+    /// The [`Affinity`] option shall retrieve the I/O thread affinity for newly
     /// created connections on the specified [`Socket`].
     ///
     /// Affinity determines which threads from the 0MQ I/O thread pool associated with the
@@ -359,29 +366,91 @@ impl<T: sealed::SocketType> Socket<T> {
     /// to thread 2 and so on. For example, a value of 3 specifies that subsequent connections on
     /// [`Socket`] shall be handled exclusively by I/O threads 1 and 2.
     ///
-    /// | Default value           | Applicable socket types |
-    /// | :---------------------: | :---------------------: |
-    /// | 0                       | N/A                     |
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | 0             | N/A                     |
+    ///
+    /// [`Socket`]: Socket
+    /// [`Affinity`]: SocketOptions::Affinity
     pub fn affinity(&self) -> ZmqResult<u64> {
         self.get_sockopt_int(SocketOptions::Affinity as i32)
     }
 
+    /// # Set maximum length of the queue of outstanding connections `ZMQ_BACKLOG`
+    ///
+    /// The [`Backlog`] option shall set the maximum length of the queue of outstanding peer
+    /// connections for the specified [`Socket`]; this only applies to connection-oriented
+    /// transports. For details refer to your operating system documentation for the `listen`
+    /// function.
+    ///
+    /// | Default value           | Applicable socket types                       |
+    /// | :---------------------: | :-------------------------------------------: |
+    /// | 100                     | all, only for connection-oriented transports. |
+    ///
+    /// [`Socket`]: Socket
+    /// [`Backlog`]: SocketOptions::Backlog
     pub fn set_backlog(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOptions::Backlog as i32, value)
     }
 
+    /// # Retrieve maximum length of the queue of outstanding connections `ZMQ_BACKLOG`
+    ///
+    /// The [`Backlog`] option shall retrieve the maximum length of the queue of outstanding peer
+    /// connections for the specified [`Socket`]; this only applies to connection-oriented
+    /// transports. For details refer to your operating system documentation for the `listen`
+    /// function.
+    ///
+    /// | Default value           | Applicable socket types                       |
+    /// | :---------------------: | :-------------------------------------------: |
+    /// | 100                     | all, only for connection-oriented transports. |
+    ///
+    /// [`Socket`]: Socket
+    /// [`Backlog`]: SocketOptions::Backlog
     pub fn backlog(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOptions::Backlog as i32)
     }
 
+    /// # Set connect() timeout `ZMQ_CONNECT_TIMEOUT`
+    ///
+    /// Sets how long to wait before timing-out a [`connect()`] system call. The [`connect()`]
+    /// system call normally takes a long time before it returns a time out error. Setting this
+    /// option allows the library to time out the call at an earlier interval.
+    ///
+    /// | Default value           | Applicable socket types         |
+    /// | :---------------------: | :-----------------------------: |
+    /// | 0 ms (disabled)         | all, when using TCP transports. |
+    ///
+    /// [`connect()`]: #method.connect
     pub fn set_connect_timeout(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOptions::ConnectTimeout as i32, value)
     }
 
+    /// # Retrieve connect() timeout `ZMQ_CONNECT_TIMEOUT`
+    ///
+    /// Retrieves how long to wait before timing-out a [`connect()`] system call. The [`connect()`]
+    /// system call normally takes a long time before it returns a time out error. Setting this
+    /// option allows the library to time out the call at an earlier interval.
+    ///
+    /// | Default value           | Applicable socket types         |
+    /// | :---------------------: | :-----------------------------: |
+    /// | 0 ms (disabled)         | all, when using TCP transports. |
+    ///
+    /// [`connect()`]: #method.connect
     pub fn connect_timeout(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOptions::ConnectTimeout as i32)
     }
 
+    /// # Set CURVE public key `ZMQ_CURVE_PUBLICKEY`
+    ///
+    /// Sets the socket’s long term public key. You must set this on CURVE client sockets, see
+    /// zmq_curve. You can provide the key as 32 binary bytes, or as a 40-character string encoded
+    /// in the Z85 encoding format and terminated in a null byte. The public key must always be
+    /// used with the matching secret key. To generate a public/secret key pair, use
+    /// zmq_curve_keypair To derive the public key from a secret key, use zmq_curve_public.
+    ///
+    /// | Default value | Applicable socket types         |
+    /// | :-----------: | :-----------------------------: |
+    /// | None          | all, when using TCP transports. |
     pub fn set_curve_publickey<V: AsRef<[u8]>>(&self, value: V) -> ZmqResult<()> {
         self.set_sockopt_bytes(SocketOptions::CurvePublicKey as i32, value.as_ref())
     }
@@ -734,13 +803,17 @@ impl<T: sealed::SocketType> Socket<T> {
         self.socket
             .monitor(&monitor_endpoint, events.into().bits() as i32)?;
 
-        let monitor = RawSocket::<socket::monitor::Monitor>::from_ctx(self.context.as_raw())?;
+        let monitor = RawSocket::from_ctx(
+            self.context.as_raw(),
+            <Monitor as sealed::SocketType>::raw_socket_type() as i32,
+        )?;
 
         monitor.connect(&monitor_endpoint)?;
 
         Ok(Socket {
             context: self.context.clone(),
             socket: monitor.into(),
+            marker: PhantomData,
         })
     }
 

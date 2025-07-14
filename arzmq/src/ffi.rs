@@ -3,7 +3,6 @@ use core::{
     ffi::{CStr, c_long, c_void},
     fmt::Formatter,
     hint::cold_path,
-    marker::PhantomData,
     ops::{Deref, DerefMut},
     ptr, slice,
     str::FromStr,
@@ -14,7 +13,7 @@ use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 use num_traits::PrimInt;
 use parking_lot::FairMutex;
 
-use crate::{ZmqError, ZmqResult, sealed, socket::PollEvents, zmq_sys_crate};
+use crate::{ZmqError, ZmqResult, socket::PollEvents, zmq_sys_crate};
 
 const MAX_OPTION_STR_LEN: usize = i32::MAX as usize;
 
@@ -158,16 +157,14 @@ impl Drop for RawContext {
     }
 }
 
-pub(crate) struct RawSocket<T: sealed::SocketType> {
+pub(crate) struct RawSocket {
     pub(crate) socket: FairMutex<*mut c_void>,
-    marker: PhantomData<T>,
 }
 
-impl<'a, T: sealed::SocketType> RawSocket<T> {
-    pub(crate) fn from_ctx(context: &'a RawContext) -> ZmqResult<Self> {
+impl RawSocket {
+    pub(crate) fn from_ctx(context: &RawContext, socket_type: i32) -> ZmqResult<Self> {
         let context_guard = context.context.lock();
-        let socket_ptr =
-            unsafe { zmq_sys_crate::zmq_socket(*context_guard, T::raw_socket_type() as i32) };
+        let socket_ptr = unsafe { zmq_sys_crate::zmq_socket(*context_guard, socket_type) };
         if socket_ptr.is_null() {
             cold_path();
             match unsafe { zmq_sys_crate::zmq_errno() } {
@@ -182,7 +179,6 @@ impl<'a, T: sealed::SocketType> RawSocket<T> {
         drop(context_guard);
         Ok(Self {
             socket: FairMutex::new(socket_ptr),
-            marker: PhantomData,
         })
     }
 
@@ -469,7 +465,7 @@ impl<'a, T: sealed::SocketType> RawSocket<T> {
     }
 }
 
-impl<T: sealed::SocketType> Drop for RawSocket<T> {
+impl Drop for RawSocket {
     fn drop(&mut self) {
         let socket_guard = self.socket.lock();
         if unsafe { zmq_sys_crate::zmq_close(*socket_guard) } == -1 {
@@ -674,10 +670,7 @@ pub(crate) struct RawPollItem {
 }
 
 impl RawPollItem {
-    pub(crate) fn from_socket<T: sealed::SocketType>(
-        socket: &RawSocket<T>,
-        events: PollEvents,
-    ) -> Self {
+    pub(crate) fn from_socket(socket: &RawSocket, events: PollEvents) -> Self {
         let socket_guard = socket.socket.lock();
         let poll_item = zmq_sys_crate::zmq_pollitem_t {
             socket: *socket_guard,
