@@ -140,7 +140,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo run --release --verbose --features exaples-draft-api --example ${{ matrix.example }}
+      - run: cargo run --release --verbose --features examples-draft-api --example ${{ matrix.example }}
 
   examples-tokio:
     name: examples (tokio)
