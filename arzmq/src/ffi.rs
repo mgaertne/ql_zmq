@@ -654,9 +654,11 @@ impl Clone for RawMessage {
             panic!("unable to clone message");
         }
 
+        #[cfg(feature = "draft-api")]
         if let Some(routing_id) = self.routing_id() {
             copy.set_routing_id(routing_id).unwrap();
         }
+        #[cfg(feature = "draft-api")]
         if let Some(group) = self.group() {
             copy.set_group(&group).unwrap();
         }
