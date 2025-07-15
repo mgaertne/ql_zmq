@@ -1,21 +1,21 @@
-use alloc::{
-    collections::{
-        VecDeque,
-        vec_deque::{Drain, IntoIter, Iter, IterMut},
-    },
-    sync::Arc,
+use alloc::collections::{
+    VecDeque,
+    vec_deque::{Drain, IntoIter, Iter, IterMut},
 };
-use core::ops::{Deref, RangeBounds};
+use core::{
+    fmt::{Display, Formatter},
+    ops::{Deref, RangeBounds},
+};
 
 use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
+use parking_lot::FairMutex;
 
 use crate::{ZmqResult, ffi::RawMessage, sealed, socket::Socket};
 
-#[derive(DebugDeriveMore, DisplayDeriveMore)]
+#[derive(DebugDeriveMore)]
 #[debug("ZmqMessage {{ inner: {inner:?} }}")]
-#[display("{inner}")]
 pub struct Message {
-    inner: Arc<RawMessage>,
+    inner: FairMutex<RawMessage>,
 }
 
 unsafe impl Send for Message {}
@@ -36,40 +36,51 @@ impl Message {
         }
     }
 
+    pub fn bytes(&self) -> Vec<u8> {
+        let msg_guard = self.inner.lock();
+        (*msg_guard).deref().to_vec()
+    }
+
+    pub fn len(&self) -> usize {
+        let msg_guard = self.inner.lock();
+        msg_guard.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn get_more(&self) -> bool {
-        self.inner.get_more()
+        let msg_guard = self.inner.lock();
+        msg_guard.get_more()
     }
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_routing_id(&self, value: u32) -> ZmqResult<()> {
-        self.inner.set_routing_id(value)
+        let mut msg_guard = self.inner.lock();
+        msg_guard.set_routing_id(value)
     }
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn routing_id(&self) -> Option<u32> {
-        self.inner.routing_id()
+        let msg_guard = self.inner.lock();
+        msg_guard.routing_id()
     }
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_group<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
-        self.inner.set_group(value.as_ref())
+        let mut msg_guard = self.inner.lock();
+        msg_guard.set_group(value.as_ref())
     }
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn group(&self) -> Option<String> {
-        self.inner.group()
-    }
-}
-
-impl Deref for Message {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        self.inner.deref()
+        let msg_guard = self.inner.lock();
+        msg_guard.group()
     }
 }
 
@@ -81,9 +92,17 @@ impl Default for Message {
 
 impl Clone for Message {
     fn clone(&self) -> Self {
+        let msg_guard = self.inner.lock();
         Message {
-            inner: Arc::clone(&self.inner),
+            inner: (*msg_guard).clone().into(),
         }
+    }
+}
+
+impl Display for Message {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        let msg_guard = self.inner.lock();
+        write!(f, "{}", *msg_guard)
     }
 }
 
@@ -91,7 +110,7 @@ impl<T: Into<RawMessage>> From<T> for Message {
     fn from(value: T) -> Self {
         let raw_msg = value.into();
         Self {
-            inner: Arc::new(raw_msg),
+            inner: raw_msg.into(),
         }
     }
 }
@@ -106,9 +125,9 @@ where
 {
     fn send(self, socket: &Socket<S>, flags: i32) -> ZmqResult<()> {
         let zmq_msg = self.into();
-        let raw_msg = zmq_msg.inner;
+        let raw_msg = zmq_msg.inner.lock();
 
-        socket.socket.send(&**raw_msg, flags)?;
+        socket.socket.send(&*raw_msg, flags)?;
         Ok(())
     }
 }

@@ -104,7 +104,7 @@ where
 
 struct MessageSendingFuture<'a, S: sealed::SocketType + sealed::SenderFlag + Unpin, M>
 where
-    M: Into<Message> + Clone + Send,
+    M: Into<Message> + Send,
 {
     receiver: &'a Socket<S>,
     message: M,

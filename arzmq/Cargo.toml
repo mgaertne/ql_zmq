@@ -117,6 +117,21 @@ path = "examples/rustdoc/scatter_gather.rs"
 required-features = ["examples-draft-api"]
 
 [[example]]
+name = "radio_dish"
+path = "examples/rustdoc/radio_dish.rs"
+required-features = ["examples-draft-api"]
+
+[[example]]
+name = "client_server"
+path = "examples/rustdoc/client_server.rs"
+required-features = ["examples-draft-api"]
+
+[[example]]
+name = "peer_peer"
+path = "examples/rustdoc/peer_peer.rs"
+required-features = ["examples-draft-api"]
+
+[[example]]
 name = "publish_subscribe_async_tokio"
 path = "examples/rustdoc/futures/tokio/publish_subscribe.rs"
 required-features = ["examples-tokio"]

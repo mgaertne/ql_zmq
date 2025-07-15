@@ -128,6 +128,9 @@ jobs:
           stream_server,
           channel_channel,
           scatter_gather,
+          client_server,
+          radio_dish,
+          peer_peer,
         ]
         os: [ubuntu-latest, windows-latest, macos-latest]
 

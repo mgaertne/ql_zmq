@@ -21,8 +21,11 @@ fn run_xpublish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
         while KEEP_RUNNING.load(Ordering::Acquire) {
             thread::sleep(Duration::from_millis(100));
             let subscription = xpublish.recv_msg(RecvFlags::empty()).unwrap();
-            let (first_byte, subscription_topic) =
-                (subscription[0], str::from_utf8(&subscription[1..]).unwrap());
+            let subscription_bytes = subscription.bytes();
+            let (first_byte, subscription_topic) = (
+                subscription_bytes[0],
+                str::from_utf8(&subscription_bytes[1..]).unwrap(),
+            );
             assert_eq!(first_byte, 1);
             println!("{first_byte} {subscription_topic}");
 

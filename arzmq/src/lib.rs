@@ -1,6 +1,7 @@
 #![feature(cold_path, doc_cfg, stmt_expr_attributes)]
 #![doc(test(no_crate_inject))]
 extern crate alloc;
+extern crate core;
 
 pub mod context;
 #[doc(hidden)]

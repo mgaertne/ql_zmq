@@ -588,9 +588,8 @@ impl RawMessage {
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    pub(crate) fn set_routing_id(&self, value: u32) -> ZmqResult<()> {
-        let mut zmq_msg = self.message;
-        if unsafe { zmq_sys_crate::zmq_msg_set_routing_id(&mut zmq_msg, value) } == -1 {
+    pub(crate) fn set_routing_id(&mut self, value: u32) -> ZmqResult<()> {
+        if unsafe { zmq_sys_crate::zmq_msg_set_routing_id(&mut self.message, value) } == -1 {
             cold_path();
             match unsafe { zmq_sys_crate::zmq_errno() } {
                 event @ zmq_sys_crate::errno::EINVAL => return Err(ZmqError::from(event)),
@@ -603,8 +602,7 @@ impl RawMessage {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub(crate) fn routing_id(&self) -> Option<u32> {
-        let mut zmq_msg = self.message;
-        match unsafe { zmq_sys_crate::zmq_msg_routing_id(&mut zmq_msg) } {
+        match unsafe { zmq_sys_crate::zmq_msg_routing_id(&self.message as *const _ as *mut _) } {
             0 => None,
             value => Some(value),
         }
@@ -612,11 +610,10 @@ impl RawMessage {
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    pub(crate) fn set_group(&self, value: &str) -> ZmqResult<()> {
+    pub(crate) fn set_group(&mut self, value: &str) -> ZmqResult<()> {
         let c_value = CString::from_str(value)?;
 
-        let mut zmq_msg = self.message;
-        if unsafe { zmq_sys_crate::zmq_msg_set_group(&mut zmq_msg, c_value.as_ptr()) } == -1 {
+        if unsafe { zmq_sys_crate::zmq_msg_set_group(&mut self.message, c_value.as_ptr()) } == -1 {
             cold_path();
             let errno = unsafe { zmq_sys_crate::zmq_errno() };
             return Err(ZmqError::from(errno));
@@ -627,8 +624,8 @@ impl RawMessage {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub(crate) fn group(&self) -> Option<String> {
-        let mut zmq_msg = self.message;
-        let msg_group = unsafe { zmq_sys_crate::zmq_msg_group(&mut zmq_msg) };
+        let msg_group =
+            unsafe { zmq_sys_crate::zmq_msg_group(&self.message as *const _ as *mut _) };
 
         if msg_group.is_null() {
             return None;
@@ -643,6 +640,28 @@ impl RawMessage {
 impl Default for RawMessage {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Clone for RawMessage {
+    fn clone(&self) -> Self {
+        let mut copy = Self::with_size(self.len());
+
+        if unsafe {
+            zmq_sys_crate::zmq_msg_copy(&mut copy.message, &self.message as *const _ as *mut _)
+        } != 0
+        {
+            panic!("unable to clone message");
+        }
+
+        if let Some(routing_id) = self.routing_id() {
+            copy.set_routing_id(routing_id).unwrap();
+        }
+        if let Some(group) = self.group() {
+            copy.set_group(&group).unwrap();
+        }
+
+        copy
     }
 }
 
