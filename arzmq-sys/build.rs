@@ -4,17 +4,26 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=PROFILE");
 
-    #[cfg(feature = "draft-api")]
-    zeromq_src::Build::new()
-        .with_libsodium(None)
-        .enable_draft(true)
-        .build();
+    let maybe_libsodium = if cfg!(feature = "libsodium") {
+        let lib_dir = env::var("DEP_SODIUM_LIB").expect("build metadata `DEP_SODIUM_LIB` required");
+        let include_dir =
+            env::var("DEP_SODIUM_INCLUDE").expect("build metadata `DEP_SODIUM_INCLUDE` required");
 
-    #[cfg(not(feature = "draft-api"))]
-    zeromq_src::Build::new().with_libsodium(None).build();
+        Some(zeromq_src::LibLocation::new(lib_dir, include_dir))
+    } else {
+        None
+    };
+
+    let mut zmq_builder = zeromq_src::Build::new();
+    zmq_builder.with_libsodium(maybe_libsodium);
+
+    #[cfg(feature = "draft-api")]
+    zmq_builder.enable_draft(true);
+
+    zmq_builder.build();
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let include_dir = out_dir.join("source").join("include");
+    let include_dir = out_dir.join("source/include");
 
     let builder = bindgen::Builder::default()
         .header(include_dir.join("zmq.h").to_string_lossy())
@@ -23,7 +32,6 @@ fn main() {
         .derive_eq(true)
         .derive_partialeq(true)
         .derive_debug(true)
-        .derive_hash(true)
         .use_core()
         .allowlist_function("^zmq_.*")
         .allowlist_type("^zmq_.*")

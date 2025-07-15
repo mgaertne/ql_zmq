@@ -13,33 +13,73 @@ use crate::{
     sealed, zmq_sys_crate,
 };
 
+#[cfg(feature = "draft-api")]
+mod channel;
+#[cfg(feature = "draft-api")]
+mod client;
 mod dealer;
+#[cfg(feature = "draft-api")]
+mod dish;
+#[cfg(feature = "draft-api")]
+mod gather;
 pub(crate) mod monitor;
 mod pair;
+#[cfg(feature = "draft-api")]
+mod peer;
 mod publish;
 mod pull;
 mod push;
+#[cfg(feature = "draft-api")]
+mod radio;
 mod reply;
 mod request;
 mod router;
+#[cfg(feature = "draft-api")]
+mod scatter;
+#[cfg(feature = "draft-api")]
+mod server;
 mod stream;
 mod subscribe;
 mod xpublish;
 mod xsubscribe;
 
+#[cfg(feature = "draft-api")]
+#[doc(cfg(feature = "draft-api"))]
+pub use channel::ChannelSocket;
+#[cfg(feature = "draft-api")]
+#[doc(cfg(feature = "draft-api"))]
+pub use client::ClientSocket;
 pub use dealer::DealerSocket;
+#[cfg(feature = "draft-api")]
+#[doc(cfg(feature = "draft-api"))]
+pub use dish::DishSocket;
+#[cfg(feature = "draft-api")]
+#[doc(cfg(feature = "draft-api"))]
+pub use gather::GatherSocket;
 use monitor::Monitor;
 pub use monitor::{MonitorSocket, MonitorSocketEvent};
 pub use pair::PairSocket;
+#[cfg(feature = "draft-api")]
+#[doc(cfg(feature = "draft-api"))]
+pub use peer::PeerSocket;
 pub use publish::PublishSocket;
 pub use pull::PullSocket;
 pub use push::PushSocket;
+#[cfg(feature = "draft-api")]
+#[doc(cfg(feature = "draft-api"))]
+pub use radio::RadioSocket;
 pub use reply::ReplySocket;
 pub use request::RequestSocket;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use router::RouterNotify;
 pub use router::RouterSocket;
+#[cfg(feature = "draft-api")]
+#[doc(cfg(feature = "draft-api"))]
+pub use scatter::ScatterSocket;
+#[cfg(feature = "draft-api")]
+#[doc(cfg(feature = "draft-api"))]
+pub use server::ServerSocket;
 pub use stream::StreamSocket;
 pub use subscribe::SubscribeSocket;
 pub use xpublish::XPublishSocket;

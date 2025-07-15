@@ -41,6 +41,7 @@ draft-api = ["arzmq-sys/draft-api"]
 examples-tokio = ["futures", "dep:tokio"]
 examples-async-std = ["futures", "dep:async-std"]
 examples-futures = ["futures", "futures/executor", "futures/thread-pool"]
+examples-draft-api = ["draft-api", "arzmq-sys/draft-api"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -104,6 +105,16 @@ path = "examples/rustdoc/stream_server.rs"
 [[example]]
 name = "pair_pair"
 path = "examples/rustdoc/pair_pair.rs"
+
+[[example]]
+name = "channel_channel"
+path = "examples/rustdoc/channel_channel.rs"
+required-features = ["examples-draft-api"]
+
+[[example]]
+name = "scatter_gather"
+path = "examples/rustdoc/scatter_gather.rs"
+required-features = ["examples-draft-api"]
 
 [[example]]
 name = "publish_subscribe_async_tokio"

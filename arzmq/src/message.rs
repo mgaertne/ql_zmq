@@ -39,6 +39,30 @@ impl Message {
     pub fn get_more(&self) -> bool {
         self.inner.get_more()
     }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn set_routing_id(&self, value: u32) -> ZmqResult<()> {
+        self.inner.set_routing_id(value)
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn routing_id(&self) -> Option<u32> {
+        self.inner.routing_id()
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn set_group<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
+        self.inner.set_group(value.as_ref())
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn group(&self) -> Option<String> {
+        self.inner.group()
+    }
 }
 
 impl Deref for Message {

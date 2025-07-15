@@ -463,6 +463,74 @@ impl RawSocket {
             num_events => Ok(num_events),
         }
     }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn connect_peer(&self, endpoint: &str) -> ZmqResult<u32> {
+        let c_endpoint = CString::from_str(endpoint)?;
+
+        let socket_guard = self.socket.lock();
+        let routing_id =
+            unsafe { zmq_sys_crate::zmq_connect_peer(*socket_guard, c_endpoint.as_ptr()) };
+        if routing_id == 0 {
+            cold_path();
+            match unsafe { zmq_sys_crate::zmq_errno() } {
+                errno @ (zmq_sys_crate::errno::EINVAL
+                | zmq_sys_crate::errno::EPROTONOSUPPORT
+                | zmq_sys_crate::errno::ENOCOMPATPROTO
+                | zmq_sys_crate::errno::ETERM
+                | zmq_sys_crate::errno::ENOTSOCK
+                | zmq_sys_crate::errno::EMTHREAD
+                | zmq_sys_crate::errno::ENOTSUP
+                | zmq_sys_crate::errno::EFAULT) => {
+                    return Err(ZmqError::from(errno));
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        Ok(routing_id)
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn join(&self, group: &str) -> ZmqResult<()> {
+        let c_group = CString::from_str(group)?;
+
+        let socket_guard = self.socket.lock();
+        if unsafe { zmq_sys_crate::zmq_join(*socket_guard, c_group.as_ptr()) } == -1 {
+            cold_path();
+            match unsafe { zmq_sys_crate::zmq_errno() } {
+                errno @ (zmq_sys_crate::errno::ETERM
+                | zmq_sys_crate::errno::EINTR
+                | zmq_sys_crate::errno::ENOTSOCK
+                | zmq_sys_crate::errno::EMTHREAD) => return Err(ZmqError::from(errno)),
+                _ => unreachable!(),
+            }
+        }
+
+        Ok(())
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn leave(&self, group: &str) -> ZmqResult<()> {
+        let c_group = CString::from_str(group)?;
+
+        let socket_guard = self.socket.lock();
+        if unsafe { zmq_sys_crate::zmq_leave(*socket_guard, c_group.as_ptr()) } == -1 {
+            cold_path();
+            match unsafe { zmq_sys_crate::zmq_errno() } {
+                errno @ (zmq_sys_crate::errno::ETERM
+                | zmq_sys_crate::errno::EINTR
+                | zmq_sys_crate::errno::ENOTSOCK
+                | zmq_sys_crate::errno::EMTHREAD) => return Err(ZmqError::from(errno)),
+                _ => unreachable!(),
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Drop for RawSocket {
@@ -517,6 +585,59 @@ impl RawMessage {
     pub(crate) fn get_more(&self) -> bool {
         (unsafe { zmq_sys_crate::zmq_msg_more(&self.message) }) != 0
     }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn set_routing_id(&self, value: u32) -> ZmqResult<()> {
+        let mut zmq_msg = self.message;
+        if unsafe { zmq_sys_crate::zmq_msg_set_routing_id(&mut zmq_msg, value) } == -1 {
+            cold_path();
+            match unsafe { zmq_sys_crate::zmq_errno() } {
+                event @ zmq_sys_crate::errno::EINVAL => return Err(ZmqError::from(event)),
+                _ => unreachable!(),
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn routing_id(&self) -> Option<u32> {
+        let mut zmq_msg = self.message;
+        match unsafe { zmq_sys_crate::zmq_msg_routing_id(&mut zmq_msg) } {
+            0 => None,
+            value => Some(value),
+        }
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn set_group(&self, value: &str) -> ZmqResult<()> {
+        let c_value = CString::from_str(value)?;
+
+        let mut zmq_msg = self.message;
+        if unsafe { zmq_sys_crate::zmq_msg_set_group(&mut zmq_msg, c_value.as_ptr()) } == -1 {
+            cold_path();
+            let errno = unsafe { zmq_sys_crate::zmq_errno() };
+            return Err(ZmqError::from(errno));
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn group(&self) -> Option<String> {
+        let mut zmq_msg = self.message;
+        let msg_group = unsafe { zmq_sys_crate::zmq_msg_group(&mut zmq_msg) };
+
+        if msg_group.is_null() {
+            return None;
+        }
+        unsafe { CStr::from_ptr(msg_group) }
+            .to_owned()
+            .into_string()
+            .ok()
+    }
 }
 
 impl Default for RawMessage {
@@ -527,10 +648,7 @@ impl Default for RawMessage {
 
 impl Drop for RawMessage {
     fn drop(&mut self) {
-        if unsafe {
-            zmq_sys_crate::zmq_msg_close(&mut self.message as *mut zmq_sys_crate::zmq_msg_t)
-        } == -1
-        {
+        if unsafe { zmq_sys_crate::zmq_msg_close(&mut self.message) } == -1 {
             cold_path();
             match unsafe { zmq_sys_crate::zmq_errno() } {
                 zmq_sys_crate::errno::EFAULT => (),
@@ -546,8 +664,9 @@ impl Deref for RawMessage {
     fn deref(&self) -> &Self::Target {
         let msg_len = self.len();
 
+        let ptr = &self.message as *const _ as *mut _;
+
         unsafe {
-            let ptr = &self.message as *const _ as *mut _;
             let data = zmq_sys_crate::zmq_msg_data(ptr);
             if data.is_null() {
                 return &[];

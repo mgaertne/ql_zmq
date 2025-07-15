@@ -105,6 +105,43 @@ jobs:
           toolchain: nightly
       - run: cargo run --release --verbose --example ${{ matrix.example }}
 
+  examples-draft-api:
+    name: examples (Draft API)
+    needs: [ check, check-examples, clippy, clippy-examples ]
+
+    strategy:
+      matrix:
+        example: [
+          version,
+          pair_pair,
+          push_pull,
+          publish_subscribe,
+          publish_xsubscribe,
+          xpublish_subscribe,
+          xpublish_xsubscribe,
+          request_reply,
+          request_router,
+          dealer_reply,
+          dealer_router,
+          dealer_dealer,
+          stream_client,
+          stream_server,
+          channel_channel,
+          scatter_gather,
+        ]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - run: cargo run --release --verbose --features exaples-draft-api --example ${{ matrix.example }}
+
   examples-tokio:
     name: examples (tokio)
     needs: [ check, check-examples, clippy, clippy-examples ]

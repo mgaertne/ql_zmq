@@ -18,6 +18,7 @@ pub mod builder;
 pub mod futures;
 
 use alloc::ffi::CString;
+use core::{hint::cold_path, ptr};
 
 #[doc(hidden)]
 pub(crate) use arzmq_sys as zmq_sys_crate;
@@ -56,3 +57,60 @@ pub fn version() -> (i32, i32, i32) {
 }
 
 pub use z85::{DecodeError as Z85DecodeError, decode as z85_decode, encode as z85_encode};
+
+use crate::socket::Socket;
+
+/// # Start built-in 0MQ proxy
+///
+/// The [`proxy()`] function starts the built-in 0MQ proxy in the current application thread.
+///
+/// The proxy connects a frontend socket to a backend socket. Conceptually, data flows from
+/// frontend to backend. Depending on the socket types, replies may flow in the opposite direction.
+/// The direction is conceptual only; the proxy is fully symmetric and there is no technical
+/// difference between frontend and backend.
+///
+/// Before calling [`proxy()`] you must set any socket options, and connect or bind both frontend
+/// and backend sockets.
+///
+/// [`proxy()`] runs in the current thread and returns only if/when the current context is closed.
+///
+/// If the capture socket is not `None`, the proxy shall send all messages, received on both
+/// frontend and backend, to the capture socket. The capture socket should be a [`Publish`],
+/// [`Dealer`], [`Push`], or [`Pair`] socket.
+///
+/// [`proxy()`]: #method.proxy
+/// [`Publish`]: socket::PublishSocket
+/// [`Dealer`]: socket::DealerSocket
+/// [`Push`]: socket::PushSocket
+/// [`Pair`]: socket::PairSocket
+pub fn proxy<T: sealed::SocketType>(
+    frontend: Socket<T>,
+    backend: Socket<T>,
+    capture: Option<Socket<T>>,
+) -> ZmqResult<()> {
+    let frontend_guard = frontend.socket.socket.lock();
+    let backend_guard = backend.socket.socket.lock();
+    let return_code = match capture {
+        None => unsafe {
+            zmq_sys_crate::zmq_proxy(*frontend_guard, *backend_guard, ptr::null_mut())
+        },
+        Some(capture) => {
+            let capture_guard = capture.socket.socket.lock();
+            unsafe { zmq_sys_crate::zmq_proxy(*frontend_guard, *backend_guard, *capture_guard) }
+        }
+    };
+
+    if return_code == -1 {
+        cold_path();
+        match unsafe { zmq_sys_crate::zmq_errno() } {
+            errno @ (zmq_sys_crate::errno::ETERM
+            | zmq_sys_crate::errno::EINTR
+            | zmq_sys_crate::errno::EFAULT) => {
+                return Err(ZmqError::from(errno));
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    Ok(())
+}

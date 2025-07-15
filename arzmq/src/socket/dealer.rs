@@ -102,8 +102,8 @@ impl Socket<Dealer> {
     /// protocol of the application.
     ///
     /// [`Dealer`]: DealerSocket
-    /// [`Client`]: todo!()
-    /// [`Peer`]: todo!()
+    /// [`Client`]: super::ClientSocket
+    /// [`Peer`]: super::PeerSocket
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
@@ -121,9 +121,9 @@ impl Socket<Dealer> {
     ///
     /// [`Dealer`]: DealerSocket
     /// [`Router`]: super::RouterSocket
-    /// [`Client`]: todo!()
-    /// [`Server`]: todo!()
-    /// [`Peer`]: todo!()
+    /// [`Client`]: super::ClientSocket
+    /// [`Server`]: super::ServerSocket
+    /// [`Peer`]: super::PeerSocket
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
