@@ -1,6 +1,5 @@
 use core::{
     sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
 };
 use std::thread;
 
@@ -19,7 +18,6 @@ fn run_xpublish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
 
     thread::spawn(move || {
         while KEEP_RUNNING.load(Ordering::Acquire) {
-            thread::sleep(Duration::from_millis(100));
             let subscription = xpublish.recv_msg(RecvFlags::empty()).unwrap();
             let subscription_bytes = subscription.bytes();
             let (first_byte, subscription_topic) = (

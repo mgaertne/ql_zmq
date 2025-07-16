@@ -1,6 +1,5 @@
 use core::{
     sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
 };
 use std::thread;
 
@@ -19,8 +18,6 @@ fn run_publish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
 
     thread::spawn(move || {
         while KEEP_RUNNING.load(Ordering::Acquire) {
-            thread::sleep(Duration::from_millis(100));
-
             let published_msg = format!("{SUBSCRIBED_TOPIC} important update");
             publish
                 .send_msg(published_msg.as_str().into(), SendFlags::empty())

@@ -1,6 +1,5 @@
 use core::{
     sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
 };
 use std::thread;
 
@@ -18,8 +17,6 @@ fn run_push_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
 
     thread::spawn(move || {
         while KEEP_RUNNING.load(Ordering::Acquire) {
-            thread::sleep(Duration::from_millis(100));
-
             push.send_msg("Important update".into(), SendFlags::empty())
                 .unwrap();
         }
