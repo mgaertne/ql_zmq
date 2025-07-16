@@ -77,22 +77,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        example: [
-          version,
-          pair_pair,
-          push_pull,
-          publish_subscribe,
-          publish_xsubscribe,
-          xpublish_subscribe,
-          xpublish_xsubscribe,
-          request_reply,
-          request_router,
-          dealer_reply,
-          dealer_router,
-          dealer_dealer,
-          stream_client,
-          stream_server,
-        ]
 
     runs-on: ${{ matrix.os }}
 
@@ -103,7 +87,34 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo run --release --verbose --example ${{ matrix.example }}
+      - name: version
+        run: cargo run --release --verbose --example version
+      - name: pair_pair
+        run: cargo run --release --verbose --example pair_pair
+      - name: push_pull
+        run: cargo run --release --verbose --example push_pull
+      - name: publish_subscribe
+        run: cargo run --release --verbose --example publish_subscribe
+      - name: publish_xsubscribe
+        run: cargo run --release --verbose --example publish_xsubscribe
+      - name: xpublish_subscribe
+        run: cargo run --release --verbose --example xpublish_subscribe
+      - name: xpublish_xsubscribe
+        run: cargo run --release --verbose --example xpublish_xsubscribe
+      - name: request_reply
+        run: cargo run --release --verbose --example request_reply
+      - name: request_router
+        run: cargo run --release --verbose --example request_router
+      - name: dealer_reply
+        run: cargo run --release --verbose --example dealer_reply
+      - name: dealer_router
+        run: cargo run --release --verbose --example dealer_router
+      - name: dealer_dealer
+        run: cargo run --release --verbose --example dealer_dealer
+      - name: stream_client
+        run: cargo run --release --verbose --example stream_client
+      - name: stream_server
+        run: cargo run --release --verbose --example stream_server
 
   examples-draft-api:
     name: examples (Draft API)
@@ -111,27 +122,6 @@ jobs:
 
     strategy:
       matrix:
-        example: [
-          version,
-          pair_pair,
-          push_pull,
-          publish_subscribe,
-          publish_xsubscribe,
-          xpublish_subscribe,
-          xpublish_xsubscribe,
-          request_reply,
-          request_router,
-          dealer_reply,
-          dealer_router,
-          dealer_dealer,
-          stream_client,
-          stream_server,
-          channel_channel,
-          scatter_gather,
-          client_server,
-          radio_dish,
-          peer_peer,
-        ]
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
@@ -143,7 +133,44 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo run --release --verbose --features examples-draft-api --example ${{ matrix.example }}
+      - name: version
+        run: cargo run --release --verbose --features examples-draft-api --example version
+      - name: pair_pair
+        run: cargo run --release --verbose --features examples-draft-api --example pair_pair
+      - name: push_pull
+        run: cargo run --release --verbose --features examples-draft-api --example push_pull
+      - name: publish_subscribe
+        run: cargo run --release --verbose --features examples-draft-api --example publish_subscribe
+      - name: publish_xsubscribe
+        run: cargo run --release --verbose --features examples-draft-api --example publish_xsubscribe
+      - name: xpublish_subscribe
+        run: cargo run --release --verbose --features examples-draft-api --example xpublish_subscribe
+      - name: xpublish_xsubscribe
+        run: cargo run --release --verbose --features examples-draft-api --example xpublish_xsubscribe
+      - name: request_reply
+        run: cargo run --release --verbose --features examples-draft-api --example request_reply
+      - name: request_router
+        run: cargo run --release --verbose --features examples-draft-api --example request_router
+      - name: dealer_reply
+        run: cargo run --release --verbose --features examples-draft-api --example dealer_reply
+      - name: dealer_router
+        run: cargo run --release --verbose --features examples-draft-api --example dealer_router
+      - name: dealer_dealer
+        run: cargo run --release --verbose --features examples-draft-api --example dealer_dealer
+      - name: stream_client
+        run: cargo run --release --verbose --features examples-draft-api --example stream_client
+      - name: stream_server
+        run: cargo run --release --verbose --features examples-draft-api --example stream_server
+      - name: channel_channel
+        run: cargo run --release --verbose --features examples-draft-api --example channel_channel
+      - name: scatter_gather
+        run: cargo run --release --verbose --features examples-draft-api --example scatter_gather
+      - name: client_server
+        run: cargo run --release --verbose --features examples-draft-api --example client_server
+      - name: radio_dish
+        run: cargo run --release --verbose --features examples-draft-api --example radio_dish
+      - name: peer_peer
+        run: cargo run --release --verbose --features examples-draft-api --example peer_peer
 
   examples-tokio:
     name: examples (tokio)
@@ -152,12 +179,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        example: [
-          publish_subscribe_async_tokio,
-          request_reply_async_tokio,
-          dealer_reply_async_tokio,
-          request_router_async_tokio,
-        ]
 
     runs-on: ${{ matrix.os }}
 
@@ -168,7 +189,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo run --features examples-tokio --release --verbose --example ${{ matrix.example }}
+      - name: publish_subscribe_async_tokio
+        run: cargo run --features examples-tokio --release --verbose --example publish_subscribe_async_tokio
+      - name: request_reply_async_tokio
+        run: cargo run --features examples-tokio --release --verbose --example request_reply_async_tokio
+      - name: dealer_reply_async_tokio
+        run: cargo run --features examples-tokio --release --verbose --example dealer_reply_async_tokio
+      - name: request_router_async_tokio
+        run: cargo run --features examples-tokio --release --verbose --example request_router_async_tokio
 
   examples-async-std:
     name: examples (async-std)
@@ -177,12 +205,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        example: [
-          publish_subscribe_async_async_std,
-          request_reply_async_async_std,
-          dealer_reply_async_async_std,
-          request_router_async_async_std,
-        ]
 
     runs-on: ${{ matrix.os }}
 
@@ -193,7 +215,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo run --features examples-async-std --release --verbose --example ${{ matrix.example }}
+      - name: publish_subscribe_async_async_std
+        run: cargo run --features examples-async-std --release --verbose --example publish_subscribe_async_async_std
+      - name: request_reply_async_async_std
+        run: cargo run --features examples-async-std --release --verbose --example request_reply_async_async_std
+      - name: dealer_reply_async_async_std
+        run: cargo run --features examples-async-std --release --verbose --example dealer_reply_async_async_std
+      - name: request_router_async_async_std
+        run: cargo run --features examples-async-std --release --verbose --example request_router_async_async_std
 
   examples-futures:
     name: examples (futures)
@@ -202,12 +231,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        example: [
-          publish_subscribe_async_futures,
-          request_reply_async_futures,
-          dealer_reply_async_futures,
-          request_router_async_futures,
-        ]
 
     runs-on: ${{ matrix.os }}
 
@@ -218,7 +241,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo run --features examples-futures --release --verbose --example ${{ matrix.example }}
+      - name: publish_subscribe_async_futures
+        run: cargo run --features examples-futures --release --verbose --example publish_subscribe_async_futures
+      - name: request_reply_async_futures
+        run: cargo run --features examples-futures --release --verbose --example request_reply_async_futures
+      - name: dealer_reply_async_futures
+        run: cargo run --features examples-futures --release --verbose --example dealer_reply_async_futures
+      - name: request_router_async_futures
+        run: cargo run --features examples-futures --release --verbose --example request_router_async_futures
 
   build:
     name: build
