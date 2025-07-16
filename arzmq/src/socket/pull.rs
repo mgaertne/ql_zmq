@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions, SocketType},
+    socket::{MultipartReceiver, RecvFlags, Socket, SocketOptions, SocketType},
 };
 
 /// # A pull socket `ZMQ_PULL`
@@ -24,6 +24,8 @@ impl sealed::SocketType for Pull {
         SocketType::Pull
     }
 }
+
+impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Pull> {}
 
 impl Socket<Pull> {
     /// # Keep only last message `ZMQ_CONFLATE`

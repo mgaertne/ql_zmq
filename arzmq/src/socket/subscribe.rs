@@ -1,4 +1,4 @@
-use super::{Socket, SocketOptions, SocketType};
+use super::{MultipartReceiver, RecvFlags, Socket, SocketOptions, SocketType};
 use crate::{ZmqResult, sealed};
 
 /// # A Subscriber socket `ZMQ_SUB`
@@ -24,6 +24,8 @@ impl sealed::SocketType for Subscribe {
         SocketType::Subscribe
     }
 }
+
+impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Subscribe> {}
 
 impl Socket<Subscribe> {
     /// # Keep only last message `ZMQ_CONFLATE`

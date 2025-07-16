@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions, SocketType},
+    socket::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType},
 };
 
 /// # A Requester socket `ZMQ_REQ`
@@ -33,6 +33,9 @@ impl sealed::SocketType for Request {
 
 unsafe impl Sync for Socket<Request> {}
 unsafe impl Send for Socket<Request> {}
+
+impl MultipartSender<Request> for Socket<Request> {}
+impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Request> {}
 
 impl Socket<Request> {
     /// # match replies with requests `ZMQ_REQ_CORRELATE`

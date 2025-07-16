@@ -1,4 +1,4 @@
-use super::{Socket, SocketOptions, SocketType};
+use super::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType};
 use crate::{ZmqResult, sealed};
 
 /// # A dealer socket `ZMQ_DEALER`
@@ -35,6 +35,9 @@ impl sealed::SocketType for Dealer {
 
 unsafe impl Sync for Socket<Dealer> {}
 unsafe impl Send for Socket<Dealer> {}
+
+impl MultipartSender<Dealer> for Socket<Dealer> {}
+impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Dealer> {}
 
 impl Socket<Dealer> {
     /// # Keep only last message `ZMQ_CONFLATE`

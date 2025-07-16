@@ -3,7 +3,7 @@ use bitflags::bitflags;
 
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions, SocketType},
+    socket::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType},
 };
 
 /// # A router socket `ZMQ_ROUTER`
@@ -59,6 +59,9 @@ impl sealed::SocketType for Router {
 
 unsafe impl Sync for Socket<Router> {}
 unsafe impl Send for Socket<Router> {}
+
+impl MultipartSender<Router> for Socket<Router> {}
+impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Router> {}
 
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]

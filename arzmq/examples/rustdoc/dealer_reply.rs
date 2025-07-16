@@ -3,7 +3,7 @@ use std::thread;
 use arzmq::{
     ZmqResult,
     context::Context,
-    socket::{DealerSocket, Receiver, RecvFlags, ReplySocket, SendFlags, Sender},
+    socket::{DealerSocket, MultipartReceiver, MultipartSender, RecvFlags, ReplySocket, SendFlags},
 };
 
 fn run_reply_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {

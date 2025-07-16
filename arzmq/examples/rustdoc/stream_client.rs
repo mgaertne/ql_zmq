@@ -5,7 +5,7 @@ use arzmq::{
     ZmqResult,
     context::Context,
     message::MultipartMessage,
-    socket::{Receiver, RecvFlags, SendFlags, Sender, StreamSocket},
+    socket::{MultipartReceiver, MultipartSender, RecvFlags, SendFlags, StreamSocket},
 };
 
 fn run_tcp_server(endpoint: &str) -> Result<(), Box<dyn Error>> {

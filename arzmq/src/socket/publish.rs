@@ -1,4 +1,4 @@
-use super::{Socket, SocketOptions, SocketType};
+use super::{MultipartSender, Socket, SocketOptions, SocketType};
 use crate::{ZmqResult, sealed};
 
 /// # A Subscriber socket `ZMQ_PUB`
@@ -26,6 +26,8 @@ impl sealed::SocketType for Publish {
 
 unsafe impl Sync for Socket<Publish> {}
 unsafe impl Send for Socket<Publish> {}
+
+impl MultipartSender<Publish> for Socket<Publish> {}
 
 impl Socket<Publish> {
     /// # Keep only last message `ZMQ_CONFLATE`

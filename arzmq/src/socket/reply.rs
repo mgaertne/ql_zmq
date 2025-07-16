@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions, SocketType},
+    socket::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType},
 };
 
 /// # A Reply socket `ZMQ_REP`
@@ -29,6 +29,9 @@ impl sealed::SocketType for Reply {
 
 unsafe impl Sync for Socket<Reply> {}
 unsafe impl Send for Socket<Reply> {}
+
+impl MultipartSender<Reply> for Socket<Reply> {}
+impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Reply> {}
 
 impl Socket<Reply> {
     /// # Set socket routing id `ZMQ_ROUTING_ID`

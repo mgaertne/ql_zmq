@@ -1,4 +1,4 @@
-use super::{Socket, SocketOptions, SocketType};
+use super::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType};
 use crate::{ZmqResult, sealed};
 
 /// # A XSubscriber socket `ZMQ_XPUB`
@@ -33,6 +33,9 @@ impl sealed::SocketType for XPublish {
 
 unsafe impl Sync for Socket<XPublish> {}
 unsafe impl Send for Socket<XPublish> {}
+
+impl MultipartSender<XPublish> for Socket<XPublish> {}
+impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<XPublish> {}
 
 impl Socket<XPublish> {
     /// # Establish message filter `ZMQ_SUBSCRIBE`

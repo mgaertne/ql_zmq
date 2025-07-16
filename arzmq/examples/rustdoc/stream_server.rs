@@ -4,7 +4,7 @@ use std::{io::prelude::*, net::TcpStream, thread};
 use arzmq::{
     ZmqResult,
     context::Context,
-    socket::{Receiver, RecvFlags, SendFlags, Sender, StreamSocket},
+    socket::{MultipartReceiver, MultipartSender, RecvFlags, SendFlags, StreamSocket},
 };
 
 fn run_stream_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {

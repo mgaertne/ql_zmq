@@ -1,4 +1,4 @@
-use super::{MonitorFlags, SocketType};
+use super::{MonitorFlags, MultipartReceiver, RecvFlags, SocketType};
 use crate::{ZmqError, message::MultipartMessage, sealed, socket::Socket, zmq_sys_crate};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -162,6 +162,8 @@ impl sealed::ReceiverFlag for Monitor {}
 
 unsafe impl Sync for Socket<Monitor> {}
 unsafe impl Send for Socket<Monitor> {}
+
+impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Monitor> {}
 
 impl sealed::SocketType for Monitor {
     fn raw_socket_type() -> SocketType {

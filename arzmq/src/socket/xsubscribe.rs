@@ -1,4 +1,4 @@
-use super::{Socket, SocketOptions, SocketType};
+use super::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType};
 use crate::{ZmqResult, sealed};
 
 /// # A XSubscribe socket `ZMQ_XSUB`
@@ -24,6 +24,9 @@ impl sealed::ReceiverFlag for XSubscribe {}
 
 unsafe impl Sync for Socket<XSubscribe> {}
 unsafe impl Send for Socket<XSubscribe> {}
+
+impl MultipartSender<XSubscribe> for Socket<XSubscribe> {}
+impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<XSubscribe> {}
 
 impl sealed::SocketType for XSubscribe {
     fn raw_socket_type() -> SocketType {

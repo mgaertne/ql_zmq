@@ -4,7 +4,7 @@ use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use arzmq::{
     ZmqResult,
     context::Context,
-    futures::{AsyncReceiver, AsyncSender},
+    futures::{AsyncMultipartReceiver, AsyncMultipartSender, AsyncReceiver, AsyncSender},
     socket::{RequestSocket, RouterSocket, SendFlags},
 };
 use futures::{executor::ThreadPool, join, task::SpawnExt};

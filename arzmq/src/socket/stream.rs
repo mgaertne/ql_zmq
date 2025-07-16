@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions, SocketType},
+    socket::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType},
 };
 
 /// # A stream socket `ZMQ_STREAM`
@@ -50,6 +50,9 @@ impl sealed::SocketType for Stream {
 
 unsafe impl Sync for Socket<Stream> {}
 unsafe impl Send for Socket<Stream> {}
+
+impl MultipartSender<Stream> for Socket<Stream> {}
+impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Stream> {}
 
 impl Socket<Stream> {
     /// # Set socket routing id `ZMQ_ROUTING_ID`

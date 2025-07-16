@@ -10,12 +10,19 @@ use futures::FutureExt;
 use crate::{
     message::{Message, MultipartMessage, Sendable},
     sealed, socket,
-    socket::{MonitorSocket, MonitorSocketEvent, Receiver, RecvFlags, SendFlags, Socket},
+    socket::{
+        MonitorSocket, MonitorSocketEvent, MultipartReceiver, MultipartSender, RecvFlags,
+        SendFlags, Socket,
+    },
 };
 
 #[async_trait]
 pub trait AsyncReceiver<'a> {
     async fn recv_msg_async(&'a self) -> Option<Message>;
+}
+
+#[async_trait]
+pub trait AsyncMultipartReceiver<'a>: AsyncReceiver<'a> {
     async fn recv_multipart_async(&'a self) -> MultipartMessage {
         let mut result = MultipartMessage::new();
 
@@ -61,9 +68,17 @@ impl<T: sealed::SocketType + sealed::ReceiverFlag + Unpin> Future
 }
 
 #[async_trait]
+impl<'a, T: MultipartReceiver<RecvFlags> + AsyncReceiver<'a>> AsyncMultipartReceiver<'a> for T {}
+
+#[async_trait]
 pub trait AsyncSender<'a, S: sealed::SocketType + sealed::SenderFlag + Unpin> {
     async fn send_msg_async(&'a self, msg: Message, flags: SendFlags) -> Option<()>;
+}
 
+#[async_trait]
+pub trait AsyncMultipartSender<'a, S: sealed::SocketType + sealed::SenderFlag + Unpin>:
+    AsyncSender<'a, S>
+{
     async fn send_multipart_async(
         &'a self,
         multipart: MultipartMessage,
@@ -125,6 +140,15 @@ where
             .send(self.receiver, self.flags.bits())
             .map_or(Poll::Pending, Poll::Ready)
     }
+}
+
+#[async_trait]
+impl<
+    'a,
+    S: sealed::SenderFlag + sealed::SocketType + Unpin,
+    T: MultipartSender<S> + AsyncSender<'a, S>,
+> AsyncMultipartSender<'a, S> for T
+{
 }
 
 #[async_trait]

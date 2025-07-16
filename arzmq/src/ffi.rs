@@ -731,7 +731,19 @@ impl core::fmt::Display for RawMessage {
 
 impl core::fmt::Debug for RawMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:?}", self.bytes())
+        write!(f, "{:?}", self.bytes())?;
+
+        #[cfg(feature = "draft-api")]
+        if let Some(routing_id) = self.routing_id() {
+            write!(f, " (routing_id: {routing_id})")?;
+        }
+
+        #[cfg(feature = "draft-api")]
+        if let Some(group) = self.group() {
+            write!(f, " (group: {group})")?;
+        }
+
+        Ok(())
     }
 }
 

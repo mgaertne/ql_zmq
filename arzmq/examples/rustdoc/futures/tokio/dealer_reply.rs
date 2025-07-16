@@ -4,7 +4,7 @@ use core::sync::atomic::{AtomicI32, Ordering};
 use arzmq::{
     ZmqResult,
     context::Context,
-    futures::{AsyncReceiver, AsyncSender},
+    futures::{AsyncMultipartReceiver, AsyncMultipartSender},
     socket::{DealerSocket, ReplySocket, SendFlags},
 };
 use tokio::{join, task};

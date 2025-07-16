@@ -925,6 +925,12 @@ where
     F: Into<RecvFlags> + Copy,
 {
     fn recv_msg(&self, flags: F) -> ZmqResult<Message>;
+}
+
+pub trait MultipartReceiver<F>: Receiver<F>
+where
+    F: Into<RecvFlags> + Copy,
+{
     fn recv_multipart(&self, flags: F) -> ZmqResult<MultipartMessage> {
         iter::repeat_with(|| self.recv_msg(flags))
             .try_fold(
@@ -968,9 +974,11 @@ bitflags! {
     }
 }
 
-pub trait Sender<S: sealed::SocketType + sealed::SenderFlag + Unpin> {
+pub trait Sender<S: sealed::SenderFlag> {
     fn send_msg(&self, msg: Message, flags: SendFlags) -> ZmqResult<()>;
+}
 
+pub trait MultipartSender<S: sealed::SenderFlag>: Sender<S> {
     fn send_multipart(&self, iter: MultipartMessage, flags: SendFlags) -> ZmqResult<()> {
         let mut last_part: Option<Message> = None;
         for part in iter {

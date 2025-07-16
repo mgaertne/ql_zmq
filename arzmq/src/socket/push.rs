@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions, SocketType},
+    socket::{MultipartSender, Socket, SocketOptions, SocketType},
 };
 
 /// # A push socket `ZMQ_PUSH`
@@ -24,14 +24,16 @@ pub struct Push {}
 
 impl sealed::SenderFlag for Push {}
 
-unsafe impl Sync for Socket<Push> {}
-unsafe impl Send for Socket<Push> {}
-
 impl sealed::SocketType for Push {
     fn raw_socket_type() -> SocketType {
         SocketType::Push
     }
 }
+
+unsafe impl Sync for Socket<Push> {}
+unsafe impl Send for Socket<Push> {}
+
+impl MultipartSender<Push> for Socket<Push> {}
 
 impl Socket<Push> {
     /// # Keep only last message `ZMQ_CONFLATE`
