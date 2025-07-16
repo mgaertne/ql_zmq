@@ -4,7 +4,7 @@ use alloc::collections::{
 };
 use core::{
     fmt::{Display, Formatter},
-    ops::{Deref, RangeBounds},
+    ops::RangeBounds,
 };
 
 use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
@@ -38,7 +38,7 @@ impl Message {
 
     pub fn bytes(&self) -> Vec<u8> {
         let msg_guard = self.inner.lock();
-        (*msg_guard).deref().to_vec()
+        (*msg_guard).as_ref().to_vec()
     }
 
     pub fn len(&self) -> usize {
@@ -125,9 +125,9 @@ where
 {
     fn send(self, socket: &Socket<S>, flags: i32) -> ZmqResult<()> {
         let zmq_msg = self.into();
-        let raw_msg = zmq_msg.inner.lock();
+        let mut raw_msg = zmq_msg.inner.lock();
 
-        socket.socket.send(&*raw_msg, flags)?;
+        socket.socket.send(&mut raw_msg, flags)?;
         Ok(())
     }
 }

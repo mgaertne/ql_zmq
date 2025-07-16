@@ -3,7 +3,7 @@ use core::{
     ffi::{CStr, c_long, c_void},
     fmt::Formatter,
     hint::cold_path,
-    ops::{Deref, DerefMut},
+    ops::Deref,
     ptr, slice,
     str::FromStr,
 };
@@ -393,9 +393,7 @@ impl RawSocket {
         Ok(())
     }
 
-    pub(crate) fn send<M: Into<RawMessage>>(&self, msg: M, flags: i32) -> ZmqResult<()> {
-        let mut zmq_msg: RawMessage = msg.into();
-
+    pub(crate) fn send(&self, zmq_msg: &mut RawMessage, flags: i32) -> ZmqResult<()> {
         let socket_guard = self.socket.lock();
 
         if unsafe { zmq_sys_crate::zmq_msg_send(&mut zmq_msg.message, *socket_guard, flags) } == -1
@@ -572,8 +570,12 @@ impl RawMessage {
 
     pub(crate) fn with_size(size: usize) -> Self {
         let mut msg = Self::with_size_uninit(size);
+
+        let msg_len = msg.len();
         unsafe {
-            ptr::write_bytes(msg.as_mut_ptr(), 0, size);
+            let data = zmq_sys_crate::zmq_msg_data(&mut msg.message);
+            let data_ptr = slice::from_raw_parts_mut(data as *mut u8, msg_len);
+            ptr::write_bytes(data_ptr.as_mut_ptr(), 0, size);
         }
         msg
     }
@@ -697,26 +699,9 @@ impl Deref for RawMessage {
     }
 }
 
-impl DerefMut for RawMessage {
-    fn deref_mut(&mut self) -> &mut [u8] {
-        let msg_len = self.len();
-
-        unsafe {
-            let data = zmq_sys_crate::zmq_msg_data(&mut self.message);
-            slice::from_raw_parts_mut(data as *mut u8, msg_len)
-        }
-    }
-}
-
 impl AsRef<[u8]> for RawMessage {
     fn as_ref(&self) -> &[u8] {
         self.deref()
-    }
-}
-
-impl AsMut<[u8]> for RawMessage {
-    fn as_mut(&mut self) -> &mut [u8] {
-        self.deref_mut()
     }
 }
 
@@ -749,6 +734,10 @@ impl core::fmt::Debug for RawMessage {
 
 impl From<Vec<u8>> for RawMessage {
     fn from(value: Vec<u8>) -> Self {
+        if value.is_empty() {
+            return Self::new();
+        }
+
         RawMessage::from(value.into_boxed_slice())
     }
 }
@@ -759,20 +748,16 @@ unsafe extern "C" fn drop_zmq_msg_t(data: *mut c_void, hint: *mut c_void) {
 }
 
 impl From<Box<[u8]>> for RawMessage {
+    #[cfg(not(feature = "draft-api"))]
     fn from(value: Box<[u8]>) -> Self {
         if value.is_empty() {
-            return RawMessage::new();
+            return Self::new();
         }
 
         let size = value.len();
         let data = Box::into_raw(value);
 
         let mut message = zmq_sys_crate::zmq_msg_t::default();
-        #[cfg(feature = "draft-api")]
-        unsafe {
-            zmq_sys_crate::zmq_msg_init_buffer(&mut message, data as *mut c_void, size)
-        };
-        #[cfg(not(feature = "draft-api"))]
         unsafe {
             zmq_sys_crate::zmq_msg_init_data(
                 &mut message,
@@ -784,16 +769,45 @@ impl From<Box<[u8]>> for RawMessage {
         };
         Self { message }
     }
+
+    #[cfg(feature = "draft-api")]
+    fn from(value: Box<[u8]>) -> Self {
+        Self::from(value.as_ref())
+    }
 }
 
 impl<'a> From<&'a [u8]> for RawMessage {
+    #[cfg(not(feature = "draft-api"))]
     fn from(value: &'a [u8]) -> Self {
-        unsafe {
-            let mut message = Self::with_size(value.len());
-            ptr::copy_nonoverlapping(value.as_ptr(), message.as_mut_ptr(), value.len());
-
-            message
+        if value.is_empty() {
+            return Self::new();
         }
+
+        let mut message = Self::with_size(value.len());
+
+        let msg_len = message.len();
+        unsafe {
+            let data = zmq_sys_crate::zmq_msg_data(&mut message.message);
+            let data_ptr = slice::from_raw_parts_mut(data as *mut u8, msg_len);
+            ptr::copy_nonoverlapping(value.as_ptr(), data_ptr.as_mut_ptr(), value.len());
+        }
+
+        message
+    }
+
+    #[cfg(feature = "draft-api")]
+    fn from(value: &'a [u8]) -> Self {
+        if value.is_empty() {
+            return Self::new();
+        }
+
+        let size = value.len();
+        let mut message = zmq_sys_crate::zmq_msg_t::default();
+        unsafe {
+            zmq_sys_crate::zmq_msg_init_buffer(&mut message, value.as_ptr() as *const c_void, size)
+        };
+
+        Self { message }
     }
 }
 
@@ -806,12 +820,6 @@ impl<'a> From<&'a str> for RawMessage {
 impl<'a> From<&'a String> for RawMessage {
     fn from(value: &'a String) -> Self {
         RawMessage::from(value.as_bytes())
-    }
-}
-
-impl<'a, T: Into<RawMessage> + Clone> From<&'a T> for RawMessage {
-    fn from(value: &'a T) -> Self {
-        value.clone().into()
     }
 }
 
