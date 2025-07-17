@@ -5,6 +5,7 @@ use arzmq::{
     builder::ContextBuilder,
     futures::{AsyncMonitorReceiver, AsyncReceiver, AsyncSender},
     message::Message,
+    security::SecurityMechanism,
     socket::{DealerSocket, MonitorFlags, MonitorSocket, MonitorSocketEvent, SendFlags, Socket},
 };
 use tokio::{
@@ -53,12 +54,11 @@ impl MonitoredDealer {
 
     async fn configure(&self, password: &str, identity: &str) -> Result<()> {
         let dealer = self.dealer.read().await;
-        dealer.set_plain_username(Some("rcon"))?;
-        if !password.is_empty() {
-            dealer.set_plain_password(Some(password))?;
-        } else {
-            dealer.set_plain_password(None::<&str>)?;
-        }
+
+        dealer.set_security_mechanism(SecurityMechanism::PlainClient {
+            username: "rcon".into(),
+            password: password.into(),
+        })?;
 
         let identity_str = if identity.is_empty() {
             let identity = Uuid::new_v4();
@@ -66,20 +66,20 @@ impl MonitoredDealer {
         } else {
             identity.to_string()
         };
+        dealer.set_routing_id(identity_str)?;
 
         dealer.set_hello_message("register")?;
-        dealer.set_routing_id(identity_str)?;
         dealer.set_immediate(true)?;
 
-        dealer.set_rcvtimeo(0)?;
-        dealer.set_rcvhwm(0)?;
-        dealer.set_sndtimeo(0)?;
-        dealer.set_sndhwm(0)?;
+        dealer.set_receive_timeout(0)?;
+        dealer.set_receive_highwater_mark(0)?;
+        dealer.set_send_timeout(0)?;
+        dealer.set_send_highwater_mark(0)?;
 
         dealer.set_heartbeat_ivl(600_000)?;
         dealer.set_heartbeat_timeout(600_000)?;
 
-        dealer.set_zap_domain("rcon")?;
+        dealer.set_zap_domain("rcon".into())?;
 
         Ok(())
     }

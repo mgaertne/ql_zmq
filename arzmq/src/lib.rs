@@ -8,12 +8,14 @@ pub mod context;
 pub mod error;
 mod ffi;
 pub mod message;
+pub mod security;
 pub mod socket;
 
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
 pub mod builder;
 
+pub mod auth;
 #[cfg(feature = "futures")]
 #[doc(cfg(feature = "futures"))]
 pub mod futures;
