@@ -1,4 +1,5 @@
 #![feature(cold_path, doc_cfg, stmt_expr_attributes)]
+#![allow(clippy::items_after_test_module)]
 #![doc(test(no_crate_inject))]
 extern crate alloc;
 extern crate core;
@@ -94,6 +95,29 @@ pub fn has_capability(capability: Capability) -> bool {
     unsafe { zmq_sys_crate::zmq_has(c_str.as_ptr()) != 0 }
 }
 
+#[cfg(test)]
+mod has_capability_tests {
+    use super::{Capability, has_capability};
+
+    #[test]
+    fn has_ipc_capability() {
+        assert!(has_capability(Capability::Ipc));
+    }
+
+    #[test]
+    fn has_curve_capability() {
+        assert_eq!(has_capability(Capability::Curve), cfg!(feature = "curve"));
+    }
+
+    #[test]
+    fn has_draft_capability() {
+        assert_eq!(
+            has_capability(Capability::Draft),
+            cfg!(feature = "draft-api")
+        );
+    }
+}
+
 /// Return the current zeromq version, as `(major, minor, patch)`.
 pub fn version() -> (i32, i32, i32) {
     let mut major = Default::default();
@@ -160,27 +184,4 @@ pub fn proxy<T: sealed::SocketType>(
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod has_capability_tests {
-    use super::{Capability, has_capability};
-
-    #[test]
-    fn has_ipc_capability() {
-        assert!(has_capability(Capability::Ipc));
-    }
-
-    #[test]
-    fn has_curve_capability() {
-        assert_eq!(has_capability(Capability::Curve), cfg!(feature = "curve"));
-    }
-
-    #[test]
-    fn has_draft_capability() {
-        assert_eq!(
-            has_capability(Capability::Draft),
-            cfg!(feature = "draft-api")
-        );
-    }
 }
