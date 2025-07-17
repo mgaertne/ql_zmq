@@ -27,11 +27,17 @@ unsafe impl Sync for Socket<Dish> {}
 unsafe impl Send for Socket<Dish> {}
 
 impl Socket<Dish> {
-    pub fn join<G: AsRef<str>>(&self, group: G) -> ZmqResult<()> {
+    pub fn join<G>(&self, group: G) -> ZmqResult<()>
+    where
+        G: AsRef<str>,
+    {
         self.socket.join(group.as_ref())
     }
 
-    pub fn leave<G: AsRef<str>>(&self, group: G) -> ZmqResult<()> {
+    pub fn leave<G>(&self, group: G) -> ZmqResult<()>
+    where
+        G: AsRef<str>,
+    {
         self.socket.leave(group.as_ref())
     }
 }

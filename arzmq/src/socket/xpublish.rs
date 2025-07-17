@@ -1,4 +1,4 @@
-use super::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType};
+use super::{MultipartReceiver, MultipartSender, Socket, SocketOption, SocketType};
 use crate::{ZmqResult, sealed};
 
 /// # A XSubscriber socket `ZMQ_XPUB`
@@ -34,8 +34,8 @@ impl sealed::SocketType for XPublish {
 unsafe impl Sync for Socket<XPublish> {}
 unsafe impl Send for Socket<XPublish> {}
 
-impl MultipartSender<XPublish> for Socket<XPublish> {}
-impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<XPublish> {}
+impl MultipartSender for Socket<XPublish> {}
+impl MultipartReceiver for Socket<XPublish> {}
 
 impl Socket<XPublish> {
     /// # Establish message filter `ZMQ_SUBSCRIBE`
@@ -51,8 +51,11 @@ impl Socket<XPublish> {
     ///
     /// [`Subscriber`]: super::SubscribeSocket
     /// [`subscribe()`]: #method.subscribe
-    pub fn subscribe<V: AsRef<[u8]>>(&self, topic: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(SocketOptions::Subscribe, topic.as_ref())
+    pub fn subscribe<V>(&self, topic: V) -> ZmqResult<()>
+    where
+        V: AsRef<[u8]>,
+    {
+        self.set_sockopt_bytes(SocketOption::Subscribe, topic.as_ref())
     }
 
     /// Invert message filtering `ZMQ_INVERT_MATCHING`
@@ -73,7 +76,7 @@ impl Socket<XPublish> {
     /// [`XPublish`]: XPublishSocket
     /// [`XSubscribe`]: super::XSubscribeSocket
     pub fn set_invert_matching(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::InvertMatching, value)
+        self.set_sockopt_bool(SocketOption::InvertMatching, value)
     }
 
     /// Retrieve inverted filtering status `ZMQ_INVERT_MATCHING`
@@ -96,7 +99,7 @@ impl Socket<XPublish> {
     /// [`XPublish`]: XPublishSocket
     /// [`XSubscribe`]: super::XSubscribeSocket
     pub fn invert_matching(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(SocketOptions::InvertMatching)
+        self.get_sockopt_bool(SocketOption::InvertMatching)
     }
 
     /// # do not silently drop messages if [`sndhwm()`] is reached `ZMQ_XPUB_NODROP`
@@ -113,7 +116,7 @@ impl Socket<XPublish> {
     /// [`Again`]: crate::ZmqError::Again
     /// [`DONT_WAIT`]: super::SendFlags::DONT_WAIT
     pub fn set_nodrop(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::XpubNoDrop, value)
+        self.set_sockopt_bool(SocketOption::XpubNoDrop, value)
     }
 
     /// # pass duplicate subscribe messages on [`XPublish`] socket `ZMQ_XPUB_VERBOSE`
@@ -124,7 +127,7 @@ impl Socket<XPublish> {
     ///
     /// [`XPublish`]: XPublishSocket
     pub fn set_verbose(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::XpubVerbose, value)
+        self.set_sockopt_bool(SocketOption::XpubVerbose, value)
     }
 
     /// # pass duplicate subscribe and unsubscribe messages on [`XPublish`] socket `ZMQ_XPUB_VERBOSER`
@@ -136,7 +139,7 @@ impl Socket<XPublish> {
     ///
     /// [`XPublish`]: XPublishSocket
     pub fn set_verboser(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::XpubVerboser, value)
+        self.set_sockopt_bool(SocketOption::XpubVerboser, value)
     }
 
     /// # change the subscription handling to manual `ZMQ_XPUB_MANUAL`
@@ -150,7 +153,7 @@ impl Socket<XPublish> {
     /// [`XPublish`]: XPublishSocket
     /// [`subscribe()`]: #method.subscribe
     pub fn set_manual(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::XpubManual, value)
+        self.set_sockopt_bool(SocketOption::XpubManual, value)
     }
 
     /// # change the subscription handling to manual `ZMQ_XPUB_MANUAL_LAST_VALUE`
@@ -168,7 +171,7 @@ impl Socket<XPublish> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_manual_last_value(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::XpubManualLastValue, value)
+        self.set_sockopt_bool(SocketOption::XpubManualLastValue, value)
     }
 
     /// # set welcome message that will be received by subscriber when connecting `ZMQ_XPUB_WELCOME_MSG`
@@ -183,8 +186,11 @@ impl Socket<XPublish> {
     /// [`XPublish`]: XPublishSocket
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    pub fn set_welcome_msg<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::XpubWelcomeMessage, value)
+    pub fn set_welcome_msg<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::XpubWelcomeMessage, value)
     }
 
     /// # Process only first subscribe/unsubscribe in a multipart message `ZMQ_ONLY_FIRST_SUBSCRIBE`
@@ -198,7 +204,7 @@ impl Socket<XPublish> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_only_first_subscribe(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::OnlyFirstSubscribe, value)
+        self.set_sockopt_bool(SocketOption::OnlyFirstSubscribe, value)
     }
 
     /// # Number of topic subscriptions received `ZMQ_TOPICS_COUNT`
@@ -217,6 +223,6 @@ impl Socket<XPublish> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn topic_count(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(SocketOptions::TopicsCount)
+        self.get_sockopt_int(SocketOption::TopicsCount)
     }
 }

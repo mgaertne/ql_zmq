@@ -2,7 +2,7 @@ use derive_more::Display;
 
 use crate::{
     ZmqError, ZmqResult, sealed,
-    socket::{Socket, SocketOptions},
+    socket::{Socket, SocketOption},
     zmq_sys_crate,
 };
 
@@ -40,38 +40,36 @@ pub enum SecurityMechanism {
 impl SecurityMechanism {
     pub fn apply<T: sealed::SocketType>(&self, socket: &Socket<T>) -> ZmqResult<()> {
         match self {
-            SecurityMechanism::Null => {
-                socket.set_sockopt_bool(SocketOptions::PlainServer, false)?
-            }
+            SecurityMechanism::Null => socket.set_sockopt_bool(SocketOption::PlainServer, false)?,
             SecurityMechanism::PlainServer { username, password } => {
-                socket.set_sockopt_bool(SocketOptions::PlainServer, true)?;
-                socket.set_sockopt_string(SocketOptions::PlainUsername, username)?;
-                socket.set_sockopt_string(SocketOptions::PlainPassword, password)?;
+                socket.set_sockopt_bool(SocketOption::PlainServer, true)?;
+                socket.set_sockopt_string(SocketOption::PlainUsername, username)?;
+                socket.set_sockopt_string(SocketOption::PlainPassword, password)?;
             }
             SecurityMechanism::PlainClient { username, password } => {
-                socket.set_sockopt_bool(SocketOptions::PlainServer, true)?;
-                socket.set_sockopt_string(SocketOptions::PlainUsername, username)?;
-                socket.set_sockopt_string(SocketOptions::PlainPassword, password)?;
+                socket.set_sockopt_bool(SocketOption::PlainServer, true)?;
+                socket.set_sockopt_string(SocketOption::PlainUsername, username)?;
+                socket.set_sockopt_string(SocketOption::PlainPassword, password)?;
             }
             SecurityMechanism::CurveServer { secret_key } => {
-                socket.set_sockopt_bool(SocketOptions::CurveServer, true)?;
-                socket.set_sockopt_bytes(SocketOptions::CurveSecretKey, secret_key)?;
+                socket.set_sockopt_bool(SocketOption::CurveServer, true)?;
+                socket.set_sockopt_bytes(SocketOption::CurveSecretKey, secret_key)?;
             }
             SecurityMechanism::CurveClient {
                 server_key,
                 public_key,
                 secret_key,
             } => {
-                socket.set_sockopt_bytes(SocketOptions::CurveServerKey, server_key)?;
-                socket.set_sockopt_bytes(SocketOptions::CurvePublicKey, public_key)?;
-                socket.set_sockopt_bytes(SocketOptions::CurveSecretKey, secret_key)?;
+                socket.set_sockopt_bytes(SocketOption::CurveServerKey, server_key)?;
+                socket.set_sockopt_bytes(SocketOption::CurvePublicKey, public_key)?;
+                socket.set_sockopt_bytes(SocketOption::CurveSecretKey, secret_key)?;
             }
             SecurityMechanism::GssApiClient { service_principal } => {
                 socket
-                    .set_sockopt_string(SocketOptions::GssApiServicePrincipal, service_principal)?;
+                    .set_sockopt_string(SocketOption::GssApiServicePrincipal, service_principal)?;
             }
             SecurityMechanism::GssApiServer => {
-                socket.set_sockopt_bool(SocketOptions::GssApiServer, true)?;
+                socket.set_sockopt_bool(SocketOption::GssApiServer, true)?;
             }
         }
         Ok(())
@@ -82,24 +80,24 @@ impl<T: sealed::SocketType> TryFrom<&Socket<T>> for SecurityMechanism {
     type Error = ZmqError;
 
     fn try_from(socket: &Socket<T>) -> Result<Self, Self::Error> {
-        match socket.get_sockopt_int::<SocketOptions, i32>(SocketOptions::Mechanism)? {
+        match socket.get_sockopt_int::<i32>(SocketOption::Mechanism)? {
             value if value == zmq_sys_crate::ZMQ_NULL as i32 => Ok(Self::Null),
             value if value == zmq_sys_crate::ZMQ_PLAIN as i32 => {
-                let username = socket.get_sockopt_string(SocketOptions::PlainUsername)?;
-                let password = socket.get_sockopt_string(SocketOptions::PlainPassword)?;
-                if socket.get_sockopt_bool(SocketOptions::PlainServer)? {
+                let username = socket.get_sockopt_string(SocketOption::PlainUsername)?;
+                let password = socket.get_sockopt_string(SocketOption::PlainPassword)?;
+                if socket.get_sockopt_bool(SocketOption::PlainServer)? {
                     Ok(Self::PlainServer { username, password })
                 } else {
                     Ok(Self::PlainClient { username, password })
                 }
             }
             value if value == zmq_sys_crate::ZMQ_CURVE as i32 => {
-                let secret_key = socket.get_sockopt_bytes(SocketOptions::CurveSecretKey)?;
-                if socket.get_sockopt_bool(SocketOptions::CurveServer)? {
+                let secret_key = socket.get_sockopt_bytes(SocketOption::CurveSecretKey)?;
+                if socket.get_sockopt_bool(SocketOption::CurveServer)? {
                     Ok(Self::CurveServer { secret_key })
                 } else {
-                    let server_key = socket.get_sockopt_bytes(SocketOptions::CurveServerKey)?;
-                    let public_key = socket.get_sockopt_bytes(SocketOptions::CurvePublicKey)?;
+                    let server_key = socket.get_sockopt_bytes(SocketOption::CurveServerKey)?;
+                    let public_key = socket.get_sockopt_bytes(SocketOption::CurvePublicKey)?;
                     Ok(Self::CurveClient {
                         server_key,
                         public_key,
@@ -108,11 +106,11 @@ impl<T: sealed::SocketType> TryFrom<&Socket<T>> for SecurityMechanism {
                 }
             }
             value if value == zmq_sys_crate::ZMQ_GSSAPI as i32 => {
-                if socket.get_sockopt_bool(SocketOptions::GssApiServer)? {
+                if socket.get_sockopt_bool(SocketOption::GssApiServer)? {
                     Ok(Self::GssApiServer)
                 } else {
                     let service_principal =
-                        socket.get_sockopt_string(SocketOptions::GssApiServicePrincipal)?;
+                        socket.get_sockopt_string(SocketOption::GssApiServicePrincipal)?;
                     Ok(Self::GssApiClient { service_principal })
                 }
             }

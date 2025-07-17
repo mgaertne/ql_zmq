@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType},
+    socket::{MultipartReceiver, MultipartSender, Socket, SocketOption, SocketType},
 };
 
 /// # A Requester socket `ZMQ_REQ`
@@ -34,8 +34,8 @@ impl sealed::SocketType for Request {
 unsafe impl Sync for Socket<Request> {}
 unsafe impl Send for Socket<Request> {}
 
-impl MultipartSender<Request> for Socket<Request> {}
-impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Request> {}
+impl MultipartSender for Socket<Request> {}
+impl MultipartReceiver for Socket<Request> {}
 
 impl Socket<Request> {
     /// # match replies with requests `ZMQ_REQ_CORRELATE`
@@ -49,7 +49,7 @@ impl Socket<Request> {
     ///
     /// [`Request`]: RequestSocket
     pub fn set_correlate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::RequestCorrelate, value)
+        self.set_sockopt_bool(SocketOption::RequestCorrelate, value)
     }
 
     /// # relax strict alternation between request and reply `ZMQ_REQ_RELAXED`
@@ -67,7 +67,7 @@ impl Socket<Request> {
     /// [`send_msg()`]: #method.send_msg
     /// [`set_correlate()`]: #method.set_correlate
     pub fn set_relaxed(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::RequestRelaxed, value)
+        self.set_sockopt_bool(SocketOption::RequestRelaxed, value)
     }
 
     /// # Set socket routing id `ZMQ_ROUTING_ID`
@@ -87,8 +87,11 @@ impl Socket<Request> {
     /// [`set_routing_id()`]: #method.set_routing_id
     /// [`Router`]: super::RouterSocket
     /// [`set_router_handover()`]: super::RouterSocket::set_router_handover
-    pub fn set_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::RoutingId, value)
+    pub fn set_routing_id<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::RoutingId, value)
     }
 
     /// # Retrieve socket routing id `ZMQ_ROUTING_ID`
@@ -103,6 +106,6 @@ impl Socket<Request> {
     /// [`routing_id()`]: #method.routing_id
     /// [`Router`]: super::RouterSocket
     pub fn routing_id(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(SocketOptions::RoutingId)
+        self.get_sockopt_string(SocketOption::RoutingId)
     }
 }

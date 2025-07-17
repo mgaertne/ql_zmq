@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType},
+    socket::{MultipartReceiver, MultipartSender, Socket, SocketOption, SocketType},
 };
 
 /// # A stream socket `ZMQ_STREAM`
@@ -51,8 +51,8 @@ impl sealed::SocketType for Stream {
 unsafe impl Sync for Socket<Stream> {}
 unsafe impl Send for Socket<Stream> {}
 
-impl MultipartSender<Stream> for Socket<Stream> {}
-impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Stream> {}
+impl MultipartSender for Socket<Stream> {}
+impl MultipartReceiver for Socket<Stream> {}
 
 impl Socket<Stream> {
     /// # Set socket routing id `ZMQ_ROUTING_ID`
@@ -72,8 +72,11 @@ impl Socket<Stream> {
     /// [`set_routing_id()`]: #method.set_routing_id
     /// [`Router`]: super::RouterSocket
     /// [`set_router_handover()`]: super::RouterSocket::set_router_handover
-    pub fn set_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::RoutingId, value)
+    pub fn set_routing_id<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::RoutingId, value)
     }
 
     /// # Retrieve socket routing id `ZMQ_ROUTING_ID`
@@ -88,7 +91,7 @@ impl Socket<Stream> {
     /// [`routing_id()`]: #method.routing_id
     /// [`Router`]: super::RouterSocket
     pub fn routing_id(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(SocketOptions::RoutingId)
+        self.get_sockopt_string(SocketOption::RoutingId)
     }
 
     /// # Assign the next outbound routing id `ZMQ_CONNECT_ROUTING_ID`
@@ -113,8 +116,11 @@ impl Socket<Stream> {
     /// [`Router`]: super::RouterSocket
     /// [`connect()`]: #method.connect
     /// [`set_connect_routing_id()`]: #method.set_connect_routing_id
-    pub fn set_connect_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::ConnectRoutingId, value)
+    pub fn set_connect_routing_id<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::ConnectRoutingId, value)
     }
 
     /// # send connect and disconnect notifications `ZMQ_STREAM_NOTIFY`
@@ -127,6 +133,6 @@ impl Socket<Stream> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_stream_notify(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::StreamNotify, value)
+        self.set_sockopt_bool(SocketOption::StreamNotify, value)
     }
 }

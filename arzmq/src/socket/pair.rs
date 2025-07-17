@@ -1,6 +1,6 @@
 use crate::{
     sealed,
-    socket::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketType},
+    socket::{MultipartReceiver, MultipartSender, Socket, SocketType},
 };
 
 /// # A pair socket `ZMQ_PAIR`
@@ -45,7 +45,7 @@ impl sealed::SocketType for Pair {
 unsafe impl Sync for Socket<Pair> {}
 unsafe impl Send for Socket<Pair> {}
 
-impl MultipartSender<Pair> for Socket<Pair> {}
-impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Pair> {}
+impl MultipartSender for Socket<Pair> {}
+impl MultipartReceiver for Socket<Pair> {}
 
 impl Socket<Pair> {}

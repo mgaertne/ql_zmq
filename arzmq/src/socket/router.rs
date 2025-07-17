@@ -3,7 +3,7 @@ use bitflags::bitflags;
 
 use crate::{
     ZmqResult, sealed,
-    socket::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType},
+    socket::{MultipartReceiver, MultipartSender, Socket, SocketOption, SocketType},
 };
 
 /// # A router socket `ZMQ_ROUTER`
@@ -39,7 +39,7 @@ use crate::{
 /// [`Router`]: RouterSocket
 /// [`Request`]: super::RequestSocket
 /// [`routing_id()`]: #method.routing_id
-/// [`RouterMandatory`]: SocketOptions::RouterMandatory
+/// [`RouterMandatory`]: SocketOption::RouterMandatory
 /// [`HostUnreachable`]: crate::ZmqError::HostUnreachable
 /// [`Again`]: crate::ZmqError::Again
 /// [`POLL_IN`]: super::PollEvents::POLL_IN
@@ -60,8 +60,8 @@ impl sealed::SocketType for Router {
 unsafe impl Sync for Socket<Router> {}
 unsafe impl Send for Socket<Router> {}
 
-impl MultipartSender<Router> for Socket<Router> {}
-impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Router> {}
+impl MultipartSender for Socket<Router> {}
+impl MultipartReceiver for Socket<Router> {}
 
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
@@ -93,8 +93,11 @@ impl Socket<Router> {
     /// [`set_routing_id()`]: #method.set_routing_id
     /// [`Router`]: RouterSocket
     /// [`set_router_handover()`]: #method.set_router_handover
-    pub fn set_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::RoutingId, value)
+    pub fn set_routing_id<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::RoutingId, value)
     }
 
     /// # Retrieve socket routing id `ZMQ_ROUTING_ID`
@@ -109,7 +112,7 @@ impl Socket<Router> {
     /// [`routing_id()`]: #method.routing_id
     /// [`Router`]: RouterSocket
     pub fn routing_id(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(SocketOptions::RoutingId)
+        self.get_sockopt_string(SocketOption::RoutingId)
     }
 
     /// # Assign the next outbound routing id `ZMQ_CONNECT_ROUTING_ID`
@@ -134,8 +137,11 @@ impl Socket<Router> {
     /// [`Router`]: RouterSocket
     /// [`connect()`]: #method.connect
     /// [`set_connect_routing_id()`]: #method.set_connect_routing_id
-    pub fn set_connect_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::ConnectRoutingId, value)
+    pub fn set_connect_routing_id<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::ConnectRoutingId, value)
     }
 
     /// # handle duplicate client routing ids on [`Router`] sockets `ZMQ_ROUTER_HANDOVER`
@@ -149,7 +155,7 @@ impl Socket<Router> {
     /// [`Router`]: RouterSocket
     /// [`set_router_handover()`]: #method.set_router_handover
     pub fn set_router_handover(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::RouterHandover, value)
+        self.set_sockopt_bool(SocketOption::RouterHandover, value)
     }
 
     /// # accept only routable messages on [`Router`] sockets `ZMQ_ROUTER_MANDATORY`
@@ -177,7 +183,7 @@ impl Socket<Router> {
     /// [`poll()`]: #method.poll
     /// [`poll_wait_all()`]: todo!()
     pub fn set_router_mandatory(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::RouterMandatory, value)
+        self.set_sockopt_bool(SocketOption::RouterMandatory, value)
     }
 
     /// # set a disconnect message that the socket will generate when accepted peer disconnect `ZMQ_DISCONNECT_MSG`
@@ -194,8 +200,11 @@ impl Socket<Router> {
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    pub fn set_disconnect_message<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::DisconnectMessage, value)
+    pub fn set_disconnect_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::DisconnectMessage, value)
     }
 
     /// # set an hello message that will be sent when a new peer connect `ZMQ_HELLO_MSG`
@@ -214,8 +223,11 @@ impl Socket<Router> {
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    pub fn set_hello_message<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::HelloMessage, value)
+    pub fn set_hello_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::HelloMessage, value)
     }
 
     /// # Send connect and disconnect notifications `ZMQ_ROUTER_NOTIFY`
@@ -229,7 +241,7 @@ impl Socket<Router> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_router_notify(&self, value: RouterNotify) -> ZmqResult<()> {
-        self.set_sockopt_int(SocketOptions::RouterNotify, value.bits())
+        self.set_sockopt_int(SocketOption::RouterNotify, value.bits())
     }
 
     /// Retrieve router socket notification settings `ZMQ_ROUTER_NOTIFY`
@@ -245,7 +257,7 @@ impl Socket<Router> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn router_notify(&self) -> ZmqResult<RouterNotify> {
-        self.get_sockopt_int(SocketOptions::RouterNotify)
+        self.get_sockopt_int(SocketOption::RouterNotify)
             .map(RouterNotify::from_bits_truncate)
     }
 }

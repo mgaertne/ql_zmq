@@ -1,4 +1,4 @@
-use super::{MultipartSender, Socket, SocketOptions, SocketType};
+use super::{MultipartSender, Socket, SocketOption, SocketType};
 use crate::{ZmqResult, sealed};
 
 /// # A Subscriber socket `ZMQ_PUB`
@@ -27,7 +27,7 @@ impl sealed::SocketType for Publish {
 unsafe impl Sync for Socket<Publish> {}
 unsafe impl Send for Socket<Publish> {}
 
-impl MultipartSender<Publish> for Socket<Publish> {}
+impl MultipartSender for Socket<Publish> {}
 
 impl Socket<Publish> {
     /// # Keep only last message `ZMQ_CONFLATE`
@@ -47,7 +47,7 @@ impl Socket<Publish> {
     /// [`recv_msg()`]: #method.recv_msg
     /// [`events()`]: #method.events
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::Conflate, value)
+        self.set_sockopt_bool(SocketOption::Conflate, value)
     }
 
     /// Invert message filtering `ZMQ_INVERT_MATCHING`
@@ -68,7 +68,7 @@ impl Socket<Publish> {
     /// [`XPublish`]: super::XPublishSocket
     /// [`XSubscribe`]: super::XSubscribeSocket
     pub fn set_invert_matching(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::InvertMatching, value)
+        self.set_sockopt_bool(SocketOption::InvertMatching, value)
     }
 
     /// Retrieve inverted filtering status `ZMQ_INVERT_MATCHING`
@@ -91,7 +91,7 @@ impl Socket<Publish> {
     /// [`XPublish`]: super::XPublishSocket
     /// [`XSubscribe`]: super::XSubscribeSocket
     pub fn invert_matching(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(SocketOptions::InvertMatching)
+        self.get_sockopt_bool(SocketOption::InvertMatching)
     }
 
     /// # do not silently drop messages if [`sndhwm()`] is reached `ZMQ_XPUB_NODROP`
@@ -108,7 +108,7 @@ impl Socket<Publish> {
     /// [`Again`]: crate::ZmqError::Again
     /// [`DONT_WAIT`]: super::SendFlags::DONT_WAIT
     pub fn set_nodrop(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::XpubNoDrop, value)
+        self.set_sockopt_bool(SocketOption::XpubNoDrop, value)
     }
 
     /// # Number of topic subscriptions received `ZMQ_TOPICS_COUNT`
@@ -127,6 +127,6 @@ impl Socket<Publish> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn topic_count(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(SocketOptions::TopicsCount)
+        self.get_sockopt_int(SocketOption::TopicsCount)
     }
 }

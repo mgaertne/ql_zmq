@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions},
+    socket::{Socket, SocketOption},
 };
 
 pub struct ZapDomain {
@@ -13,10 +13,10 @@ impl ZapDomain {
     }
 
     pub fn apply<T: sealed::SocketType>(&self, socket: &Socket<T>) -> ZmqResult<()> {
-        socket.set_sockopt_string(SocketOptions::ZapDomain, &self.domain)?;
+        socket.set_sockopt_string(SocketOption::ZapDomain, &self.domain)?;
 
         #[cfg(feature = "draft-api")]
-        socket.set_sockopt_bool(SocketOptions::ZapEnforceDomain, true)?;
+        socket.set_sockopt_bool(SocketOption::ZapEnforceDomain, true)?;
 
         Ok(())
     }

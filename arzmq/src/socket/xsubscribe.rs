@@ -1,4 +1,4 @@
-use super::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType};
+use super::{MultipartReceiver, MultipartSender, Socket, SocketOption, SocketType};
 use crate::{ZmqResult, sealed};
 
 /// # A XSubscribe socket `ZMQ_XSUB`
@@ -25,8 +25,8 @@ impl sealed::ReceiverFlag for XSubscribe {}
 unsafe impl Sync for Socket<XSubscribe> {}
 unsafe impl Send for Socket<XSubscribe> {}
 
-impl MultipartSender<XSubscribe> for Socket<XSubscribe> {}
-impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<XSubscribe> {}
+impl MultipartSender for Socket<XSubscribe> {}
+impl MultipartReceiver for Socket<XSubscribe> {}
 
 impl sealed::SocketType for XSubscribe {
     fn raw_socket_type() -> SocketType {
@@ -46,7 +46,7 @@ impl Socket<XSubscribe> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_only_first_subscribe(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::OnlyFirstSubscribe, value)
+        self.set_sockopt_bool(SocketOption::OnlyFirstSubscribe, value)
     }
 
     /// # Establish message filter `ZMQ_SUBSCRIBE`
@@ -62,8 +62,11 @@ impl Socket<XSubscribe> {
     ///
     /// [`XSubscriber`]: XSubscribeSocket
     /// [`subscribe()`]: #method.subscribe
-    pub fn subscribe<V: AsRef<[u8]>>(&self, topic: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(SocketOptions::Subscribe, topic.as_ref())
+    pub fn subscribe<V>(&self, topic: V) -> ZmqResult<()>
+    where
+        V: AsRef<[u8]>,
+    {
+        self.set_sockopt_bytes(SocketOption::Subscribe, topic.as_ref())
     }
 
     /// # Remove message filter `ZMQ_UNSUBSCRIBE`
@@ -77,8 +80,11 @@ impl Socket<XSubscribe> {
     /// [`XSubscriber`]: XSubscribeSocket
     /// [`subscribe()`]: #method.subscribe
     /// [`unsubscribe()`]: #method.unsubscribe
-    pub fn unsubscribe<V: AsRef<[u8]>>(&self, topic: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(SocketOptions::Unsubscribe, topic.as_ref())
+    pub fn unsubscribe<V>(&self, topic: V) -> ZmqResult<()>
+    where
+        V: AsRef<[u8]>,
+    {
+        self.set_sockopt_bytes(SocketOption::Unsubscribe, topic.as_ref())
     }
 
     /// # Number of topic subscriptions received `ZMQ_TOPICS_COUNT`
@@ -97,7 +103,7 @@ impl Socket<XSubscribe> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn topic_count(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(SocketOptions::TopicsCount)
+        self.get_sockopt_int(SocketOption::TopicsCount)
     }
 
     /// # pass duplicate unsubscribe messages on [`XSubscribe`] socket `ZMQ_XSUB_VERBOSE_UNSUBSCRIBE`
@@ -110,6 +116,6 @@ impl Socket<XSubscribe> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_verbose_unsubscribe(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::XsubVerboseUnsubscribe, value)
+        self.set_sockopt_bool(SocketOption::XsubVerboseUnsubscribe, value)
     }
 }

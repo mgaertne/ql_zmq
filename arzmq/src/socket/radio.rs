@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions, SocketType},
+    socket::{Socket, SocketOption, SocketType},
 };
 
 /// # A radio socket `ZMQ_RADIO`
@@ -37,7 +37,7 @@ impl Socket<Radio> {
     /// Retrieve the current multicast loopback configuration. A value of `true` means that the
     /// multicast packets sent on this socket will be looped back to local listening interface.
     pub fn multicast_loop(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(SocketOptions::MulticastLoop)
+        self.get_sockopt_bool(SocketOption::MulticastLoop)
     }
 
     /// # Control multicast local loopback `ZMQ_MULTICAST_LOOP`
@@ -45,6 +45,6 @@ impl Socket<Radio> {
     /// For multicast UDP sender sockets this option sets whether the data sent should be looped
     /// back on local listening sockets.
     pub fn set_multicast_loop(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::MulticastLoop, value)
+        self.set_sockopt_bool(SocketOption::MulticastLoop, value)
     }
 }

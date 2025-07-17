@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{MultipartReceiver, RecvFlags, Socket, SocketOptions, SocketType},
+    socket::{MultipartReceiver, Socket, SocketOption, SocketType},
 };
 
 /// # A pull socket `ZMQ_PULL`
@@ -25,7 +25,7 @@ impl sealed::SocketType for Pull {
     }
 }
 
-impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Pull> {}
+impl MultipartReceiver for Socket<Pull> {}
 
 impl Socket<Pull> {
     /// # Keep only last message `ZMQ_CONFLATE`
@@ -45,6 +45,6 @@ impl Socket<Pull> {
     /// [`recv_msg()`]: #method.recv_msg
     /// [`events()`]: #method.events
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::Conflate, value)
+        self.set_sockopt_bool(SocketOption::Conflate, value)
     }
 }

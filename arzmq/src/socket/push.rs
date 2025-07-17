@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{MultipartSender, Socket, SocketOptions, SocketType},
+    socket::{MultipartSender, Socket, SocketOption, SocketType},
 };
 
 /// # A push socket `ZMQ_PUSH`
@@ -33,7 +33,7 @@ impl sealed::SocketType for Push {
 unsafe impl Sync for Socket<Push> {}
 unsafe impl Send for Socket<Push> {}
 
-impl MultipartSender<Push> for Socket<Push> {}
+impl MultipartSender for Socket<Push> {}
 
 impl Socket<Push> {
     /// # Keep only last message `ZMQ_CONFLATE`
@@ -53,6 +53,6 @@ impl Socket<Push> {
     /// [`recv_msg()`]: #method.recv_msg
     /// [`events()`]: #method.events
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::Conflate, value)
+        self.set_sockopt_bool(SocketOption::Conflate, value)
     }
 }

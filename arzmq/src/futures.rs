@@ -68,7 +68,7 @@ impl<T: sealed::SocketType + sealed::ReceiverFlag + Unpin> Future
 }
 
 #[async_trait]
-impl<'a, T: MultipartReceiver<RecvFlags> + AsyncReceiver<'a>> AsyncMultipartReceiver<'a> for T {}
+impl<'a, T: MultipartReceiver + AsyncReceiver<'a>> AsyncMultipartReceiver<'a> for T {}
 
 #[async_trait]
 pub trait AsyncSender<'a, S: sealed::SocketType + sealed::SenderFlag + Unpin> {
@@ -146,7 +146,7 @@ where
 impl<
     'a,
     S: sealed::SenderFlag + sealed::SocketType + Unpin,
-    T: MultipartSender<S> + AsyncSender<'a, S>,
+    T: MultipartSender + AsyncSender<'a, S>,
 > AsyncMultipartSender<'a, S> for T
 {
 }

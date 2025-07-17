@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType},
+    socket::{MultipartReceiver, MultipartSender, Socket, SocketOption, SocketType},
 };
 
 /// # A Reply socket `ZMQ_REP`
@@ -30,8 +30,8 @@ impl sealed::SocketType for Reply {
 unsafe impl Sync for Socket<Reply> {}
 unsafe impl Send for Socket<Reply> {}
 
-impl MultipartSender<Reply> for Socket<Reply> {}
-impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Reply> {}
+impl MultipartSender for Socket<Reply> {}
+impl MultipartReceiver for Socket<Reply> {}
 
 impl Socket<Reply> {
     /// # Set socket routing id `ZMQ_ROUTING_ID`
@@ -51,8 +51,11 @@ impl Socket<Reply> {
     /// [`set_routing_id()`]: #method.set_routing_id
     /// [`Router`]: super::RouterSocket
     /// [`set_router_handover()`]: super::RouterSocket::set_router_handover
-    pub fn set_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::RoutingId, value)
+    pub fn set_routing_id<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::RoutingId, value)
     }
 
     /// # Retrieve socket routing id `ZMQ_ROUTING_ID`
@@ -67,6 +70,6 @@ impl Socket<Reply> {
     /// [`routing_id()`]: #method.routing_id
     /// [`Router`]: super::RouterSocket
     pub fn routing_id(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(SocketOptions::RoutingId)
+        self.get_sockopt_string(SocketOption::RoutingId)
     }
 }

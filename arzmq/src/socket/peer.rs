@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions, SocketType},
+    socket::{Socket, SocketOption, SocketType},
 };
 
 /// # A peer socket `ZMQ_PEER`
@@ -68,7 +68,10 @@ impl Socket<Peer> {
     /// [`connect_peer()`]: #method.connect_peer
     /// [`Unsupported`]: crate::ZmqError::Unsupported
     /// [`routing_id()`]: crate::message::Message::routing_id
-    pub fn connect_peer<V: AsRef<str>>(&self, endpoint: V) -> ZmqResult<u32> {
+    pub fn connect_peer<V>(&self, endpoint: V) -> ZmqResult<u32>
+    where
+        V: AsRef<str>,
+    {
         self.socket.connect_peer(endpoint.as_ref())
     }
 
@@ -84,8 +87,11 @@ impl Socket<Peer> {
     /// [`Client`]: super::ClientSocket
     /// [`Peer`]: PeerSocket
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
-    pub fn set_hiccup_message<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::HiccupMessage, value)
+    pub fn set_hiccup_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::HiccupMessage, value)
     }
 
     /// # set an hello message that will be sent when a new peer connect `ZMQ_HELLO_MSG`
@@ -102,8 +108,11 @@ impl Socket<Peer> {
     /// [`Server`]: super::ServerSocket
     /// [`Peer`]: PeerSocket
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
-    pub fn set_hello_message<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::HelloMessage, value)
+    pub fn set_hello_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::HelloMessage, value)
     }
 
     /// # set a disconnect message that the socket will generate when accepted peer disconnect `ZMQ_DISCONNECT_MSG`
@@ -118,7 +127,10 @@ impl Socket<Peer> {
     /// [`Server`]: super::ServerSocket
     /// [`Peer`]: PeerSocket
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
-    pub fn set_disconnect_message<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::DisconnectMessage, value)
+    pub fn set_disconnect_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::DisconnectMessage, value)
     }
 }

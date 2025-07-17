@@ -1,4 +1,4 @@
-use super::{MultipartReceiver, MultipartSender, RecvFlags, Socket, SocketOptions, SocketType};
+use super::{MultipartReceiver, MultipartSender, Socket, SocketOption, SocketType};
 use crate::{ZmqResult, sealed};
 
 /// # A dealer socket `ZMQ_DEALER`
@@ -36,8 +36,8 @@ impl sealed::SocketType for Dealer {
 unsafe impl Sync for Socket<Dealer> {}
 unsafe impl Send for Socket<Dealer> {}
 
-impl MultipartSender<Dealer> for Socket<Dealer> {}
-impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Dealer> {}
+impl MultipartSender for Socket<Dealer> {}
+impl MultipartReceiver for Socket<Dealer> {}
 
 impl Socket<Dealer> {
     /// # Keep only last message `ZMQ_CONFLATE`
@@ -57,7 +57,7 @@ impl Socket<Dealer> {
     /// [`recv_msg()`]: #method.recv_msg
     /// [`events()`]: #method.events
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::Conflate, value)
+        self.set_sockopt_bool(SocketOption::Conflate, value)
     }
 
     /// # Set socket routing id `ZMQ_ROUTING_ID`
@@ -77,8 +77,11 @@ impl Socket<Dealer> {
     /// [`set_routing_id()`]: #method.set_routing_id
     /// [`Router`]: super::RouterSocket
     /// [`set_router_handover()`]: #method.set_router_handover
-    pub fn set_routing_id<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::RoutingId, value)
+    pub fn set_routing_id<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::RoutingId, value)
     }
 
     /// # Retrieve socket routing id `ZMQ_ROUTING_ID`
@@ -93,7 +96,7 @@ impl Socket<Dealer> {
     /// [`routing_id()`]: #method.routing_id
     /// [`Router`]: super::RouterSocket
     pub fn routing_id(&self) -> ZmqResult<String> {
-        self.get_sockopt_string(SocketOptions::RoutingId)
+        self.get_sockopt_string(SocketOption::RoutingId)
     }
 
     /// # set a hiccup message that the socket will generate when connected peer temporarily disconnect `ZMQ_HICCUP_MSG`
@@ -110,8 +113,11 @@ impl Socket<Dealer> {
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    pub fn set_hiccup_message<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::HiccupMessage, value)
+    pub fn set_hiccup_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::HiccupMessage, value)
     }
 
     /// # set an hello message that will be sent when a new peer connect `ZMQ_HELLO_MSG`
@@ -130,7 +136,10 @@ impl Socket<Dealer> {
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    pub fn set_hello_message<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::HelloMessage, value)
+    pub fn set_hello_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::HelloMessage, value)
     }
 }

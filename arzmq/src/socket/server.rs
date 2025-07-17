@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions, SocketType},
+    socket::{Socket, SocketOption, SocketType},
 };
 
 /// # A server socket `ZMQ_SERVER`
@@ -55,8 +55,11 @@ impl Socket<Server> {
     /// [`Server`]: ServerSocket
     /// [`Peer`]: super::PeerSocket
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
-    pub fn set_hello_message<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::HelloMessage, value)
+    pub fn set_hello_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::HelloMessage, value)
     }
 
     /// # set a disconnect message that the socket will generate when accepted peer disconnect `ZMQ_DISCONNECT_MSG`
@@ -71,7 +74,10 @@ impl Socket<Server> {
     /// [`Server`]: ServerSocket
     /// [`Peer`]: super::PeerSocket
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
-    pub fn set_disconnect_message<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::DisconnectMessage, value)
+    pub fn set_disconnect_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::DisconnectMessage, value)
     }
 }

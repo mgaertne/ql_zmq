@@ -1,6 +1,6 @@
 use crate::{
     ZmqResult, sealed,
-    socket::{Socket, SocketOptions, SocketType},
+    socket::{Socket, SocketOption, SocketType},
 };
 
 /// # A client socket `ZMQ_CLIENT`
@@ -58,8 +58,11 @@ impl Socket<Client> {
     /// [`Client`]: ClientSocket
     /// [`Peer`]: super::PeerSocket
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
-    pub fn set_hiccup_message<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::HiccupMessage, value)
+    pub fn set_hiccup_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::HiccupMessage, value)
     }
 
     /// # set an hello message that will be sent when a new peer connect `ZMQ_HELLO_MSG`
@@ -76,7 +79,10 @@ impl Socket<Client> {
     /// [`Server`]: super::ServerSocket
     /// [`Peer`]: super::PeerSocket
     /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
-    pub fn set_hello_message<T: AsRef<str>>(&self, value: T) -> ZmqResult<()> {
-        self.set_sockopt_string(SocketOptions::HelloMessage, value)
+    pub fn set_hello_message<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::HelloMessage, value)
     }
 }

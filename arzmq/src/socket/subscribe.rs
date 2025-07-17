@@ -1,4 +1,4 @@
-use super::{MultipartReceiver, RecvFlags, Socket, SocketOptions, SocketType};
+use super::{MultipartReceiver, Socket, SocketOption, SocketType};
 use crate::{ZmqResult, sealed};
 
 /// # A Subscriber socket `ZMQ_SUB`
@@ -25,7 +25,7 @@ impl sealed::SocketType for Subscribe {
     }
 }
 
-impl<F: Into<RecvFlags> + Copy> MultipartReceiver<F> for Socket<Subscribe> {}
+impl MultipartReceiver for Socket<Subscribe> {}
 
 impl Socket<Subscribe> {
     /// # Keep only last message `ZMQ_CONFLATE`
@@ -45,7 +45,7 @@ impl Socket<Subscribe> {
     /// [`recv_msg()`]: #method.recv_msg
     /// [`events()`]: #method.events
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::Conflate, value)
+        self.set_sockopt_bool(SocketOption::Conflate, value)
     }
 
     /// # Invert message filtering `ZMQ_INVERT_MATCHING`
@@ -67,7 +67,7 @@ impl Socket<Subscribe> {
     /// [`XPublish`]: super::XPublishSocket
     /// [`XSubscribe`]: super::XSubscribeSocket
     pub fn set_invert_matching(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOptions::InvertMatching, value)
+        self.set_sockopt_bool(SocketOption::InvertMatching, value)
     }
 
     /// # Retrieve inverted filtering status `ZMQ_INVERT_MATCHING`
@@ -90,7 +90,7 @@ impl Socket<Subscribe> {
     /// [`XPublish`]: super::XPublishSocket
     /// [`XSubscribe`]: super::XSubscribeSocket
     pub fn invert_matching(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(SocketOptions::InvertMatching)
+        self.get_sockopt_bool(SocketOption::InvertMatching)
     }
 
     /// # Establish message filter `ZMQ_SUBSCRIBE`
@@ -106,8 +106,11 @@ impl Socket<Subscribe> {
     ///
     /// [`Subscriber`]: SubscribeSocket
     /// [`subscribe()`]: #method.subscribe
-    pub fn subscribe<V: AsRef<[u8]>>(&self, topic: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(SocketOptions::Subscribe, topic.as_ref())
+    pub fn subscribe<V>(&self, topic: V) -> ZmqResult<()>
+    where
+        V: AsRef<[u8]>,
+    {
+        self.set_sockopt_bytes(SocketOption::Subscribe, topic.as_ref())
     }
 
     /// # Remove message filter `ZMQ_UNSUBSCRIBE`
@@ -121,8 +124,11 @@ impl Socket<Subscribe> {
     /// [`Subscriber`]: SubscribeSocket
     /// [`subscribe()`]: #method.subscribe
     /// [`unsubscribe()`]: #method.unsubscribe
-    pub fn unsubscribe<V: AsRef<[u8]>>(&self, topic: V) -> ZmqResult<()> {
-        self.set_sockopt_bytes(SocketOptions::Unsubscribe, topic.as_ref())
+    pub fn unsubscribe<V>(&self, topic: V) -> ZmqResult<()>
+    where
+        V: AsRef<[u8]>,
+    {
+        self.set_sockopt_bytes(SocketOption::Unsubscribe, topic.as_ref())
     }
 
     /// # Number of topic subscriptions received `ZMQ_TOPICS_COUNT`
@@ -141,6 +147,6 @@ impl Socket<Subscribe> {
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn topic_count(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(SocketOptions::TopicsCount)
+        self.get_sockopt_int(SocketOption::TopicsCount)
     }
 }
