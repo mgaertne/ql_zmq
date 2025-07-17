@@ -19,7 +19,7 @@ use crate::{ZmqResult, sealed};
 ///
 /// [`Dealer`]: DealerSocket
 /// [`immediate()`]: #method.immediate
-/// [`send_msg()`]: #impl-Sender<T>-for-Socket<T>
+/// [`send_msg()`]: #impl-Sender-for-Socket<T>
 pub type DealerSocket = Socket<Dealer>;
 
 pub struct Dealer {}
@@ -43,17 +43,19 @@ impl Socket<Dealer> {
     /// # Keep only last message `ZMQ_CONFLATE`
     ///
     /// If set, a socket shall keep only one message in its inbound/outbound queue, this message
-    /// being the last message received/the last message to be sent. Ignores [`recvhwm()`] and
-    /// [`sndhwm()`] options. Does not support multi-part messages, in particular, only one part of
-    /// it is kept in the socket internal queue.
+    /// being the last message received/the last message to be sent. Ignores
+    /// [`receive_highwater_mark()`] and [`send_highwater_mark()`] options. Does not support
+    /// multi-part messages, in particular, only one part of it is kept in the socket internal
+    /// queue.
     ///
     /// # Note
     ///
-    /// If [`recv_msg()`] is not called on the inbound socket, the queue and memory will grow with
-    /// each message received. Use [`events()`] to trigger the conflation of the messages.
+    /// If [`receive_highwater_mark()`] is not called on the inbound socket, the queue and memory
+    /// will grow with each message received. Use [`events()`] to trigger the conflation of the
+    /// messages.
     ///
-    /// [`recvhwm()`]: #method.recvhwm
-    /// [`sndhwm()`]: #method.sndhwm
+    /// [`receive_highwater_mark()`]: #method.receive_highwater_mark
+    /// [`send_highwater_mark()`]: #method.send_highwater_mark
     /// [`recv_msg()`]: #method.recv_msg
     /// [`events()`]: #method.events
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
@@ -99,18 +101,38 @@ impl Socket<Dealer> {
         self.get_sockopt_string(SocketOption::RoutingId)
     }
 
+    /// # bootstrap connections to ROUTER sockets `ZMQ_PROBE_ROUTER`
+    ///
+    /// When set to `true`, the socket will automatically send an empty message when a new
+    /// connection is made or accepted. You may set this on [`Request`], [`Dealer`], or [`Router`]
+    /// sockets connected to a [`Router`] socket. The application must filter such empty messages.
+    /// The [`ProbeRouter`] option in effect provides the [`Router`] application with an event
+    /// signaling the arrival of a new peer.
+    ///
+    /// | Default value | Applicable socket types             |
+    /// | :-----------: | :---------------------------------: |
+    /// | false         | [`Router`], [`Dealer`], [`Request`] |
+    ///
+    /// [`ProbeRouter`]: SocketOption::ProbeRouter
+    /// [`Router`]: super::RouterSocket
+    /// [`Dealer`]: DealerSocket
+    /// [`Request`]: super::RequestSocket
+    pub fn set_probe_router(&self, value: bool) -> ZmqResult<()> {
+        self.set_sockopt_bool(SocketOption::ProbeRouter, value)
+    }
+
     /// # set a hiccup message that the socket will generate when connected peer temporarily disconnect `ZMQ_HICCUP_MSG`
     ///
     /// When set, the socket will generate a hiccup message when connect peer has been
     /// disconnected. You may set this on [`Dealer`], [`Client`] and [`Peer`] sockets. The
-    /// combination with [`set_heartbeat_ivl()`] is powerful and simplify protocols, when
+    /// combination with [`set_heartbeat_interval()`] is powerful and simplify protocols, when
     /// heartbeat recognize a connection drop it will generate a hiccup message that can match the
     /// protocol of the application.
     ///
     /// [`Dealer`]: DealerSocket
     /// [`Client`]: super::ClientSocket
     /// [`Peer`]: super::PeerSocket
-    /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
+    /// [`set_heartbeat_interval()`]: #method.set_heartbeat_interval
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_hiccup_message<V>(&self, value: V) -> ZmqResult<()>
@@ -124,7 +146,7 @@ impl Socket<Dealer> {
     ///
     /// When set, the socket will automatically send an hello message when a new connection is made
     /// or accepted. You may set this on [`Dealer`], [`Router`], [`Client`], [`Server`] and [`Peer`]
-    /// sockets. The combination with [`set_heartbeat_ivl()`] is powerful and simplify
+    /// sockets. The combination with [`set_heartbeat_interval()`] is powerful and simplify
     /// protocols, as now heartbeat and sending the hello message can be left out of protocols and
     /// be handled by zeromq.
     ///
@@ -133,7 +155,7 @@ impl Socket<Dealer> {
     /// [`Client`]: super::ClientSocket
     /// [`Server`]: super::ServerSocket
     /// [`Peer`]: super::PeerSocket
-    /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
+    /// [`set_heartbeat_interval()`]: #method.set_heartbeat_interval
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_hello_message<V>(&self, value: V) -> ZmqResult<()>

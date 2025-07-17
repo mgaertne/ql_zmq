@@ -16,8 +16,8 @@ use crate::{
 ///
 /// [`Request`]: RequestSocket
 /// [`immediate()`]: #method.immediate
-/// [`send_msg()`]: #impl-Sender<T>-for-Socket<T>
-/// [`recv_msg()`]: #impl-Receiver<T>-for-Socket<T>
+/// [`send_msg()`]: #impl-Sender-for-Socket<T>
+/// [`recv_msg()`]: #impl-Receiver-for-Socket<T>
 pub type RequestSocket = Socket<Request>;
 
 pub struct Request {}
@@ -107,5 +107,25 @@ impl Socket<Request> {
     /// [`Router`]: super::RouterSocket
     pub fn routing_id(&self) -> ZmqResult<String> {
         self.get_sockopt_string(SocketOption::RoutingId)
+    }
+
+    /// # bootstrap connections to ROUTER sockets `ZMQ_PROBE_ROUTER`
+    ///
+    /// When set to `true`, the socket will automatically send an empty message when a new
+    /// connection is made or accepted. You may set this on [`Request`], [`Dealer`], or [`Router`]
+    /// sockets connected to a [`Router`] socket. The application must filter such empty messages.
+    /// The [`ProbeRouter`] option in effect provides the [`Router`] application with an event
+    /// signaling the arrival of a new peer.
+    ///
+    /// | Default value | Applicable socket types             |
+    /// | :-----------: | :---------------------------------: |
+    /// | false         | [`Router`], [`Dealer`], [`Request`] |
+    ///
+    /// [`ProbeRouter`]: SocketOption::ProbeRouter
+    /// [`Router`]: super::RouterSocket
+    /// [`Dealer`]: super::DealerSocket
+    /// [`Request`]: RequestSocket
+    pub fn set_probe_router(&self, value: bool) -> ZmqResult<()> {
+        self.set_sockopt_bool(SocketOption::ProbeRouter, value)
     }
 }

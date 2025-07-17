@@ -28,7 +28,7 @@ use crate::{
 ///
 /// [`Pair`]: PairSocket
 /// [`immediate()`]: #method.immediate
-/// [`send_msg()`]: #impl-Sender<T>-for-Socket<T>
+/// [`send_msg()`]: #impl-Sender-for-Socket<T>
 pub type PairSocket = Socket<Pair>;
 
 pub struct Pair {}

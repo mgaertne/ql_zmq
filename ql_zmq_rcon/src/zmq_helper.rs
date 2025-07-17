@@ -76,7 +76,7 @@ impl MonitoredDealer {
         dealer.set_send_timeout(0)?;
         dealer.set_send_highwater_mark(0)?;
 
-        dealer.set_heartbeat_ivl(600_000)?;
+        dealer.set_heartbeat_interval(600_000)?;
         dealer.set_heartbeat_timeout(600_000)?;
 
         dealer.set_zap_domain("rcon".into())?;

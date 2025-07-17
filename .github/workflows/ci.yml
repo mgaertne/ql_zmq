@@ -20,6 +20,20 @@ jobs:
         uses: taiki-e/install-action@cargo-hack
       - run: cargo hack check --each-feature --clean-per-run
 
+  check-tests:
+    name: Check (tests)
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - run: cargo check --tests
+
   check-examples:
     name: Check (examples)
 
@@ -53,6 +67,21 @@ jobs:
         uses: taiki-e/install-action@cargo-hack
       - run: cargo hack clippy --each-feature --clean-per-run -- -D warnings
 
+  clippy-tests:
+    name: Clippy (tests)
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+          components: clippy
+      - run: cargo clippy --tests -- -D warnings
+
   clippy-examples:
     name: Clippy (examples)
 
@@ -69,6 +98,38 @@ jobs:
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
       - run: cargo hack clippy --each-feature --clean-per-run --examples -- -D warnings
+
+  rust-doc:
+    name: rust-documentation
+    runs-on: ubuntu-latest
+    needs: [ check, clippy ]
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - run: cargo doc --no-deps --all-features
+
+  tests:
+    name: unit and doctests
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    needs: [ check, check-tests, clippy, clippy-tests ]
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - run: cargo test --verbose
 
   examples:
     name: examples
@@ -252,7 +313,7 @@ jobs:
 
   build:
     name: build
-    needs: [ check, clippy ]
+    needs: [ check, check-tests, clippy, clippy-tests, tests ]
 
     strategy:
       matrix:

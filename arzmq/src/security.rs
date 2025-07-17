@@ -1,3 +1,6 @@
+#[cfg(feature = "curve")]
+use core::{ffi::c_char, hint::cold_path};
+
 use derive_more::Display;
 
 use crate::{
@@ -11,29 +14,37 @@ use crate::{
 #[non_exhaustive]
 pub enum SecurityMechanism {
     Null = zmq_sys_crate::ZMQ_NULL as i32,
-    #[display("PlainClient(username = {username}, password = {password})")]
+    #[display("PlainClient {{ username = {username}, password = {password} }}")]
     PlainClient {
         username: String,
         password: String,
     },
-    #[display("PlainServer(username = {username}, password = {password})")]
+    #[display("PlainServer {{ username = {username}, password = {password} }}")]
     PlainServer {
         username: String,
         password: String,
     },
-    #[display("CurveClient(...)")]
+    #[cfg(feature = "curve")]
+    #[doc(cfg(feature = "curve"))]
+    #[display("CurveClient {{ ... }}")]
     CurveClient {
         server_key: Vec<u8>,
         public_key: Vec<u8>,
         secret_key: Vec<u8>,
     },
-    #[display("CurveServer(...)")]
+    #[cfg(feature = "curve")]
+    #[doc(cfg(feature = "curve"))]
+    #[display("CurveServer {{ ... }}")]
     CurveServer {
         secret_key: Vec<u8>,
     },
+    #[doc(cfg(zmq_have_gssapi))]
+    #[display("GssApiClient {{ ... }}")]
     GssApiClient {
         service_principal: String,
     },
+    #[doc(cfg(zmq_have_gssapi))]
+    #[display("GssApiServer {{ ... }}")]
     GssApiServer,
 }
 
@@ -51,10 +62,12 @@ impl SecurityMechanism {
                 socket.set_sockopt_string(SocketOption::PlainUsername, username)?;
                 socket.set_sockopt_string(SocketOption::PlainPassword, password)?;
             }
+            #[cfg(feature = "curve")]
             SecurityMechanism::CurveServer { secret_key } => {
                 socket.set_sockopt_bool(SocketOption::CurveServer, true)?;
                 socket.set_sockopt_bytes(SocketOption::CurveSecretKey, secret_key)?;
             }
+            #[cfg(feature = "curve")]
             SecurityMechanism::CurveClient {
                 server_key,
                 public_key,
@@ -64,13 +77,16 @@ impl SecurityMechanism {
                 socket.set_sockopt_bytes(SocketOption::CurvePublicKey, public_key)?;
                 socket.set_sockopt_bytes(SocketOption::CurveSecretKey, secret_key)?;
             }
+            #[cfg(zmq_have_gssapi)]
             SecurityMechanism::GssApiClient { service_principal } => {
                 socket
                     .set_sockopt_string(SocketOption::GssApiServicePrincipal, service_principal)?;
             }
+            #[cfg(zmq_have_gssapi)]
             SecurityMechanism::GssApiServer => {
                 socket.set_sockopt_bool(SocketOption::GssApiServer, true)?;
             }
+            _ => (),
         }
         Ok(())
     }
@@ -91,6 +107,7 @@ impl<T: sealed::SocketType> TryFrom<&Socket<T>> for SecurityMechanism {
                     Ok(Self::PlainClient { username, password })
                 }
             }
+            #[cfg(feature = "curve")]
             value if value == zmq_sys_crate::ZMQ_CURVE as i32 => {
                 let secret_key = socket.get_sockopt_bytes(SocketOption::CurveSecretKey)?;
                 if socket.get_sockopt_bool(SocketOption::CurveServer)? {
@@ -105,6 +122,7 @@ impl<T: sealed::SocketType> TryFrom<&Socket<T>> for SecurityMechanism {
                     })
                 }
             }
+            #[cfg(zmq_have_gssapi)]
             value if value == zmq_sys_crate::ZMQ_GSSAPI as i32 => {
                 if socket.get_sockopt_bool(SocketOption::GssApiServer)? {
                     Ok(Self::GssApiServer)
@@ -119,14 +137,76 @@ impl<T: sealed::SocketType> TryFrom<&Socket<T>> for SecurityMechanism {
     }
 }
 
+#[cfg(feature = "curve")]
+#[doc(cfg(feature = "curve"))]
+pub use z85::{DecodeError as Z85DecodeError, decode as z85_decode, encode as z85_encode};
+
+/// # generate a new CURVE keypair
+///
+/// The [`curve_keypair()`] function returns a newly generated random keypair consisting of a
+/// public key and a secret key. The keys are encoded using [`z85_encode()`].
+///
+/// [`curve_keypair()`]: curve_keypair
+/// [`z85_encode()`]: z85_encode
+#[cfg(feature = "curve")]
+#[doc(cfg(feature = "curve"))]
+pub fn curve_keypair() -> ZmqResult<(Vec<c_char>, Vec<c_char>)> {
+    let mut public_key: [c_char; 41] = [0; 41];
+    let mut secret_key: [c_char; 41] = [0; 41];
+
+    if unsafe { zmq_sys_crate::zmq_curve_keypair(public_key.as_mut_ptr(), secret_key.as_mut_ptr()) }
+        == -1
+    {
+        cold_path();
+        match unsafe { zmq_sys_crate::zmq_errno() } {
+            errno @ zmq_sys_crate::errno::ENOTSUP => return Err(ZmqError::from(errno)),
+            _ => unreachable!(),
+        }
+    }
+
+    Ok((public_key.to_vec(), secret_key.to_vec()))
+}
+
+/// # derive the public key from a private key
+///
+/// The [`curve_public()`] function shall derive the public key from a private key. The keys are
+/// encoded using [`z85_encode()`].
+///
+/// [`curve_public()`]: curve_public
+/// [`z85_encode()`]: z85_encode
+#[cfg(feature = "curve")]
+#[doc(cfg(feature = "curve"))]
+pub fn curve_public<T>(mut secret_key: T) -> ZmqResult<Vec<c_char>>
+where
+    T: AsMut<[c_char]>,
+{
+    let mut public_key: [c_char; 41] = [0; 41];
+    let secret_key_array = secret_key.as_mut();
+
+    if unsafe {
+        zmq_sys_crate::zmq_curve_public(public_key.as_mut_ptr(), secret_key_array.as_mut_ptr())
+    } == -1
+    {
+        cold_path();
+        match unsafe { zmq_sys_crate::zmq_errno() } {
+            errno @ zmq_sys_crate::errno::ENOTSUP => return Err(ZmqError::from(errno)),
+            _ => unreachable!(),
+        }
+    }
+
+    Ok(public_key.to_vec())
+}
+
+#[doc(cfg(zmq_have_gssapi))]
 #[derive(Debug, Display, PartialEq, Eq, Clone, Hash)]
 #[repr(i32)]
 pub enum GssApiNametype {
     NtHostbased = zmq_sys_crate::ZMQ_GSSAPI_NT_HOSTBASED as i32,
     NtUsername = zmq_sys_crate::ZMQ_GSSAPI_NT_USER_NAME as i32,
-    NtKrb6Principal = zmq_sys_crate::ZMQ_GSSAPI_NT_KRB5_PRINCIPAL as i32,
+    NtKrb5Principal = zmq_sys_crate::ZMQ_GSSAPI_NT_KRB5_PRINCIPAL as i32,
 }
 
+#[doc(cfg(zmq_have_gssapi))]
 impl TryFrom<i32> for GssApiNametype {
     type Error = ZmqError;
 
@@ -135,7 +215,7 @@ impl TryFrom<i32> for GssApiNametype {
             _ if value == zmq_sys_crate::ZMQ_GSSAPI_NT_HOSTBASED as i32 => Ok(Self::NtHostbased),
             _ if value == zmq_sys_crate::ZMQ_GSSAPI_NT_USER_NAME as i32 => Ok(Self::NtUsername),
             _ if value == zmq_sys_crate::ZMQ_GSSAPI_NT_KRB5_PRINCIPAL as i32 => {
-                Ok(Self::NtKrb6Principal)
+                Ok(Self::NtKrb5Principal)
             }
             _ => Err(ZmqError::Unsupported),
         }

@@ -25,6 +25,7 @@ use core::{hint::cold_path, ptr};
 
 #[doc(hidden)]
 pub(crate) use arzmq_sys as zmq_sys_crate;
+use derive_more::Display;
 #[doc(inline)]
 pub use error::{ZmqError, ZmqResult};
 
@@ -38,14 +39,82 @@ mod sealed {
     }
 }
 
-/// Return true if the used 0MQ library has the given capability.
+#[derive(Debug, Display, Clone, Eq, PartialEq)]
+pub enum Capability {
+    /// whether the library supports the `ipc://` protocol
+    #[display("ipc")]
+    Ipc,
+    /// whether the library supports the `pgm://` protocol
+    #[display("pgm")]
+    Pgm,
+    /// whether the library supports the `tipc://` protocol
+    #[display("tipc")]
+    Tipc,
+    /// whether the library support the `vmci://` protocol
+    #[display("vmci")]
+    Vmci,
+    /// whether the library supports the `norm://` protocol
+    #[display("norm")]
+    Norm,
+    /// whether the library supports the CURVE security mechanism
+    #[display("curve")]
+    Curve,
+    /// whether the library supports the GSSAPI security mechanism
+    #[display("gssapi")]
+    GssApi,
+    /// whether the library is built with the draft api
+    #[display("draft")]
+    Draft,
+}
+
+/// # check a ZMQ capability
 ///
-/// For a list of capabilities, please consult the `zmq_has` manual
-/// page.
+/// The [`has_capability()`] function shall report whether a specified capability is available in
+/// the library. This allows bindings and applications to probe a library directly, for transport
+/// and security options.
 ///
-pub fn has_capability(capability: &str) -> bool {
-    let c_str = CString::new(capability.to_lowercase()).unwrap();
+/// # Examples
+///
+/// Check whether the library provides support for `ipc` transports:
+/// ```
+/// use arzmq::{has_capability, Capability};
+///
+/// assert!(has_capability(Capability::Ipc));
+/// ```
+/// Check whether the library was built with draft capability:
+/// ```
+/// use arzmq::{has_capability, Capability};
+///
+/// assert_eq!(has_capability(Capability::Draft), cfg!(feature = "draft-api"));
+/// ```
+///
+/// [`has_capability()`]: #method.has_capability
+pub fn has_capability(capability: Capability) -> bool {
+    let c_str = CString::new(capability.to_string()).unwrap();
     unsafe { zmq_sys_crate::zmq_has(c_str.as_ptr()) != 0 }
+}
+
+#[cfg(test)]
+mod has_capability_tests {
+    use super::{Capability, has_capability};
+
+    #[test]
+    fn has_ipc_capability() {
+        assert!(has_capability(Capability::Ipc));
+    }
+
+    #[test]
+    fn has_curve_capability() {
+        assert_eq!(has_capability(Capability::Curve), cfg!(feature = "curve"));
+    }
+
+    #[test]
+    fn has_draft_capability() {
+        assert_eq!(
+            has_capability(Capability::Draft),
+            cfg!(feature = "draft-api")
+        );
+    }
 }
 
 /// Return the current zeromq version, as `(major, minor, patch)`.
@@ -58,8 +127,6 @@ pub fn version() -> (i32, i32, i32) {
 
     (major, minor, patch)
 }
-
-pub use z85::{DecodeError as Z85DecodeError, decode as z85_decode, encode as z85_encode};
 
 use crate::socket::Socket;
 

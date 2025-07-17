@@ -12,8 +12,8 @@ use crate::{
 /// not exist any more the reply is silently discarded.
 ///
 /// [`Reply`]: ReplySocket
-/// [`send_msg()`]: #impl-Sender<T>-for-Socket<T>
-/// [`recv_msg()`]: #impl-Receiver<T>-for-Socket<T>
+/// [`send_msg()`]: #impl-Sender-for-Socket<T>
+/// [`recv_msg()`]: #impl-Receiver-for-Socket<T>
 pub type ReplySocket = Socket<Reply>;
 
 pub struct Reply {}

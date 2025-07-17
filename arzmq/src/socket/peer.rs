@@ -44,7 +44,7 @@ unsafe impl Sync for Socket<Peer> {}
 unsafe impl Send for Socket<Peer> {}
 
 impl Socket<Peer> {
-    /// #
+    /// # create outgoing connection from socket and return the connection routing id in thread-safe and atomic way.
     ///
     /// The [`connect_peer()`] function connects a [`Peer`] socket to an 'endpoint' and then
     /// returns the endpoint [`routing_id()`].
@@ -79,14 +79,14 @@ impl Socket<Peer> {
     ///
     /// When set, the socket will generate a hiccup message when connect peer has been
     /// disconnected. You may set this on [`Dealer`], [`Client`] and [`Peer`] sockets. The
-    /// combination with [`set_heartbeat_ivl()`] is powerful and simplify protocols, when
+    /// combination with [`set_heartbeat_interval()`] is powerful and simplify protocols, when
     /// heartbeat recognize a connection drop it will generate a hiccup message that can match the
     /// protocol of the application.
     ///
     /// [`Dealer`]: super::DealerSocket
     /// [`Client`]: super::ClientSocket
     /// [`Peer`]: PeerSocket
-    /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
+    /// [`set_heartbeat_interval()`]: #method.set_heartbeat_interval
     pub fn set_hiccup_message<V>(&self, value: V) -> ZmqResult<()>
     where
         V: AsRef<str>,
@@ -98,7 +98,7 @@ impl Socket<Peer> {
     ///
     /// When set, the socket will automatically send an hello message when a new connection is made
     /// or accepted. You may set this on [`Dealer`], [`Router`], [`Client`], [`Server`] and [`Peer`]
-    /// sockets. The combination with [`set_heartbeat_ivl()`] is powerful and simplify
+    /// sockets. The combination with [`set_heartbeat_interval()`] is powerful and simplify
     /// protocols, as now heartbeat and sending the hello message can be left out of protocols and
     /// be handled by zeromq.
     ///
@@ -107,7 +107,7 @@ impl Socket<Peer> {
     /// [`Client`]: super::ClientSocket
     /// [`Server`]: super::ServerSocket
     /// [`Peer`]: PeerSocket
-    /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
+    /// [`set_heartbeat_interval()`]: #method.set_heartbeat_interval
     pub fn set_hello_message<V>(&self, value: V) -> ZmqResult<()>
     where
         V: AsRef<str>,
@@ -119,14 +119,14 @@ impl Socket<Peer> {
     ///
     /// When set, the socket will generate a disconnect message when accepted peer has been
     /// disconnected. You may set this on [`Router`], [`Server`] and [`Peer`] sockets. The
-    /// combination with [`set_heartbeat_ivl()`] is powerful and simplify protocols, when heartbeat
+    /// combination with [`set_heartbeat_interval()`] is powerful and simplify protocols, when heartbeat
     /// recognize a connection drop it will generate a disconnect message that can match the
     /// protocol of the application.
     ///
     /// [`Router`]: super::RouterSocket
     /// [`Server`]: super::ServerSocket
     /// [`Peer`]: PeerSocket
-    /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
+    /// [`set_heartbeat_interval()`]: #method.set_heartbeat_interval
     pub fn set_disconnect_message<V>(&self, value: V) -> ZmqResult<()>
     where
         V: AsRef<str>,

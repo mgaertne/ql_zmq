@@ -50,14 +50,14 @@ impl Socket<Client> {
     ///
     /// When set, the socket will generate a hiccup message when connect peer has been
     /// disconnected. You may set this on [`Dealer`], [`Client`] and [`Peer`] sockets. The
-    /// combination with [`set_heartbeat_ivl()`] is powerful and simplify protocols, when
+    /// combination with [`set_heartbeat_interval()`] is powerful and simplify protocols, when
     /// heartbeat recognize a connection drop it will generate a hiccup message that can match the
     /// protocol of the application.
     ///
     /// [`Dealer`]: super::DealerSocket
     /// [`Client`]: ClientSocket
     /// [`Peer`]: super::PeerSocket
-    /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
+    /// [`set_heartbeat_interval()`]: #method.set_heartbeat_interval
     pub fn set_hiccup_message<V>(&self, value: V) -> ZmqResult<()>
     where
         V: AsRef<str>,
@@ -69,7 +69,7 @@ impl Socket<Client> {
     ///
     /// When set, the socket will automatically send an hello message when a new connection is made
     /// or accepted. You may set this on [`Dealer`], [`Router`], [`Client`], [`Server`] and [`Peer`]
-    /// sockets. The combination with [`set_heartbeat_ivl()`] is powerful and simplify
+    /// sockets. The combination with [`set_heartbeat_interval()`] is powerful and simplify
     /// protocols, as now heartbeat and sending the hello message can be left out of protocols and
     /// be handled by zeromq.
     ///
@@ -78,7 +78,7 @@ impl Socket<Client> {
     /// [`Client`]: ClientSocket
     /// [`Server`]: super::ServerSocket
     /// [`Peer`]: super::PeerSocket
-    /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
+    /// [`set_heartbeat_interval()`]: #method.set_heartbeat_interval
     pub fn set_hello_message<V>(&self, value: V) -> ZmqResult<()>
     where
         V: AsRef<str>,

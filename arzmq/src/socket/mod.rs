@@ -85,10 +85,9 @@ pub use subscribe::SubscribeSocket;
 pub use xpublish::XPublishSocket;
 pub use xsubscribe::XSubscribeSocket;
 
-use crate::{
-    auth::ZapDomain,
-    security::{GssApiNametype, SecurityMechanism},
-};
+#[doc(cfg(zmq_have_gssapi))]
+use crate::security::GssApiNametype;
+use crate::{auth::ZapDomain, security::SecurityMechanism};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(i32)]
@@ -175,9 +174,17 @@ pub enum SocketOption {
     PlainServer = zmq_sys_crate::ZMQ_PLAIN_SERVER as i32,
     PlainUsername = zmq_sys_crate::ZMQ_PLAIN_USERNAME as i32,
     PlainPassword = zmq_sys_crate::ZMQ_PLAIN_PASSWORD as i32,
+    #[cfg(feature = "curve")]
+    #[doc(cfg(feature = "curve"))]
     CurvePublicKey = zmq_sys_crate::ZMQ_CURVE_PUBLICKEY as i32,
+    #[cfg(feature = "curve")]
+    #[doc(cfg(feature = "curve"))]
     CurveSecretKey = zmq_sys_crate::ZMQ_CURVE_SECRETKEY as i32,
+    #[cfg(feature = "curve")]
+    #[doc(cfg(feature = "curve"))]
     CurveServer = zmq_sys_crate::ZMQ_CURVE_SERVER as i32,
+    #[cfg(feature = "curve")]
+    #[doc(cfg(feature = "curve"))]
     CurveServerKey = zmq_sys_crate::ZMQ_CURVE_SERVERKEY as i32,
     ProbeRouter = zmq_sys_crate::ZMQ_PROBE_ROUTER as i32,
     RequestCorrelate = zmq_sys_crate::ZMQ_REQ_CORRELATE as i32,
@@ -186,13 +193,20 @@ pub enum SocketOption {
     ZapDomain = zmq_sys_crate::ZMQ_ZAP_DOMAIN as i32,
     RouterHandover = zmq_sys_crate::ZMQ_ROUTER_HANDOVER as i32,
     TypeOfService = zmq_sys_crate::ZMQ_TOS as i32,
+    #[doc(cfg(zmq_have_ipc))]
     IpcFilterProcessId = zmq_sys_crate::ZMQ_IPC_FILTER_PID as i32,
+    #[doc(cfg(zmq_have_ipc))]
     IpcFilterUserId = zmq_sys_crate::ZMQ_IPC_FILTER_UID as i32,
+    #[doc(cfg(zmq_have_ipc))]
     IpcFilterGroupId = zmq_sys_crate::ZMQ_IPC_FILTER_GID as i32,
     ConnectRoutingId = zmq_sys_crate::ZMQ_CONNECT_ROUTING_ID as i32,
+    #[doc(cfg(zmq_have_gssapi))]
     GssApiServer = zmq_sys_crate::ZMQ_GSSAPI_SERVER as i32,
+    #[doc(cfg(zmq_have_gssapi))]
     GssApiPrincipal = zmq_sys_crate::ZMQ_GSSAPI_PRINCIPAL as i32,
+    #[doc(cfg(zmq_have_gssapi))]
     GssApiServicePrincipal = zmq_sys_crate::ZMQ_GSSAPI_SERVICE_PRINCIPAL as i32,
+    #[doc(cfg(zmq_have_gssapi))]
     GssApiPlainText = zmq_sys_crate::ZMQ_GSSAPI_PLAINTEXT as i32,
     HandshakeInterval = zmq_sys_crate::ZMQ_HANDSHAKE_IVL as i32,
     SocksProxy = zmq_sys_crate::ZMQ_SOCKS_PROXY as i32,
@@ -209,12 +223,18 @@ pub enum SocketOption {
     MaxTcpTransmitTimeout = zmq_sys_crate::ZMQ_TCP_MAXRT as i32,
     ThreadSafe = zmq_sys_crate::ZMQ_THREAD_SAFE as i32,
     MulticastMaxTransportDataUnitSize = zmq_sys_crate::ZMQ_MULTICAST_MAXTPDU as i32,
+    #[doc(cfg(zmq_have_vmci))]
     VmciBufferSize = zmq_sys_crate::ZMQ_VMCI_BUFFER_SIZE as i32,
+    #[doc(cfg(zmq_have_vmci))]
     VmciBufferMinSize = zmq_sys_crate::ZMQ_VMCI_BUFFER_MIN_SIZE as i32,
+    #[doc(cfg(zmq_have_vmci))]
     VmciBufferMaxSize = zmq_sys_crate::ZMQ_VMCI_BUFFER_MAX_SIZE as i32,
+    #[doc(cfg(zmq_have_vmci))]
     VmciConntectTimeout = zmq_sys_crate::ZMQ_VMCI_CONNECT_TIMEOUT as i32,
     UseFd = zmq_sys_crate::ZMQ_USE_FD as i32,
+    #[doc(cfg(zmq_have_gssapi))]
     GssApiPrincipalNametype = zmq_sys_crate::ZMQ_GSSAPI_PRINCIPAL_NAMETYPE as i32,
+    #[doc(cfg(zmq_have_gssapi))]
     GssApiServicePrincipalNametype = zmq_sys_crate::ZMQ_GSSAPI_SERVICE_PRINCIPAL_NAMETYPE as i32,
     BindToDevice = zmq_sys_crate::ZMQ_BINDTODEVICE as i32,
     #[cfg(feature = "draft-api")]
@@ -272,28 +292,28 @@ pub enum SocketOption {
     #[doc(cfg(feature = "draft-api"))]
     TopicsCount = zmq_sys_crate::ZMQ_TOPICS_COUNT as i32,
     #[cfg(feature = "draft-api")]
-    #[doc(cfg(feature = "draft-api"))]
+    #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
     NormMode = zmq_sys_crate::ZMQ_NORM_MODE as i32,
     #[cfg(feature = "draft-api")]
-    #[doc(cfg(feature = "draft-api"))]
+    #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
     NormUnicastNack = zmq_sys_crate::ZMQ_NORM_UNICAST_NACK as i32,
     #[cfg(feature = "draft-api")]
-    #[doc(cfg(feature = "draft-api"))]
+    #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
     NormBufferSize = zmq_sys_crate::ZMQ_NORM_BUFFER_SIZE as i32,
     #[cfg(feature = "draft-api")]
-    #[doc(cfg(feature = "draft-api"))]
+    #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
     NormSegmentSize = zmq_sys_crate::ZMQ_NORM_SEGMENT_SIZE as i32,
     #[cfg(feature = "draft-api")]
-    #[doc(cfg(feature = "draft-api"))]
+    #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
     NormBlockSize = zmq_sys_crate::ZMQ_NORM_BLOCK_SIZE as i32,
     #[cfg(feature = "draft-api")]
-    #[doc(cfg(feature = "draft-api"))]
+    #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
     NormNumnParity = zmq_sys_crate::ZMQ_NORM_NUM_PARITY as i32,
     #[cfg(feature = "draft-api")]
-    #[doc(cfg(feature = "draft-api"))]
+    #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
     NormNumnAutoParity = zmq_sys_crate::ZMQ_NORM_NUM_AUTOPARITY as i32,
     #[cfg(feature = "draft-api")]
-    #[doc(cfg(feature = "draft-api"))]
+    #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
     NormPush = zmq_sys_crate::ZMQ_NORM_PUSH as i32,
 }
 
@@ -538,7 +558,7 @@ impl<T: sealed::SocketType> Socket<T> {
 
     /// # Retrieve socket event state `ZMQ_EVENTS`
     ///
-    /// The [`events()`] option shall retrieve the event state for the specified 'socket'. The
+    /// The [`events()`] option shall retrieve the event state for the specified `Socket`. The
     /// returned value is a bit mask constructed by OR’ing a combination of the following event
     /// flags:
     ///
@@ -547,9 +567,9 @@ impl<T: sealed::SocketType> Socket<T> {
     /// * [`POLL_OUT`] Indicates that at least one message may be sent to the specified socket
     ///   without blocking.
     ///
-    /// The combination of a file descriptor returned by the 'ZMQ_FD' option being ready for
-    /// reading but no actual events returned by a subsequent retrieval of the [`events()`] option
-    /// is valid; applications should simply ignore this case and restart their polling
+    /// The combination of a file descriptor returned by the [`FileDescriptor`] option being ready
+    /// for reading but no actual events returned by a subsequent retrieval of the [`events()`]
+    /// option is valid; applications should simply ignore this case and restart their polling
     /// operation/event loop.
     ///
     /// | Default value | Applicable socket types         |
@@ -559,28 +579,94 @@ impl<T: sealed::SocketType> Socket<T> {
     /// [`events()`]: #method.events
     /// [`POLL_IN`]: PollEvents::POLL_IN
     /// [`POLL_OUT`]: PollEvents::POLL_OUT
+    /// [`FileDescriptor`]: SocketOption::FileDescriptor
     pub fn events(&self) -> ZmqResult<PollEvents> {
         self.get_sockopt_int::<i16>(SocketOption::Events)
             .map(PollEvents::from_bits_truncate)
     }
 
+    /// # Disable GSSAPI encryption `ZMQ_GSSAPI_PLAINTEXT`
+    ///
+    /// Defines whether communications on the socket will be encrypted. A value of `true` means
+    /// that communications will be plaintext. A value of `false` means communications will be
+    /// encrypted.
+    ///
+    /// | Default value | Applicable socket types               |
+    /// | :-----------: | :-----------------------------------: |
+    /// | false         | all, when using TCP or IPC transports |
+    #[doc(cfg(zmq_have_gssapi))]
     pub fn set_gssapi_plaintext(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(SocketOption::GssApiPlainText, value)
     }
 
+    /// # Retrieve GSSAPI plaintext or encrypted status `ZMQ_GSSAPI_PLAINTEXT`
+    ///
+    /// Returns the [`gssapi_plaintext()`] option, if any, previously set on the socket. A value of
+    /// `true` means that communications will be plaintext. A value of `false` means communications
+    /// will be encrypted.
+    ///
+    /// | Default value | Applicable socket types               |
+    /// | :-----------: | :-----------------------------------: |
+    /// | false         | all, when using TCP or IPC transports |
+    ///
+    /// [`gssapi_plaintext()`]: #method.gssapi_plaintext
+    #[doc(cfg(zmq_have_gssapi))]
+    pub fn gssapi_plaintext(&self) -> ZmqResult<bool> {
+        self.get_sockopt_bool(SocketOption::GssApiPlainText)
+    }
+
+    /// # Set name type of service principal `ZMQ_GSSAPI_SERVICE_PRINCIPAL_NAMETYPE`
+    ///
+    /// Sets the name type of the GSSAPI service principal. A value of [`NtHostbased`] means the
+    /// name specified with [`GssApiServicePrincipal`] is interpreted as a host based name. A value
+    /// of [`NtUsername`] means it is interpreted as a local user name. A value of
+    /// [`NtKrb5Principal`] means it is interpreted as an unparsed principal name string (valid
+    /// only with the krb5 GSSAPI mechanism).
+    ///
+    /// | Default value   | Applicable socket types               |
+    /// | :-------------: | :-----------------------------------: |
+    /// | [`NtHostbased`] | all, when using TCP or IPC transports |
+    ///
+    /// [`GssApiServicePrincipal`]: SocketOption::GssApiServicePrincipal
+    /// [`NtHostbased`]: GssApiNametype::NtHostbased
+    /// [`NtUsername`]: GssApiNametype::NtUsername
+    /// [`NtKrb5Principal`]: GssApiNametype::NtKrb5Principal
+    #[doc(cfg(zmq_have_gssapi))]
     pub fn set_gssapi_service_principal_nametype(&self, value: GssApiNametype) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::GssApiServicePrincipalNametype, value as i32)
     }
 
+    /// # Retrieve nametype for service principal `ZMQ_GSSAPI_SERVICE_PRINCIPAL_NAMETYPE`
+    ///
+    /// Returns the [`GssApiServicePrincipalNametype`] option, if any, previously set on the socket.
+    /// A value of [`NtHostbased`] means the name specified with [`GssApiServicePrincipal`] is
+    /// interpreted as a host based name. A value of [`NtUsername`] means it is interpreted as a
+    /// local user name. A value of [`NtKrb5Principal`] means it is interpreted as an unparsed
+    /// principal name string (valid only with the krb5 GSSAPI mechanism).
+    ///
+    /// | Default value   | Applicable socket types               |
+    /// | :-------------: | :-----------------------------------: |
+    /// | [`NtHostbased`] | all, when using TCP or IPC transports |
+    ///
+    /// [`GssApiServicePrincipalNametype`]: SocketOption::GssApiServicePrincipalNametype
+    /// [`GssApiServicePrincipal`]: SocketOption::GssApiServicePrincipal
+    /// [`NtHostbased`]: GssApiNametype::NtHostbased
+    /// [`NtUsername`]: GssApiNametype::NtUsername
+    /// [`NtKrb5Principal`]: GssApiNametype::NtKrb5Principal
+    #[doc(cfg(zmq_have_gssapi))]
     pub fn gssapi_service_principal_nametype(&self) -> ZmqResult<GssApiNametype> {
         self.get_sockopt_int::<i32>(SocketOption::GssApiServicePrincipalNametype)
             .and_then(GssApiNametype::try_from)
     }
 
-    pub fn gssapi_plaintext(&self) -> ZmqResult<bool> {
-        self.get_sockopt_bool(SocketOption::GssApiPlainText)
-    }
-
+    /// # Set name of GSSAPI principal `ZMQ_GSSAPI_PRINCIPAL`
+    ///
+    /// Sets the name of the principal for whom GSSAPI credentials should be acquired.
+    ///
+    /// | Default value   | Applicable socket types              |
+    /// | :-------------: | :----------------------------------: |
+    /// | not set         | all, when using TCP or IPC transport |
+    #[doc(cfg(zmq_have_gssapi))]
     pub fn set_gssapi_principal<V>(&self, value: V) -> ZmqResult<()>
     where
         V: AsRef<str>,
@@ -588,187 +674,741 @@ impl<T: sealed::SocketType> Socket<T> {
         self.set_sockopt_string(SocketOption::GssApiPrincipal, value.as_ref())
     }
 
+    /// # Retrieve the name of the GSSAPI principal `ZMQ_GSSAPI_PRINCIPAL`
+    ///
+    /// The [`gssapi_principal()`] option shall retrieve the principal name set for the GSSAPI
+    /// security mechanism. The returned value shall be a NULL-terminated string and MAY be empty.
+    /// The returned size SHALL include the terminating null byte.
+    ///
+    /// | Default value   | Applicable socket types              |
+    /// | :-------------: | :----------------------------------: |
+    /// | not set         | all, when using TCP or IPC transport |
+    ///
+    /// [`gssapi_principal()`]: #method.gssapi_principal
+    #[doc(cfg(zmq_have_gssapi))]
     pub fn gssapi_principal(&self) -> ZmqResult<String> {
         self.get_sockopt_string(SocketOption::GssApiPrincipal)
     }
 
+    /// # Set name type of principal `ZMQ_GSSAPI_PRINCIPAL_NAMETYPE`
+    ///
+    /// Sets the name type of the GSSAPI principal. A value of [`NtHostbased`] means the name
+    /// specified with [`GssApiPrincipal`] is interpreted as a host based name. A value of
+    /// [`NtUsername`] means it is interpreted as a local user name. A value of [`NtKrb5Principal`]
+    /// means it is interpreted as an unparsed principal name string (valid only with the krb5
+    /// GSSAPI mechanism).
+    ///
+    /// | Default value   | Applicable socket types               |
+    /// | :-------------: | :-----------------------------------: |
+    /// | [`NtHostbased`] | all, when using TCP or IPC transports |
+    ///
+    /// [`GssApiPrincipal`]: SocketOption::GssApiPrincipal
+    /// [`NtHostbased`]: GssApiNametype::NtHostbased
+    /// [`NtUsername`]: GssApiNametype::NtUsername
+    /// [`NtKrb5Principal`]: GssApiNametype::NtKrb5Principal
+    #[doc(cfg(zmq_have_gssapi))]
     pub fn set_gssapi_principal_nametype(&self, value: GssApiNametype) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::GssApiPrincipalNametype, value as i32)
     }
 
+    /// # Retrieve nametype for service principal `ZMQ_GSSAPI_PRINCIPAL_NAMETYPE`
+    ///
+    /// Returns the [`GssApiPrincipalNametype`] option, if any, previously set on the socket. A
+    /// value of [`NtHostbased`] means the name specified with [`GssApiPrincipal`] is
+    /// interpreted as a host based name. A value of [`NtUsername`] means it is interpreted as a
+    /// local user name. A value of [`NtKrb5Principal`] means it is interpreted as an unparsed
+    /// principal name string (valid only with the krb5 GSSAPI mechanism).
+    ///
+    /// | Default value   | Applicable socket types               |
+    /// | :-------------: | :-----------------------------------: |
+    /// | [`NtHostbased`] | all, when using TCP or IPC transports |
+    ///
+    /// [`GssApiPrincipalNametype`]: SocketOption::GssApiPrincipalNametype
+    /// [`GssApiPrincipal`]: SocketOption::GssApiPrincipal
+    /// [`NtHostbased`]: GssApiNametype::NtHostbased
+    /// [`NtUsername`]: GssApiNametype::NtUsername
+    /// [`NtKrb5Principal`]: GssApiNametype::NtKrb5Principal
+    #[doc(cfg(zmq_have_gssapi))]
     pub fn gssapi_principal_nametype(&self) -> ZmqResult<GssApiNametype> {
         self.get_sockopt_int::<i32>(SocketOption::GssApiPrincipalNametype)
             .and_then(GssApiNametype::try_from)
     }
 
-    pub fn set_handshake_ivl(&self, value: i32) -> ZmqResult<()> {
+    /// # Set maximum handshake interval `ZMQ_HANDSHAKE_IVL`
+    ///
+    /// The [`HandshakeInterval`] option shall set the maximum handshake interval for the `Socket`.
+    /// Handshaking is the exchange of socket configuration information (socket type, routing id,
+    /// security) that occurs when a connection is first opened, only for connection-oriented
+    /// transports. If handshaking does not complete within the configured time, the connection
+    /// shall be closed. The value `0` means no handshake time limit.
+    ///
+    /// | Default value | Applicable socket types                                     |
+    /// | :-----------: | :---------------------------------------------------------: |
+    /// | 30_000 ms     | all but [`Stream`], only for connection-oriented transports |
+    ///
+    /// [`HandshakeInterval`]: SocketOption::HandshakeInterval
+    /// [`Stream`]: StreamSocket
+    pub fn set_handshake_interval(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::HandshakeInterval, value)
     }
 
-    pub fn handshake_ivl(&self) -> ZmqResult<i32> {
+    /// # Retrieve maximum handshake interval `ZMQ_HANDSHAKE_IVL`
+    ///
+    /// The [`HandshakeInterval`] option shall retrieve the maximum handshake interval for the
+    /// `Socket`. Handshaking is the exchange of socket configuration information (socket type,
+    /// routing id, security) that occurs when a connection is first opened, only for
+    /// connection-oriented transports. If handshaking does not complete within the configured
+    /// time, the connection shall be closed. The value `0` means no handshake time limit.
+    ///
+    /// | Default value | Applicable socket types                                     |
+    /// | :-----------: | :---------------------------------------------------------: |
+    /// | 30_000 ms     | all but [`Stream`], only for connection-oriented transports |
+    ///
+    /// [`HandshakeInterval`]: SocketOption::HandshakeInterval
+    /// [`Stream`]: StreamSocket
+    pub fn handshake_interval(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::HandshakeInterval)
     }
 
-    pub fn set_heartbeat_ivl(&self, value: i32) -> ZmqResult<()> {
+    /// # Set interval between sending ZMTP heartbeats `ZMQ_HEARTBEAT_IVL`
+    ///
+    /// The [`HeartbeatInterval`] option shall set the interval between sending ZMTP heartbeats for
+    /// the `Socket`. If this option is set and is greater than `0`, then a `PING` ZMTP command
+    /// will be sent every [`heartbeat_interval()`] milliseconds.
+    ///
+    /// | Default value | Applicable socket types                        |
+    /// | :-----------: | :--------------------------------------------: |
+    /// | ß ms          | all, when using connection-oriented transports |
+    ///
+    /// [`HeartbeatInterval`]: SocketOption::HeartbeatInterval
+    /// [`heartbeat_interval()`]: #method.heartbeat_interval
+    pub fn set_heartbeat_interval(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::HeartbeatInterval, value)
     }
 
-    pub fn heartbeat_ivl(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(SocketOption::HeartbeatInterval)
-    }
-
+    /// # Set timeout for ZMTP heartbeats `ZMQ_HEARTBEAT_TIMEOUT`
+    ///
+    /// The [`HeartbeatTimeout`] option shall set how long to wait before timing-out a connection
+    /// after sending a `PING` ZMTP command and not receiving any traffic. This option is only
+    /// valid if [`HeartbeatInterval`] is also set, and is greater than `0`. The connection will
+    /// time out if there is no traffic received after sending the `PING` command, but the received
+    /// traffic does not have to be a `PONG` command - any received traffic will cancel the timeout.
+    ///
+    /// | Default value                                     | Applicable socket types                        |
+    /// | :-----------------------------------------------: | :--------------------------------------------: |
+    /// | 0 ms normally, [`HeartbeatInterval`] if it is set | all, when using connection-oriented transports |
+    ///
+    /// [`HeartbeatTimeout`]: SocketOption::HeartbeatTimeout
+    /// [`HeartbeatInterval`]: SocketOption::HeartbeatInterval
     pub fn set_heartbeat_timeout(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::HeartbeatTimeout, value)
     }
 
-    pub fn heartbeat_timeout(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(SocketOption::HeartbeatTimeout)
-    }
-
-    pub fn set_heartbeat_ttl(&self, value: i32) -> ZmqResult<()> {
+    /// # Set the TTL value for ZMTP heartbeats `ZMQ_HEARTBEAT_TTL`
+    ///
+    /// The [`HeartbeatTimeToLive`] option shall set the timeout on the remote peer for ZMTP
+    /// heartbeats. If this option is greater than 0, the remote side shall time out the connection
+    /// if it does not receive any more traffic within the TTL period. This option does not have
+    /// any effect if [`HeartbeatInterval`] is not set or is `0`. Internally, this value is rounded
+    /// down to the nearest decisecond, any value less than `100` will have no effect.
+    ///
+    /// | Default value                           | Applicable socket types                        |
+    /// | :-------------------------------------: | :--------------------------------------------: |
+    /// | 6_553_599 (which is 2^16-1 deciseconds) | all, when using connection-oriented transports |
+    ///
+    /// [`HeartbeatTimeToLive`]: SocketOption::HeartbeatTimeToLive
+    /// [`HeartbeatInterval`]: SocketOption::HeartbeatInterval
+    pub fn set_heartbeat_timetolive(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::HeartbeatTimeToLive, value)
     }
 
-    pub fn heartbeat_ttl(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(SocketOption::HeartbeatTimeToLive)
-    }
-
+    /// # Queue messages only to completed connections `ZMQ_IMMEDIATE`
+    ///
+    /// By default queues will fill on outgoing connections even if the connection has not
+    /// completed. This can lead to "lost" messages on sockets with round-robin routing
+    /// ([`Request`], [`Push`], [`Dealer`]). If this option is set to `true`, messages shall be
+    /// queued only to completed connections. This will cause the socket to block if there are no
+    /// other connections, but will prevent queues from filling on pipes awaiting connection.
+    ///
+    /// | Default value | Applicable socket types                        |
+    /// | :-----------: | :--------------------------------------------: |
+    /// | false         | all, when using connection-oriented transports |
+    ///
+    /// [`Request`]: RequestSocket
+    /// [`Push`]: PushSocket
+    /// [`Dealer`]: DealerSocket
     pub fn set_immediate(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(SocketOption::Immediate, value)
     }
 
+    /// # Retrieve attach-on-connect value `ZMQ_IMMEDIATE`
+    ///
+    /// Retrieve the state of the attach on connect value. If set to 1`true`, will delay the
+    /// attachment of a pipe on connect until the underlying connection has completed. This will
+    /// cause the socket to block if there are no other connections, but will prevent queues from
+    /// filling on pipes awaiting connection.
+    ///
+    /// | Default value | Applicable socket types                        |
+    /// | :-----------: | :--------------------------------------------: |
+    /// | false         | all, when using connection-oriented transports |
     pub fn immediate(&self) -> ZmqResult<bool> {
         self.get_sockopt_bool(SocketOption::Immediate)
     }
 
+    /// # Enable IPv6 on socket `ZMQ_IPV6`
+    ///
+    /// Set the IPv6 option for the socket. A value of `true` means IPv6 is enabled on the socket,
+    /// while `false` means the socket will use only IPv4. When IPv6 is enabled the socket will
+    /// connect to, or accept connections from, both IPv4 and IPv6 hosts.
+    ///
+    /// | Default value | Applicable socket types         |
+    /// | :-----------: | :-----------------------------: |
+    /// | false         | all, when using TCP transports. |
     pub fn set_ipv6(&self, value: bool) -> ZmqResult<()> {
         self.set_sockopt_bool(SocketOption::IPv6, value)
     }
 
+    /// # Retrieve IPv6 socket status `ZMQ_IPV6`
+    ///
+    /// Retrieve the IPv6 option for the socket. A value of `true` means IPv6 is enabled on the
+    /// socket, while `false` means the socket will use only IPv4. When IPv6 is enabled the socket
+    /// will connect to, or accept connections from, both IPv4 and IPv6 hosts.
+    ///
+    /// | Default value | Applicable socket types         |
+    /// | :-----------: | :-----------------------------: |
+    /// | false         | all, when using TCP transports. |
     pub fn ipv6(&self) -> ZmqResult<bool> {
         self.get_sockopt_bool(SocketOption::IPv6)
     }
 
+    /// # Set linger period for socket shutdown `ZMQ_LINGER`
+    ///
+    /// The [`Linger`] option shall set the linger period for the `Socket`. The linger period
+    /// determines how long pending messages which have yet to be sent to a peer shall linger in
+    /// memory after a socket is disconnected with [`disconnect()`] or closed, and further affects
+    /// the termination of the socket’s context. The following outlines the different behaviours:
+    ///
+    /// * A value of `-1` specifies an infinite linger period. Pending messages shall not be
+    ///   discarded after a call to [`disconnect()`]; attempting to terminate the socket’s context
+    ///   shall block until all pending messages have been sent to a peer.
+    /// * The value of `0` specifies no linger period. Pending messages shall be discarded
+    ///   immediately after a call to [`disconnect()`].
+    /// * Positive values specify an upper bound for the linger period in milliseconds. Pending
+    ///   messages shall not be discarded after a call to [`disconnect()`]; attempting to terminate
+    ///   the socket’s context shall block until either all pending messages have been sent to a
+    ///   peer, or the linger period expires, after which any pending messages shall be discarded.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | -1 (infinite) | all                     |
+    ///
+    /// [`disconnect()`]: #method.disconnect
+    /// [`Linger`]: SocketOption::Linger
     pub fn set_linger(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::Linger, value)
     }
 
+    /// # Retrieve linger period for socket shutdown `ZMQ_LINGER`
+    ///
+    /// The [`Linger`] option shall retrieve the linger period for the `Socket`. The linger period
+    /// determines how long pending messages which have yet to be sent to a peer shall linger in
+    /// memory after a socket is closed, and further affects the termination of the socket’s
+    /// context. The following outlines the different behaviours:
+    ///
+    /// * A value of `-1` specifies an infinite linger period. Pending messages shall not be
+    ///   discarded after a call to [`disconnect()`]; attempting to terminate the socket’s context
+    ///   shall block until all pending messages have been sent to a peer.
+    /// * The value of `0` specifies no linger period. Pending messages shall be discarded
+    ///   immediately after a call to [`disconnect()`].
+    /// * Positive values specify an upper bound for the linger period in milliseconds. Pending
+    ///   messages shall not be discarded after a call to [`disconnect()`]; attempting to terminate
+    ///   the socket’s context shall block until either all pending messages have been sent to a
+    ///   peer, or the linger period expires, after which any pending messages shall be discarded.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | -1 (infinite) | all                     |
+    ///
+    /// [`disconnect()`]: #method.disconnect
+    /// [`Linger`]: SocketOption::Linger
     pub fn linger(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::Linger)
     }
 
+    /// # Retrieve the last endpoint set `ZMQ_LAST_ENDPOINT`
+    ///
+    /// The [`LastEndpoint`] option shall retrieve the last endpoint bound for TCP and IPC
+    /// transports. The returned value will be a string in the form of a ZMQ DSN. Note that if the
+    /// TCP host is INADDR_ANY, indicated by a *, then the returned address will be `0.0.0.0`
+    /// (for IPv4). Note: not supported on GNU/Hurd with IPC due to non-working getsockname().
+    ///
+    /// | Default value | Applicable socket types                 |
+    /// | :-----------: | :-------------------------------------: |
+    /// | None          | all, when binding TCP or IPC transports |
+    ///
+    /// [`LastEndpoint`]: SocketOption::LastEndpoint
     pub fn last_endpoint(&self) -> ZmqResult<String> {
         self.get_sockopt_string(SocketOption::LastEndpoint)
     }
 
-    pub fn set_maxmsgsize(&self, value: i64) -> ZmqResult<()> {
+    /// # Maximum acceptable inbound message size `ZMQ_MAXMSGSIZE`
+    ///
+    /// Limits the size of the inbound message. If a peer sends a message larger than
+    /// [`MaxMessageSize`] it is disconnected. Value of `-1` means 'no limit'.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | -1 (bytes)    | all                     |
+    ///
+    /// [`MaxMessageSize`]: SocketOption::MaxMessageSize
+    pub fn set_max_message_size(&self, value: i64) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::MaxMessageSize, value)
     }
 
-    pub fn maxmsgsize(&self) -> ZmqResult<i64> {
+    /// # Maximum acceptable inbound message size `ZMQ_MAXMSGSIZE`
+    ///
+    /// The option shall retrieve limit for the inbound messages. If a peer sends a message larger
+    /// than [`MaxMessageSize`] it is disconnected. Value of `-1` means 'no limit'.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | -1 (bytes)    | all                     |
+    ///
+    /// [`MaxMessageSize`]: SocketOption::MaxMessageSize
+    pub fn max_message_size(&self) -> ZmqResult<i64> {
         self.get_sockopt_int(SocketOption::MaxMessageSize)
     }
 
+    /// # Set the security mechanism `ZMQ_MECHANISM`
+    ///
+    /// Sets the security [`Mechanism`] option for the socket based on the provided
+    /// [`SecurityMechanism`].
+    ///
+    /// [`Mechanism`]: SocketOption::Mechanism
+    /// [ SecurityMechanism`]: SecurityMechanism
     pub fn set_security_mechanism(&self, security: SecurityMechanism) -> ZmqResult<()> {
         security.apply(self)
     }
 
+    /// # Retrieve current security mechanism `ZMQ_MECHANISM`
+    ///
+    /// The [`Mechanism`] option shall retrieve the current security mechanism for the socket.
+    ///
+    /// [`Mechanism`]: SocketOption::Mechanism
     pub fn security_mechanism(&self) -> ZmqResult<SecurityMechanism> {
         SecurityMechanism::try_from(self)
     }
 
+    /// # Maximum network hops for multicast packets `ZMQ_MULTICAST_HOPS`
+    ///
+    /// Sets the time-to-live field in every multicast packet sent from this socket. The default
+    /// is `1` which means that the multicast packets don’t leave the local network.
+    ///
+    /// | Default value | Applicable socket types              |
+    /// | :-----------: | :----------------------------------: |
+    /// | 1             | all, when using multicast transports |
     pub fn set_multicast_hops(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::MulticastHops, value)
     }
 
+    /// # Maximum network hops for multicast packets `ZMQ_MULTICAST_HOPS`
+    ///
+    /// The option shall retrieve time-to-live used for outbound multicast packets. The default of
+    /// `1?  means that the multicast packets don’t leave the local network.
+    ///
+    /// | Default value | Applicable socket types              |
+    /// | :-----------: | :----------------------------------: |
+    /// | 1             | all, when using multicast transports |
     pub fn multicast_hops(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::MulticastHops)
     }
 
-    pub fn set_probe_router(&self, value: bool) -> ZmqResult<()> {
-        self.set_sockopt_bool(SocketOption::ProbeRouter, value)
-    }
-
+    /// # Set multicast data rate `ZMQ_RATE`
+    ///
+    /// The [`Rate`] option shall set the maximum send or receive data rate for multicast
+    /// transports such as `pgm` using the `Socket`.
+    ///
+    /// | Default value      | Applicable socket types              |
+    /// | :----------------: | :----------------------------------: |
+    /// | 100 (kilobits/sec) | all, when using multicast transports |
+    ///
+    /// [`Rate`]: SocketOption::Rate
     pub fn set_rate(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::Rate, value)
     }
 
+    /// # Retrieve multicast data rate `ZMQ_RATE`
+    ///
+    /// The [`Rate`] option shall retrieve the maximum send or receive data rate for multicast
+    /// transports using the `Socket`.
+    ///
+    /// | Default value      | Applicable socket types              |
+    /// | :----------------: | :----------------------------------: |
+    /// | 100 (kilobits/sec) | all, when using multicast transports |
+    ///
+    /// [`Rate`]: SocketOption::Rate
     pub fn rate(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::Rate)
     }
 
+    /// # Set kernel receive buffer size `ZMQ_RCVBUF`
+    /// The [`ReceiveBuffer`] option shall set the underlying kernel receive buffer size for the
+    /// `Socket` to the specified size in bytes. A value of `-1` means leave the OS default
+    /// unchanged. For details refer to your operating system documentation for the  SO_RCVBUF`
+    /// socket option.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | -1            | all                     |
+    ///
+    /// [`ReceiveBuffer`]: SocketOption::ReceiveBuffer
     pub fn set_receive_buffer(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::ReceiveBuffer, value)
     }
 
+    /// # Retrieve kernel receive buffer size `ZMQ_RCVBUF`
+    ///
+    /// The [`ReceiveBuffer`] option shall retrieve the underlying kernel receive buffer size for
+    /// the `Socket`. For details refer to your operating system documentation for the `SO_RCVBUF`
+    /// socket option.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | -1            | all                     |
+    ///
+    /// [`ReceiveBuffer`]: SocketOption::ReceiveBuffer
     pub fn receive_buffer(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::ReceiveBuffer)
     }
 
+    /// # Set high water mark for inbound messages `ZMQ_RCVHWM`
+    ///
+    /// The [`ReceiveHighWatermark`] option shall set the high water mark for inbound messages on
+    /// the `Ssocket`. The high water mark is a hard limit on the maximum number of outstanding
+    /// messages 0MQ shall queue in memory for any single peer that the specified `Socket` is
+    /// communicating with. A value of zero means no limit.
+    ///
+    /// If this limit has been reached the socket shall enter an exceptional state and depending on
+    /// the socket type, 0MQ shall take appropriate action such as blocking or dropping sent
+    /// messages. Refer to the individual socket descriptions for details on the exact action taken
+    /// for each socket type.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | 1000          | all                     |
+    ///
+    /// [`ReceiveHighWatermark`]: SocketOption::ReceiveHighWatermark
     pub fn set_receive_highwater_mark(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::ReceiveHighWatermark, value)
     }
 
+    /// # Retrieve high water mark for inbound messages `ZMQ_RCVHWM`
+    ///
+    /// The [`ReceiveHighWatermark`] option shall return the high water mark for inbound messages
+    /// on the `Socket`. The high water mark is a hard limit on the maximum number of outstanding
+    /// messages 0MQ shall queue in memory for any single peer that the specified `Socket` is
+    /// communicating with. A value of zero means no limit.
+    ///
+    /// If this limit has been reached the socket shall enter an exceptional state and depending on
+    /// the socket type, 0MQ shall take appropriate action such as blocking or dropping sent
+    /// messages. Refer to the individual socket descriptions for details on the exact action taken
+    /// for each socket type.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | 1000          | all                     |
+    ///
+    /// [`ReceiveHighWatermark`]: SocketOption::ReceiveHighWatermark
     pub fn receive_highwater_mark(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::ReceiveHighWatermark)
     }
 
+    ///# Maximum time before a recv operation returns with [`Again`] `ZMQ_RCVTIMEO`
+    ///
+    /// Sets the timeout for receive operation on the socket. If the value is 0, [`recv_msg()`]
+    /// will return immediately, with a [`Again`] error if there is no message to receive. If the
+    /// value is `-1`, it will block until a message is available. For all other values, it will
+    /// wait for a message for that amount of time before returning with an [`Again`] error.
+    ///
+    /// | Default value    | Applicable socket types |
+    /// | :--------------: | :---------------------: |
+    /// | -1 ms (infinite) | all                     |
+    ///
+    /// [`Again`]: crate::ZmqError::Again
+    /// [`recv_msg()`]: #method.recv_msg
     pub fn set_receive_timeout(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::ReceiveTimeout, value)
     }
 
+    /// # Maximum time before a socket operation returns with [`Again`] `ZMQ_RCVTIMEO`
+    ///
+    /// Retrieve the timeout for recv operation on the socket. If the value is `0`, [`recv_msg()`]
+    /// will return immediately, with a [`Again`] error if there is no message to receive. If the
+    /// value is `-1`, it will block until a message is available. For all other values, it will
+    /// wait for a message for that amount of time before returning with an [`Again`] error.
+    ///
+    /// | Default value    | Applicable socket types |
+    /// | :--------------: | :---------------------: |
+    /// | -1 ms (infinite) | all                     |
+    ///
+    /// [`Again`]: crate::ZmqError::Again
+    /// [`recv_msg()`]: #method.recv_msg
     pub fn receive_timeout(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::ReceiveTimeout)
     }
 
+    /// # Set reconnection interval `ZMQ_RECONNECT_IVL`
+    /// The [`ReconnectInterval`] option shall set the initial reconnection interval for the
+    /// `Socket`. The reconnection interval is the period 0MQ shall wait between attempts to
+    /// reconnect disconnected peers when using connection-oriented transports. The value `-1?
+    /// means no reconnection.
+    ///
+    /// | Default value | Applicable socket types                      |
+    /// | :-----------: | :------------------------------------------: |
+    /// | 100 ms        | all, only for connection-oriented transports |
+    ///
+    /// [`ReconnectInterval`]: SocketOption::ReconnectInterval
     pub fn set_reconnect_interval(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::ReconnectInterval, value)
     }
 
+    /// # Retrieve reconnection interval `ZMQ_RECONNECT_IVL`
+    ///
+    /// The [`ReconnectInterval`] option shall retrieve the initial reconnection interval for the
+    /// `Socket`. The reconnection interval is the period 0MQ shall wait between attempts to
+    /// reconnect disconnected peers when using connection-oriented transports. The value `-1`
+    /// means no reconnection.
+    ///
+    /// | Default value | Applicable socket types                      |
+    /// | :-----------: | :------------------------------------------: |
+    /// | 100 ms        | all, only for connection-oriented transports |
+    ///
+    /// [`ReconnectInterval`]: SocketOption::ReconnectInterval
     pub fn reconnect_interval(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::ReconnectInterval)
     }
 
+    /// # Set max reconnection interval `ZMQ_RECONNECT_IVL_MAX`
+    ///
+    /// The [`ReconnectIntervalMax`] option shall set the max reconnection interval for the
+    /// `Socket`. 0MQ shall wait at most the configured interval between reconnection attempts. The
+    /// interval grows exponentionally (i.e.: it is doubled) with each attempt until it reaches
+    /// [`ReconnectIntervalMax`]. Default value means that the reconnect interval is based
+    /// exclusively on [`ReconnectInterval`] and no exponential backoff is performed.
+    ///
+    /// | Default value                             | Applicable socket types                      |
+    /// | :---------------------------------------: | :------------------------------------------: |
+    /// | 0 ms ([`ReconnectInterval`] will be used) | all, only for connection-oriented transports |
+    ///
+    /// [`ReconnectIntervalMax`]: SocketOption::ReconnectIntervalMax
+    /// [`ReconnectInterval`]: SocketOption::ReconnectInterval
     pub fn set_reconnect_interval_max(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::ReconnectIntervalMax, value)
     }
 
+    /// # Retrieve max reconnection interval `ZMQ_RECONNECT_IVL_MAX`
+    ///
+    /// The [`ReconnectIntervalMax`] option shall retrieve the max reconnection interval for the
+    /// `Socket`. 0MQ shall wait at most the configured interval between reconnection attempts. The
+    /// interval grows exponentionally (i.e.: it is doubled) with each attempt until it reaches
+    /// [`ReconnectIntervalMax`]. Default value means that the reconnect interval is based
+    /// exclusively on [`ReconnectInterval`] and no exponential backoff is performed.
+    ///
+    /// | Default value                             | Applicable socket types                      |
+    /// | :---------------------------------------: | :------------------------------------------: |
+    /// | 0 ms ([`ReconnectInterval`] will be used) | all, only for connection-oriented transports |
+    ///
+    /// [`ReconnectIntervalMax`]: SocketOption::ReconnectIntervalMax
+    /// [`ReconnectInterval`]: SocketOption::ReconnectInterval
     pub fn reconnect_interval_max(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::ReconnectIntervalMax)
     }
 
+    /// # Set condition where reconnection will stop `ZMQ_RECONNECT_STOP`
+    ///
+    /// The [`ReconnectStop`] option shall set the conditions under which automatic reconnection
+    /// will stop. This can be useful when a process binds to a wild-card port, where the OS
+    /// supplies an ephemeral port.
+    ///
+    /// | Default value | Applicable socket types                      |
+    /// | :-----------: | :------------------------------------------: |
+    /// | 0             | all, only for connection-oriented transports |
+    ///
+    /// [`ReconnectStop`]: SocketOption::ReconnectStop
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn set_reconnect_stop(&self, value: ReconnectStop) -> ZmqResult<()> {
+        self.set_sockopt_int(SocketOption::ReconnectStop, value.bits())
+    }
+
+    /// # ZMQ_RECONNECT_STOP: Retrieve condition where reconnection will stop
+    ///
+    /// The [`ReconnectStop`] option shall retrieve the conditions under which automatic
+    /// reconnection will stop.
+    ///
+    /// | Default value | Applicable socket types                      |
+    /// | :-----------: | :------------------------------------------: |
+    /// | 0             | all, only for connection-oriented transports |
+    ///
+    /// [`ReconnectStop`]: SocketOption::ReconnectStop
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn reconnect_stop(&self) -> ZmqResult<ReconnectStop> {
+        self.get_sockopt_int(SocketOption::ReconnectStop)
+            .map(ReconnectStop::from_bits_truncate)
+    }
+
+    /// # Set multicast recovery interval `ZMQ_RECOVERY_IVL`
+    ///
+    /// The [`RecoveryInterval`] option shall set the recovery interval for multicast transports
+    /// using the `Socket`. The recovery interval determines the maximum time in milliseconds that
+    /// a receiver can be absent from a multicast group before unrecoverable data loss will occur.
+    ///
+    /// | Default value | Applicable socket types              |
+    /// | :-----------: | :----------------------------------: |
+    /// | 10_000 ms     | all, when using multicast transports |
+    ///
+    /// [`RecoveryInterval`]: SocketOption::RecoveryInterval
     pub fn set_recovery_interval(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::RecoveryInterval, value)
     }
 
+    /// # Get multicast recovery interval `ZMQ_RECOVERY_IVL`
+    ///
+    /// The [`RecoveryInterval`] option shall retrieve the recovery interval for multicast
+    /// transports using the `Socket`. The recovery interval determines the maximum time in
+    /// milliseconds that a receiver can be absent from a multicast group before unrecoverable data
+    /// loss will occur.
+    ///
+    /// | Default value | Applicable socket types              |
+    /// | :-----------: | :----------------------------------: |
+    /// | 10_000 ms     | all, when using multicast transports |
+    ///
+    /// [`RecoveryInterval`]: SocketOption::RecoveryInterval
     pub fn recovery_interval(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::RecoveryInterval)
     }
 
+    /// # Set kernel transmit buffer size `ZMQ_SNDBUF`
+    ///
+    /// The [`SendBuffer`] option shall set the underlying kernel transmit buffer size for the
+    /// `Socket` to the specified size in bytes. A value of `-1` means leave the OS default
+    /// unchanged. For details please refer to your operating system documentation for the
+    /// `SO_SNDBUF` socket option.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | -1            | all                     |
+    ///
+    /// [`SendBuffer`]: SocketOption::SendBuffer
     pub fn set_send_buffer(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::SendBuffer, value)
     }
 
+    /// # Retrieve kernel transmit buffer size `ZMQ_SNDBUF`
+    ///
+    /// The [`SendBuffer`] option shall retrieve the underlying kernel transmit buffer size for the
+    /// `Socket`. For details refer to your operating system documentation for the `SO_SNDBUF`
+    /// socket option.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | -1            | all                     |
+    ///
+    /// [`SendBuffer`]: SocketOption::SendBuffer
     pub fn send_buffer(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::SendBuffer)
     }
 
+    /// # Set high water mark for outbound messages `ZMQ_SNDHWM`
+    ///
+    /// The [`SendHighWatermark`] option shall set the high water mark for outbound messages on the
+    /// `Socket`. The high water mark is a hard limit on the maximum number of outstanding messages
+    /// 0MQ shall queue in memory for any single peer that the `Socket` is communicating with. A
+    /// value of zero means no limit.
+    ///
+    /// If this limit has been reached the socket shall enter an exceptional state and depending on
+    /// the socket type, 0MQ shall take appropriate action such as blocking or dropping sent
+    /// messages. Refer to the individual socket descriptions for details on the exact action taken
+    /// for each socket type.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | 1000          | all                     |
+    ///
+    /// [`SendHighWatermark`]: SocketOption::SendHighWatermark
     pub fn set_send_highwater_mark(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::SendHighWatermark, value)
     }
 
+    /// # Retrieves high water mark for outbound messages `ZMQ_SNDHWM`
+    ///
+    /// The [`SendHighWatermark`] option shall return the high water mark for outbound messages on
+    /// the `Socket`. The high water mark is a hard limit on the maximum number of outstanding
+    /// messages 0MQ shall queue in memory for any single peer that the `Socket` is communicating
+    /// with. A value of zero means no limit.
+    ///
+    /// If this limit has been reached the socket shall enter an exceptional state and depending on
+    /// the socket type, 0MQ shall take appropriate action such as blocking or dropping sent
+    /// messages. Refer to the individual socket descriptions for details on the exact action taken
+    /// for each socket type.
+    ///
+    /// | Default value | Applicable socket types |
+    /// | :-----------: | :---------------------: |
+    /// | 1000          | all                     |
+    ///
+    /// [`SendHighWatermark`]: SocketOption::SendHighWatermark
     pub fn send_highwater_mark(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::SendHighWatermark)
     }
 
+    /// # Maximum time before a send operation returns with [`Again`] `ZMQ_SNDTIMEO`
+    ///
+    /// Sets the timeout for send operation on the socket. If the value is `0`, [`send_msg()`] will
+    /// return immediately, with a [`Again`] error if the message cannot be sent. If the value is
+    /// `-1`, it will block until the message is sent. For all other values, it will try to send
+    /// the message for that amount of time before returning with an EAGAIN error.
+    ///
+    /// | Default value    | Applicable socket types |
+    /// | :--------------: | :---------------------: |
+    /// | -1 ms (infinite) | all                     |
+    ///
+    /// [`Again`]: crate::ZmqError::Again
+    /// [`send_msg()`]: #method.send_msg
     pub fn set_send_timeout(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::SendTimeout, value)
     }
 
+    /// # Maximum time before a socket operation returns with [`Again`] `ZMQ_SNDTIMEO`
+    ///
+    /// Retrieve the timeout for send operation on the socket. If the value is `0`, [`send_msg()`]
+    /// will return immediately, with a [`Again`] error if the message cannot be sent. If the value
+    /// is `-1`, it will block until the message is sent. For all other values, it will try to send
+    /// the message for that amount of time before returning with an [`Again`] error.
+    ///
+    /// | Default value    | Applicable socket types |
+    /// | :--------------: | :---------------------: |
+    /// | -1 ms (infinite) | all                     |
+    ///
+    /// [`Again`]: crate::ZmqError::Again
+    /// [`send_msg()`]: #method.send_msg
     pub fn send_timeout(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::SendTimeout)
     }
 
+    /// # Set SOCKS5 proxy address `ZMQ_SOCKS_PROXY`
+    ///
+    /// Sets the SOCKS5 proxy address that shall be used by the socket for the TCP connection(s).
+    /// Supported authentication methods are: no authentication or basic authentication when setup
+    /// with [`SocksUsername`]. If the endpoints are domain names instead of addresses they shall
+    /// not be resolved and they shall be forwarded unchanged to the SOCKS proxy service in the
+    /// client connection request message (address type 0x03 domain name).
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | not set       | all, when using TCP transport |
+    ///
+    /// [`SocksUsername`]: SocketOption::SocksUsername
     pub fn set_socks_proxy<V>(&self, value: Option<V>) -> ZmqResult<()>
     where
         V: AsRef<str>,
@@ -779,38 +1419,157 @@ impl<T: sealed::SocketType> Socket<T> {
         }
     }
 
+    /// # Retrieve SOCKS5 proxy address `ZMQ_SOCKS_PROXY`
+    ///
+    /// The [`SocksProxy`] option shall retrieve the SOCKS5 proxy address in string format. The
+    /// returned value MAY be empty.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | not set       | all, when using TCP transport |
+    ///
+    /// [`SocksProxy`]: SocketOption::SocksProxy
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
     pub fn socks_proxy(&self) -> ZmqResult<String> {
         self.get_sockopt_string(SocketOption::SocksProxy)
     }
 
+    /// # Set SOCKS username and select basic authentication `ZMQ_SOCKS_USERNAME`
+    ///
+    /// Sets the username for authenticated connection to the SOCKS5 proxy. If you set this to a
+    /// non-null and non-empty value, the authentication method used for the SOCKS5 connection
+    /// shall be basic authentication. In this case, use [`set_socks_password()`] option in order
+    /// to set the password. If you set this to a null value or empty value, the authentication
+    /// method shall be no authentication, the default.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | not set       | all, when using TCP transport |
+    ///
+    /// [`set_socks_password()`]: #method.set_socks_password
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn set_socks_username<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::SocksUsername, value.as_ref())
+    }
+
+    /// # Set SOCKS basic authentication password `ZMQ_SOCKS_PASSWORD`
+    ///
+    /// Sets the password for authenticating to the SOCKS5 proxy server. This is used only when the
+    /// SOCK5 authentication method has been set to basic authentication through the
+    /// [`set_socks_username()`] option. Setting this to a null value (the default) is equivalent
+    /// to an empty password string.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | not set       | all, when using TCP transport |
+    ///
+    /// [set_socks_username()`]: #method.set_socks_username
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn set_socks_password<V>(&self, value: V) -> ZmqResult<()>
+    where
+        V: AsRef<str>,
+    {
+        self.set_sockopt_string(SocketOption::SocksPassword, value.as_ref())
+    }
+
+    /// # Override `SO_KEEPALIVE` socket option `ZMQ_TCP_KEEPALIVE`
+    ///
+    /// Override `SO_KEEPALIVE` socket option (where supported by OS). The default value of `-1`
+    /// means to skip any overrides and leave it to OS default.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | -1            | all, when using TCP transport |
     pub fn set_tcp_keepalive(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::TcpKeepalive, value)
     }
 
+    /// # Override `SO_KEEPALIVE` socket option `ZMQ_TCP_KEEPALIVE`
+    ///
+    /// Override `SO_KEEPALIVE` socket option (where supported by OS). The default value of `-1`
+    /// means to skip any overrides and leave it to OS default.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | -1            | all, when using TCP transport |
     pub fn tcp_keepalive(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::TcpKeepalive)
     }
 
+    /// # Override `TCP_KEEPCNT` socket option `ZMQ_TCP_KEEPALIVE_CNT`
+    ///
+    /// Override `TCP_KEEPCNT` socket option (where supported by OS). The default value of `-1`
+    /// means to skip any overrides and leave it to OS default.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | -1            | all, when using TCP transport |
     pub fn set_tcp_keepalive_count(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::TcpKeepaliveCount, value)
     }
 
+    ///  Override `TCP_KEEPCNT` socket option `ZMQ_TCP_KEEPALIVE_CNT`
+    ///
+    /// Override `TCP_KEEPCNT` socket option (where supported by OS). The default value of `-1`
+    /// means to skip any overrides and leave it to OS default.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | -1            | all, when using TCP transport |
     pub fn tcp_keepalive_count(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::TcpKeepaliveCount)
     }
 
+    /// # Override `TCP_KEEPIDLE` (or `TCP_KEEPALIVE` on some OS) `ZMQ_TCP_KEEPALIVE_IDLE`
+    ///
+    /// Override `TCP_KEEPIDLE` (or `TCP_KEEPALIVE` on some OS) socket option (where supported by
+    /// OS). The default value of `-1` means to skip any overrides and leave it to OS default.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | -1            | all, when using TCP transport |
     pub fn set_tcp_keepalive_idle(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::TcpKeepaliveIdle, value)
     }
 
+    /// # Override `TCP_KEEPIDLE` (or `TCP_KEEPALIVE` on some OS) `ZMQ_TCP_KEEPALIVE_IDLE`
+    ///
+    /// Override `TCP_KEEPIDLE` (or `TCP_KEEPALIVE` on some OS) socket option (where supported by
+    /// OS). The default value of `-1` means to skip any overrides and leave it to OS default.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | -1            | all, when using TCP transport |
     pub fn tcp_keepalive_idle(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::TcpKeepaliveIdle)
     }
 
+    /// # Override `TCP_KEEPINTVL` socket option `ZMQ_TCP_KEEPALIVE_INTVL`
+    ///
+    /// Override `TCP_KEEPINTVL` socket option (where supported by OS). The default value of `-1`
+    /// means to skip any overrides and leave it to OS default.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | -1            | all, when using TCP transport |
     pub fn set_tcp_keepalive_interval(&self, value: i32) -> ZmqResult<()> {
         self.set_sockopt_int(SocketOption::TcpKeepaliveInterval, value)
     }
 
+    /// # Override `TCP_KEEPINTVL` socket option `ZMQ_TCP_KEEPALIVE_INTVL`
+    ///
+    /// Override `TCP_KEEPINTVL` socket option (where supported by OS). The default value of `-1`
+    /// means to skip any overrides and leave it to OS default.
+    ///
+    /// | Default value | Applicable socket types       |
+    /// | :-----------: | :---------------------------: |
+    /// | -1            | all, when using TCP transport |
     pub fn tcp_keepalive_interval(&self) -> ZmqResult<i32> {
         self.get_sockopt_int(SocketOption::TcpKeepaliveInterval)
     }
@@ -901,6 +1660,32 @@ impl<T: sealed::SocketType> Socket<T> {
             .map(ZapDomain::from)
     }
 
+    /// # accept incoming connections on a socket
+    ///
+    /// The [`bind()`] function binds the `Socket` to a local `endpoint` and then accepts incoming
+    /// connections on that endpoint.
+    ///
+    /// The `endpoint` is a string consisting of a `transport://` followed by an `address`. The
+    /// `transport` specifies the underlying protocol to use. The `address` specifies the
+    /// transport-specific address to bind to.
+    ///
+    /// 0MQ provides the following transports:
+    ///
+    /// * `tcp` unicast transport using TCP
+    /// * `ipc` local inter-process communication transport
+    /// * `inproc` local in-process (inter-thread) communication transport
+    /// * `pgm`, `epgm` reliable multicast transport using PGM
+    /// * `vmci` virtual machine communications interface (VMCI)
+    /// * `udp` unreliable unicast and multicast using UDP
+    ///
+    /// Every 0MQ socket type except [`Pair`] and [`Channel`] supports one-to-many and many-to-one
+    /// semantics.
+    ///
+    /// The `ipc`, `tcp`, `vmci` and `udp` transports accept wildcard addresses.
+    ///
+    /// [`bind()`]: #method.bind
+    /// [`Pair`]: PairSocket
+    /// [`Channel`]: ChannelSocket
     pub fn bind<E>(&self, endpoint: E) -> ZmqResult<()>
     where
         E: AsRef<str>,
@@ -908,6 +1693,26 @@ impl<T: sealed::SocketType> Socket<T> {
         self.socket.bind(endpoint.as_ref())
     }
 
+    /// # Stop accepting connections on a socket
+    ///
+    /// The [`unbind()`] function shall unbind a socket from the endpoint specified by the
+    /// `endpoint` argument.
+    ///
+    /// Additionally the incoming message queue associated with the endpoint will be discarded.
+    /// This means that after unbinding an endpoint it is possible to received messages originating
+    /// from that same endpoint if they were already present in the incoming message queue before
+    /// unbinding.
+    ///
+    /// The `endpoint` argument is as described in [`bind()`].
+    ///
+    /// ## Unbinding wild-card address from a socket
+    ///
+    /// When wild-card * `endpoint` was used in [`bind()`], the caller should use real `endpoint`
+    /// obtained from the [`last_endpoint()`] socket option to unbind this `endpoint` from a socket.
+    ///
+    /// [`unbind()`]: #method.unbind
+    /// [`bind()`]: #method.bind
+    /// [`last_endpoint()`]: #method.last_endpoint
     pub fn unbind<E>(&self, endpoint: E) -> ZmqResult<()>
     where
         E: AsRef<str>,
@@ -915,6 +1720,30 @@ impl<T: sealed::SocketType> Socket<T> {
         self.socket.unbind(endpoint.as_ref())
     }
 
+    /// # create outgoing connection from socket
+    ///
+    /// The [`connect()`] function connects the `Socket` to an `endpoint` and then accepts incoming
+    /// connections on that endpoint.
+    ///
+    /// The `endpoint` is a string consisting of a `transport://` followed by an `address`. The
+    /// `transport` specifies the underlying protocol to use. The `address` specifies the
+    /// transport-specific address to connect to.
+    ///
+    /// 0MQ provides the the following transports:
+    ///
+    /// * `tcp` unicast transport using TCP
+    /// * `ipc` local inter-process communication transport
+    /// * `inproc` local in-process (inter-thread) communication transport
+    /// * `pgm`, `epgm` reliable multicast transport using PGM
+    /// * `vmci` virtual machine communications interface (VMCI)
+    /// * `udp` unreliable unicast and multicast using UDP
+    ///
+    /// Every 0MQ socket type except [`Pair`] and [`Channel`] supports one-to-many and many-to-one
+    /// semantics.
+    ///
+    /// [`connect()`]: #method.connect
+    /// [`Pair`]: PairSocket
+    /// [`Channel`]: ChannelSocket
     pub fn connect<E>(&self, endpoint: E) -> ZmqResult<()>
     where
         E: AsRef<str>,
@@ -922,6 +1751,22 @@ impl<T: sealed::SocketType> Socket<T> {
         self.socket.connect(endpoint.as_ref())
     }
 
+    /// # Disconnect a socket from an endpoint
+    ///
+    /// The [`disconnect()`] function shall disconnect a socket from the endpoint specified by the
+    /// `endpoint` argument. Note the actual disconnect system call might occur at a later time.
+    ///
+    /// Upon disconnection the will also stop receiving messages originating from this endpoint.
+    /// Moreover, the socket will no longer be able to queue outgoing messages to this endpoint.
+    /// The outgoing message queue associated with the endpoint will be discarded. However, if the
+    /// socket’s [`linger()`] period is non-zero, libzmq will still attempt to transmit these discarded
+    /// messages, until the linger period expires.
+    ///
+    /// The `endpoint` argument is as described in [`connect()`]
+    ///
+    /// [`disconnect()`]: #method.disconnect
+    /// [`linger()`]: #method.linger
+    /// [`connect()`]: #method.connect
     pub fn disconnect<E>(&self, endpoint: E) -> ZmqResult<()>
     where
         E: AsRef<str>,
@@ -929,6 +1774,21 @@ impl<T: sealed::SocketType> Socket<T> {
         self.socket.disconnect(endpoint.as_ref())
     }
 
+    /// # monitor socket events
+    ///
+    /// The [`monitor()`] method lets an application thread track socket events (like connects) on
+    /// a ZeroMQ socket. Each call to this method creates a [`Monitor`] socket connected to the
+    /// socket.
+    ///
+    /// The `events` argument is a bitmask of the socket events you wish to monitor. To monitor all
+    /// events, use the event value [`MonitorFlags::all()`]. NOTE: as new events are added, the
+    /// catch-all value will start returning them. An application that relies on a strict and fixed
+    /// sequence of events must not use [`MonitorFlags::all()`] in order to guarantee compatibility
+    /// with future versions.
+    ///
+    /// [`monitor()`]: #method.monitor
+    /// [`Monitor`]: MonitorSocket
+    /// [`MonitorFlags::all()`]: MonitorFlags::all
     pub fn monitor<F>(&self, events: F) -> ZmqResult<MonitorSocket>
     where
         F: Into<MonitorFlags>,
@@ -955,6 +1815,9 @@ impl<T: sealed::SocketType> Socket<T> {
         })
     }
 
+    /// # input/output multiplexing
+    ///
+    /// Poll this socket for input/output events.
     pub fn poll<E>(&self, events: E, timeout_ms: i64) -> ZmqResult<i32>
     where
         E: Into<PollEvents>,
@@ -1095,9 +1958,53 @@ pub struct PollEvents(i16);
 
 bitflags! {
     impl PollEvents: i16 {
+        /// For 0MQ sockets, at least one message may be received from the `Socket` without
+        /// blocking. For standard sockets this is equivalent to the `POLLIN` flag of the `poll()`
+        /// system call and generally means that at least one byte of data may be read from `fd`
+        /// without blocking.
         const POLL_IN = 0b0000_0001;
+        /// For 0MQ sockets, at least one message may be sent to the `Socket` without blocking. For
+        /// standard sockets this is equivalent to the `POLLOUT` flag of the `poll()` system call
+        /// and generally means that at least one byte of data may be written to `fd` without
+        /// blocking.
         const POLL_OUT = 0b0000_0010;
+        /// For standard sockets, this flag is passed to the underlying `poll()` system call and
+        /// generally means that some sort of error condition is present on the socket specified by
+        /// `fd`. For 0MQ sockets this flag has no effect if set in `events`.
         const POLL_ERR = 0b0000_0100;
+        /// For 0MQ sockets this flags is of no use. For standard sockets this means there isurgent data to read. Refer to the POLLPRI flag for more information. For filedescriptor, refer to your use case: as an example, GPIO interrupts are signaled througha POLLPRI event. This flag has no effect on Windows.
         const POLL_PRI = 0b0000_1000;
     }
 }
+
+#[cfg(feature = "draft-api")]
+#[doc(cfg(feature = "draft-api"))]
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ReconnectStop(i32);
+
+#[cfg(feature = "draft-api")]
+bitflags! {
+    impl ReconnectStop: i32 {
+        /// The [`CONNECTION_REFUSED`] option will stop reconnection when 0MQ receives the
+        /// [`ConnectionRefused`] return code from the connect. This indicates that there is no
+        /// code bound to the specified endpoint.
+        ///
+        /// [`CONNECTION_REFUSED`]: ReconnectStop::CONNECTION_REFUSED
+        /// [`ConnectionRefused`]: crate::ZmqError::ConnectionRefused
+        const CONNECTION_REFUSED = zmq_sys_crate::ZMQ_RECONNECT_STOP_CONN_REFUSED as i32;
+        /// The [`HANDSHAKE_FAILED`] option will stop reconnection if the 0MQ handshake fails. This
+        /// can be used to detect and/or prevent errant connection attempts to non-0MQ sockets.
+        /// Note that when specifying this option you may also want to set [`HandshakeInterval`]
+        /// — the default handshake interval is 30000 (30 seconds), which is typically too large.
+        ///
+        /// [`HANDSHAKE_FAILED`]: ReconnectStop::HANDSHAKE_FAILED
+        /// [`HandshakeInterval`]: SocketOption::HandshakeInterval
+        const HANDSHAKE_FAILED = zmq_sys_crate::ZMQ_RECONNECT_STOP_HANDSHAKE_FAILED as i32;
+        /// The [`AFTER_DISCONNECT`] option will stop reconnection when `disconnect()` has been
+        /// called. This can be useful when the user’s request failed (server not ready), as the
+        /// socket does not need to continue to reconnect after user disconnect actively.
+        ///
+        /// [`AFTER_DISCONNECT`]: ReconnectStop::AFTER_DISCONNECT
+        const AFTER_DISCONNECT = zmq_sys_crate::ZMQ_RECONNECT_STOP_AFTER_DISCONNECT as i32;
+}}

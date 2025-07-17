@@ -19,7 +19,7 @@ bench = false
 [features]
 default = []
 draft-api = []
-libsodium = ['libsodium-sys-stable']
+libsodium = ["libsodium-sys-stable"]
 
 [dependencies]
 libsodium-sys-stable = { version = ">=1.22", optional = true }

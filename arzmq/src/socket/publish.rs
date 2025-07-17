@@ -12,7 +12,7 @@ use crate::{ZmqResult, sealed};
 /// this socket type.
 ///
 /// [`Publish`]: PublishSocket
-/// [`send_msg()`]: #impl-Sender<T>-for-Socket<T>
+/// [`send_msg()`]: #impl-Sender-for-Socket<T>
 pub type PublishSocket = Socket<Publish>;
 
 pub struct Publish {}
@@ -33,17 +33,18 @@ impl Socket<Publish> {
     /// # Keep only last message `ZMQ_CONFLATE`
     ///
     /// If set, a socket shall keep only one message in its inbound/outbound queue, this message
-    /// being the last message received/the last message to be sent. Ignores [`recvhwm()`] and
-    /// [`sndhwm()`] options. Does not support multi-part messages, in particular, only one part of
-    /// it is kept in the socket internal queue.
+    /// being the last message received/the last message to be sent. Ignores
+    /// [`receive_highwater_mark()`] and [`send_highwater_mark()`] options. Does not support
+    /// multi-part messages, in particular, only one part of it is kept in the socket internal
+    /// queue.
     ///
     /// # Note
     ///
     /// If [`recv_msg()`] is not called on the inbound socket, the queue and memory will grow with
     /// each message received. Use [`events()`] to trigger the conflation of the messages.
     ///
-    /// [`recvhwm()`]: #method.recvhwm
-    /// [`sndhwm()`]: #method.sndhwm
+    /// [`receive_highwater_mark()`]: #method.receive_highwater_mark
+    /// [`send_highwater_mark()`]: #method.send_highwater_mark
     /// [`recv_msg()`]: #method.recv_msg
     /// [`events()`]: #method.events
     pub fn set_conflate(&self, value: bool) -> ZmqResult<()> {
@@ -94,17 +95,17 @@ impl Socket<Publish> {
         self.get_sockopt_bool(SocketOption::InvertMatching)
     }
 
-    /// # do not silently drop messages if [`sndhwm()`] is reached `ZMQ_XPUB_NODROP`
+    /// # do not silently drop messages if [`send_highwater_mark()`] is reached `ZMQ_XPUB_NODROP`
     ///
-    /// Sets the [`XPublish`] socket behaviour to return error [`Again`] if [`sndhwm()`] is
-    /// reached and the message could not be send.
+    /// Sets the [`XPublish`] socket behaviour to return error [`Again`] if
+    /// [`send_highwater_mark()`] is reached and the message could not be send.
     ///
-    /// A value of `false` is the default and drops the message silently when the peers [`sndhwm()`]
-    /// is reached. A value of `true` returns an [`Again`] error code if the [`sndhwm()`] is
-    /// reached and [`DONT_WAIT`] was used.
+    /// A value of `false` is the default and drops the message silently when the peers
+    /// [`send_highwater_mark()`] is reached. A value of `true` returns an [`Again`] error code if
+    /// the [`send_highwater_mark()`] is reached and [`DONT_WAIT`] was used.
     ///
     /// [`XPublish`]: super::XPublishSocket
-    /// [`sndhwm()`]: #method.sndhwm
+    /// [`send_highwater_mark()`]: #method.send_highwater_mark
     /// [`Again`]: crate::ZmqError::Again
     /// [`DONT_WAIT`]: super::SendFlags::DONT_WAIT
     pub fn set_nodrop(&self, value: bool) -> ZmqResult<()> {

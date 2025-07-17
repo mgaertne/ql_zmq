@@ -18,7 +18,7 @@ use crate::{ZmqResult, sealed};
 ///
 /// [`XPublish`]: XPublishSocket
 /// [`Publish`]: super::PublishSocket
-/// [`send_msg()`]: #impl-Sender<T>-for-Socket<T>
+/// [`send_msg()`]: #impl-Sender-for-Socket<T>
 pub type XPublishSocket = Socket<XPublish>;
 
 pub struct XPublish {}
@@ -102,17 +102,17 @@ impl Socket<XPublish> {
         self.get_sockopt_bool(SocketOption::InvertMatching)
     }
 
-    /// # do not silently drop messages if [`sndhwm()`] is reached `ZMQ_XPUB_NODROP`
+    /// # do not silently drop messages if [`send_highwater_mark()`] is reached `ZMQ_XPUB_NODROP`
     ///
-    /// Sets the [`XPublish`] socket behaviour to return error [`Again`] if [`sndhwm()`] is
-    /// reached and the message could not be send.
+    /// Sets the [`XPublish`] socket behaviour to return error [`Again`] if
+    /// [`send_highwater_mark()`] is reached and the message could not be send.
     ///
-    /// A value of `false` is the default and drops the message silently when the peers [`sndhwm()`]
-    /// is reached. A value of `true` returns an [`Again`] error code if the [`sndhwm()`] is
-    /// reached and [`DONT_WAIT`] was used.
+    /// A value of `false` is the default and drops the message silently when the peers
+    /// [`send_highwater_mark()`] is reached. A value of `true` returns an [`Again`] error code if
+    /// the [`send_highwater_mark()`] is reached and [`DONT_WAIT`] was used.
     ///
     /// [`XPublish`]: XPublishSocket
-    /// [`sndhwm()`]: #method.sndhwm
+    /// [`send_highwater_mark()`]: #method.send_highwater_mark
     /// [`Again`]: crate::ZmqError::Again
     /// [`DONT_WAIT`]: super::SendFlags::DONT_WAIT
     pub fn set_nodrop(&self, value: bool) -> ZmqResult<()> {

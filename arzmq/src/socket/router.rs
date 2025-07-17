@@ -144,6 +144,26 @@ impl Socket<Router> {
         self.set_sockopt_string(SocketOption::ConnectRoutingId, value)
     }
 
+    /// # bootstrap connections to ROUTER sockets `ZMQ_PROBE_ROUTER`
+    ///
+    /// When set to `true`, the socket will automatically send an empty message when a new
+    /// connection is made or accepted. You may set this on [`Request`], [`Dealer`], or [`Router`]
+    /// sockets connected to a [`Router`] socket. The application must filter such empty messages.
+    /// The [`ProbeRouter`] option in effect provides the [`Router`] application with an event
+    /// signaling the arrival of a new peer.
+    ///
+    /// | Default value | Applicable socket types             |
+    /// | :-----------: | :---------------------------------: |
+    /// | false         | [`Router`], [`Dealer`], [`Request`] |
+    ///
+    /// [`ProbeRouter`]: SocketOption::ProbeRouter
+    /// [`Router`]: RouterSocket
+    /// [`Dealer`]: super::DealerSocket
+    /// [`Request`]: super::RequestSocket
+    pub fn set_probe_router(&self, value: bool) -> ZmqResult<()> {
+        self.set_sockopt_bool(SocketOption::ProbeRouter, value)
+    }
+
     /// # handle duplicate client routing ids on [`Router`] sockets `ZMQ_ROUTER_HANDOVER`
     ///
     /// If two clients use the same routing id when connecting to a [`Router`], the results shall
@@ -162,10 +182,10 @@ impl Socket<Router> {
     ///
     /// Sets the [`Router`] socket behaviour when an unroutable message is encountered. A value of
     /// `false` is the default and discards the message silently when it cannot be routed or the
-    /// peers [`sndhwm()`] is reached. A value of `true` returns an [`HostUnreachable`] error code
-    /// if the message cannot be routed or [`Again`] error code if the [`sndhwm()`] is reached and
-    /// [`DONT_WAIT`] was used. Without [`DONT_WAIT`] it will block until the [`sndtimeo()`] is
-    /// reached or a spot in the send queue opens up.
+    /// peers [`send_highwater_mark()`] is reached. A value of `true` returns an [`HostUnreachable`]
+    /// error code if the message cannot be routed or [`Again`] error code if the
+    /// [`send_highwater_mark()`] is reached and [`DONT_WAIT`] was used. Without [`DONT_WAIT`] it
+    /// will block until the [`send_timeoout()`] is reached or a spot in the send queue opens up.
     ///
     /// When [`set_router_mandatory()`] is set to `true`, [`POLL_OUT`] events will be generated if
     /// one or more messages can be sent to at least one of the peers. If
@@ -173,8 +193,8 @@ impl Socket<Router> {
     /// on every call to [`poll()`] resp. [`poll_wait_all()`].
     ///
     /// [`Router`]: RouterSocket
-    /// [`sndhwm()`]: #method.sndhwm
-    /// [`sndtimeo()`]: #method.sndtimeo
+    /// [`send_highwater_mark()`]: #method.send_highwater_mark
+    /// [`send_timeoout()`]: #method.send_timeoout
     /// [`HostUnreachable`]: crate::ZmqError::HostUnreachable
     /// [`Again`]: crate::ZmqError::Again
     /// [`DONT_WAIT`]: super::SendFlags::DONT_WAIT
@@ -190,14 +210,14 @@ impl Socket<Router> {
     ///
     /// When set, the socket will generate a disconnect message when accepted peer has been
     /// disconnected. You may set this on [`Router`], [`Server`] and [`Peer`] sockets. The
-    /// combination with [`set_heartbeat_ivl()`] is powerful and simplify protocols, when heartbeat
+    /// combination with [`set_heartbeat_interval()`] is powerful and simplify protocols, when heartbeat
     /// recognize a connection drop it will generate a disconnect message that can match the
     /// protocol of the application.
     ///
     /// [`Router`]: RouterSocket
     /// [`Server`]: super::ServerSocket
     /// [`Peer`]: super::PeerSocket
-    /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
+    /// [`set_heartbeat_interval()`]: #method.set_heartbeat_interval
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_disconnect_message<V>(&self, value: V) -> ZmqResult<()>
@@ -211,7 +231,7 @@ impl Socket<Router> {
     ///
     /// When set, the socket will automatically send an hello message when a new connection is made
     /// or accepted. You may set this on [`Dealer`], [`Router`], [`Client`], [`Server`] and [`Peer`]
-    /// sockets. The combination with [`set_heartbeat_ivl()`] is powerful and simplify
+    /// sockets. The combination with [`set_heartbeat_interval()`] is powerful and simplify
     /// protocols, as now heartbeat and sending the hello message can be left out of protocols and
     /// be handled by zeromq.
     ///
@@ -220,7 +240,7 @@ impl Socket<Router> {
     /// [`Client`]: super::ClientSocket
     /// [`Server`]: super::ServerSocket
     /// [`Peer`]: super::PeerSocket
-    /// [`set_heartbeat_ivl()`]: #method.set_heartbeat_ivl
+    /// [`set_heartbeat_interval()`]: #method.set_heartbeat_interval
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_hello_message<V>(&self, value: V) -> ZmqResult<()>
