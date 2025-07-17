@@ -1468,7 +1468,7 @@ impl<T: sealed::SocketType> Socket<T> {
     /// | :-----------: | :---------------------------: |
     /// | not set       | all, when using TCP transport |
     ///
-    /// [set_socks_username()`]: #method.set_socks_username
+    /// [`set_socks_username()`]: #method.set_socks_username
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
     pub fn set_socks_password<V>(&self, value: V) -> ZmqResult<()>
