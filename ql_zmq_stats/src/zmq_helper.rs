@@ -6,7 +6,7 @@ use arzmq::{
     message::Message,
     security::SecurityMechanism,
     socket::{
-        MonitorFlags, MonitorSocket, MonitorSocketEvent, MultipartReceiver, Receiver, Socket,
+        MonitorFlags, MonitorReceiver, MonitorSocket, MonitorSocketEvent, Receiver, Socket,
         SubscribeSocket,
     },
 };
@@ -92,7 +92,7 @@ impl MonitoredSubscriber {
 
     async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
         let monitor = self.monitor.read().await;
-        MonitorSocketEvent::try_from(monitor.recv_multipart_async().await).ok()
+        monitor.recv_monitor_event_async().await
     }
 }
 

@@ -2,18 +2,16 @@ use alloc::collections::{
     VecDeque,
     vec_deque::{Drain, IntoIter, Iter, IterMut},
 };
-use core::{
-    fmt::{Display, Formatter},
-    ops::RangeBounds,
-};
+use core::ops::RangeBounds;
 
 use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 use parking_lot::FairMutex;
 
 use crate::{ZmqResult, ffi::RawMessage, sealed, socket::Socket};
 
-#[derive(DebugDeriveMore)]
-#[debug("ZmqMessage {{ inner: {inner:?} }}")]
+#[derive(DebugDeriveMore, DisplayDeriveMore)]
+#[debug("Message {{ {:?} }}", inner.lock())]
+#[display("{}", inner.lock())]
 pub struct Message {
     inner: FairMutex<RawMessage>,
 }
@@ -99,13 +97,6 @@ impl Clone for Message {
     }
 }
 
-impl Display for Message {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        let msg_guard = self.inner.lock();
-        write!(f, "{}", *msg_guard)
-    }
-}
-
 impl<T: Into<RawMessage>> From<T> for Message {
     fn from(value: T) -> Self {
         let raw_msg = value.into();
@@ -133,8 +124,8 @@ where
 }
 
 #[derive(Default, DebugDeriveMore, DisplayDeriveMore)]
-#[debug("ZmqMultipartMessage {{ {inner:?} }}")]
-#[display("ZmqMultipartMessage {{ {inner:?} }}")]
+#[debug("MultipartMessage {{ {inner:?} }}")]
+#[display("MultipartMessage {{ {inner:?} }}")]
 pub struct MultipartMessage {
     inner: VecDeque<Message>,
 }

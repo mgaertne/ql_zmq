@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use core::{iter, marker::PhantomData, ops::ControlFlow};
 
 #[cfg(feature = "futures")]
-use ::futures::FutureExt;
+use ::futures::{FutureExt, TryStreamExt};
 #[cfg(feature = "futures")]
 use async_trait::async_trait;
 use bitflags::bitflags;
@@ -61,7 +61,7 @@ pub use dish::DishSocket;
 #[doc(cfg(feature = "draft-api"))]
 pub use gather::GatherSocket;
 use monitor::Monitor;
-pub use monitor::{MonitorSocket, MonitorSocketEvent};
+pub use monitor::{MonitorReceiver, MonitorSocket, MonitorSocketEvent};
 pub use pair::PairSocket;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
@@ -1927,18 +1927,19 @@ pub trait MultipartReceiver: Receiver {
     #[cfg(feature = "futures")]
     #[doc(cfg(feature = "futures"))]
     async fn recv_multipart_async(&self) -> MultipartMessage {
-        let mut result = MultipartMessage::new();
-
-        loop {
-            if let Some(item) = self.recv_msg_async().await {
-                let got_more = item.get_more();
-                result.push_back(item);
-
-                if !got_more {
-                    return result;
+        ::futures::stream::repeat_with(|| Ok(self.recv_msg_async()))
+            .try_fold(MultipartMessage::new(), |mut parts, zmq_msg| async move {
+                if let Some(msg) = zmq_msg.await {
+                    let got_more = msg.get_more();
+                    parts.push_back(msg);
+                    if !got_more {
+                        return Err(parts);
+                    }
                 }
-            }
-        }
+                Ok(parts)
+            })
+            .await
+            .unwrap_err()
     }
 }
 

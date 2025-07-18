@@ -6,7 +6,7 @@ use arzmq::{
     message::Message,
     security::SecurityMechanism,
     socket::{
-        DealerSocket, MonitorFlags, MonitorSocket, MonitorSocketEvent, MultipartReceiver, Receiver,
+        DealerSocket, MonitorFlags, MonitorReceiver, MonitorSocket, MonitorSocketEvent, Receiver,
         SendFlags, Sender, Socket,
     },
 };
@@ -117,7 +117,7 @@ impl MonitoredDealer {
 
     async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
         let monitor = self.monitor.read().await;
-        MonitorSocketEvent::try_from(monitor.recv_multipart_async().await).ok()
+        monitor.recv_monitor_event_async().await
     }
 }
 

@@ -1,5 +1,15 @@
-use super::{MonitorFlags, MultipartReceiver, SocketType};
-use crate::{ZmqError, message::MultipartMessage, sealed, socket::Socket, zmq_sys_crate};
+#[cfg(feature = "futures")]
+use core::{pin::Pin, task::Context, task::Poll};
+
+#[cfg(feature = "futures")]
+use async_trait::async_trait;
+#[cfg(feature = "futures")]
+use futures::FutureExt;
+
+use super::{MonitorFlags, MultipartReceiver, RecvFlags, SocketType};
+use crate::{
+    ZmqError, ZmqResult, message::MultipartMessage, sealed, socket::Socket, zmq_sys_crate,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u32)]
@@ -172,3 +182,42 @@ impl sealed::SocketType for Monitor {
 }
 
 impl Socket<Monitor> {}
+
+#[cfg_attr(feature = "futures", async_trait)]
+pub trait MonitorReceiver {
+    fn recv_monitor_event(&self) -> ZmqResult<MonitorSocketEvent>;
+
+    #[cfg(feature = "futures")]
+    #[doc(cfg(feature = "futures"))]
+    async fn recv_monitor_event_async(&self) -> Option<MonitorSocketEvent>;
+}
+
+#[cfg_attr(feature = "futures", async_trait)]
+impl MonitorReceiver for MonitorSocket {
+    fn recv_monitor_event(&self) -> ZmqResult<MonitorSocketEvent> {
+        self.recv_multipart(RecvFlags::DONT_WAIT)
+            .and_then(MonitorSocketEvent::try_from)
+    }
+
+    #[cfg(feature = "futures")]
+    async fn recv_monitor_event_async(&self) -> Option<MonitorSocketEvent> {
+        MonitorSocketEventFuture { receiver: self }.now_or_never()
+    }
+}
+
+#[cfg(feature = "futures")]
+struct MonitorSocketEventFuture<'a> {
+    receiver: &'a MonitorSocket,
+}
+
+#[cfg(feature = "futures")]
+impl Future for MonitorSocketEventFuture<'_> {
+    type Output = MonitorSocketEvent;
+
+    fn poll(self: Pin<&mut Self>, _ctx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.receiver.recv_monitor_event() {
+            Ok(event) => Poll::Ready(event),
+            _ => Poll::Pending,
+        }
+    }
+}

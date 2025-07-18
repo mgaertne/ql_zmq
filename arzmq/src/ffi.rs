@@ -7,7 +7,6 @@ use core::{
     ptr, slice,
     str::FromStr,
 };
-use std::io::Read;
 
 use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 use num_traits::PrimInt;
@@ -707,16 +706,24 @@ impl AsRef<[u8]> for RawMessage {
 
 impl core::fmt::Display for RawMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        match str::from_utf8(self) {
+        match str::from_utf8(self.as_ref()) {
             Ok(msg_str) => write!(f, "{msg_str}"),
-            Err(_) => write!(f, "{:?}", self.bytes()),
+            _ => write!(f, "{:X?}", self.as_ref()),
         }
     }
 }
 
 impl core::fmt::Debug for RawMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:?}", self.bytes())?;
+        match str::from_utf8(self.as_ref()) {
+            Ok(msg_str)
+                if !msg_str.is_empty()
+                    && self.as_ref().iter().all(|char| !(1u8..9u8).contains(char)) =>
+            {
+                write!(f, "\"{msg_str}\"")?
+            }
+            _ => write!(f, "{:X?}", self.as_ref())?,
+        }
 
         #[cfg(feature = "draft-api")]
         if let Some(routing_id) = self.routing_id() {
@@ -724,7 +731,9 @@ impl core::fmt::Debug for RawMessage {
         }
 
         #[cfg(feature = "draft-api")]
-        if let Some(group) = self.group() {
+        if let Some(group) = self.group()
+            && !group.is_empty()
+        {
             write!(f, " (group: {group})")?;
         }
 
