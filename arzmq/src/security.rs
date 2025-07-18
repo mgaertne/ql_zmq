@@ -9,21 +9,17 @@ use crate::{
     zmq_sys_crate,
 };
 
-#[derive(Debug, Display, PartialEq, Eq, Clone, Hash)]
+#[derive(Default, Debug, Display, PartialEq, Eq, Clone, Hash)]
+#[cfg_attr(feature = "builder", derive(serde::Deserialize, serde::Serialize))]
 #[repr(i32)]
 #[non_exhaustive]
 pub enum SecurityMechanism {
+    #[default]
     Null = zmq_sys_crate::ZMQ_NULL as i32,
     #[display("PlainClient {{ username = {username}, password = {password} }}")]
-    PlainClient {
-        username: String,
-        password: String,
-    },
+    PlainClient { username: String, password: String },
     #[display("PlainServer {{ username = {username}, password = {password} }}")]
-    PlainServer {
-        username: String,
-        password: String,
-    },
+    PlainServer { username: String, password: String },
     #[cfg(feature = "curve")]
     #[doc(cfg(feature = "curve"))]
     #[display("CurveClient {{ ... }}")]
@@ -35,14 +31,10 @@ pub enum SecurityMechanism {
     #[cfg(feature = "curve")]
     #[doc(cfg(feature = "curve"))]
     #[display("CurveServer {{ ... }}")]
-    CurveServer {
-        secret_key: Vec<u8>,
-    },
+    CurveServer { secret_key: Vec<u8> },
     #[doc(cfg(zmq_have_gssapi))]
     #[display("GssApiClient {{ ... }}")]
-    GssApiClient {
-        service_principal: String,
-    },
+    GssApiClient { service_principal: String },
     #[doc(cfg(zmq_have_gssapi))]
     #[display("GssApiServer {{ ... }}")]
     GssApiServer,

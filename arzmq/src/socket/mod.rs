@@ -47,6 +47,9 @@ mod subscribe;
 mod xpublish;
 mod xsubscribe;
 
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use builder::{SocketConfig, SocketConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use channel::ChannelSocket;
@@ -54,6 +57,9 @@ pub use channel::ChannelSocket;
 #[doc(cfg(feature = "draft-api"))]
 pub use client::ClientSocket;
 pub use dealer::DealerSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use dealer::builder::{DealerConfig, DealerConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use dish::DishSocket;
@@ -530,6 +536,19 @@ impl<T: sealed::SocketType> Socket<T> {
         self.get_sockopt_int(SocketOption::Backlog)
     }
 
+    /// # This removes delays caused by the interrupt and the resultant context switch. `ZMQ_BUSY_POLL`
+    ///
+    /// Busy polling helps reduce latency in the network receive path by allowing socket layer code
+    /// to poll the receive queue of a network device, and disabling network interrupts. This
+    /// removes delays caused by the interrupt and the resultant context switch. However, it also
+    /// increases CPU utilization. Busy polling also prevents the CPU from sleeping, which can
+    /// incur additional power consumption.
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn set_busy_poll(&self, value: bool) -> ZmqResult<()> {
+        self.set_sockopt_bool(SocketOption::BusyPoll, value)
+    }
+
     /// # Set connect() timeout `ZMQ_CONNECT_TIMEOUT`
     ///
     /// Sets how long to wait before timing-out a [`connect()`] system call. The [`connect()`]
@@ -990,7 +1009,7 @@ impl<T: sealed::SocketType> Socket<T> {
     ///
     /// [`Mechanism`]: SocketOption::Mechanism
     /// [ SecurityMechanism`]: SecurityMechanism
-    pub fn set_security_mechanism(&self, security: SecurityMechanism) -> ZmqResult<()> {
+    pub fn set_security_mechanism(&self, security: &SecurityMechanism) -> ZmqResult<()> {
         security.apply(self)
     }
 
@@ -1643,7 +1662,7 @@ impl<T: sealed::SocketType> Socket<T> {
     /// | Default value           | Applicable socket types         |
     /// | :---------------------: | :-----------------------------: |
     /// | empty                   | all, when using TCP transports. |
-    pub fn set_zap_domain(&self, domain: ZapDomain) -> ZmqResult<()> {
+    pub fn set_zap_domain(&self, domain: &ZapDomain) -> ZmqResult<()> {
         domain.apply(self)
     }
 
@@ -2160,3 +2179,89 @@ bitflags! {
         /// [`AFTER_DISCONNECT`]: ReconnectStop::AFTER_DISCONNECT
         const AFTER_DISCONNECT = zmq_sys_crate::ZMQ_RECONNECT_STOP_AFTER_DISCONNECT as i32;
 }}
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use crate::{ZmqResult, auth::ZapDomain, sealed, security::SecurityMechanism, socket::Socket};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize))]
+    pub struct SocketConfig {
+        #[cfg(feature = "draft-api")]
+        #[doc(cfg(feature = "draft-api"))]
+        #[builder(default = false)]
+        busy_poll: bool,
+        #[builder(setter(into), default = 0)]
+        connect_timeout: i32,
+        #[builder(setter(into), default = 30_000)]
+        handshake_interval: i32,
+        #[builder(setter(into), default = 0)]
+        heartbeat_interval: i32,
+        #[builder(setter(into), default = 0)]
+        heartbeat_timeout: i32,
+        #[builder(setter(into), default = 0)]
+        heartbeat_timetolive: i32,
+        #[builder(default = false)]
+        immediate: bool,
+        #[builder(default = false)]
+        ipv6: bool,
+        #[builder(setter(into), default = -1)]
+        linger: i32,
+        #[builder(setter(into), default = -1)]
+        max_message_size: i64,
+        #[builder(setter(into), default = -1)]
+        receive_buffer: i32,
+        #[builder(setter(into), default = 1_000)]
+        receive_highwater_mark: i32,
+        #[builder(setter(into), default = -1)]
+        receive_timeout: i32,
+        #[builder(setter(into), default = 100)]
+        reconnect_interval: i32,
+        #[builder(setter(into), default = 0)]
+        reconnect_interval_max: i32,
+        #[builder(setter(into), default = -1)]
+        send_buffer: i32,
+        #[builder(setter(into), default = 1_000)]
+        send_highwater_mark: i32,
+        #[builder(setter(into), default = -1)]
+        send_timeout: i32,
+        #[builder(setter(into))]
+        zap_domain: ZapDomain,
+        #[builder(default = "SecurityMechanism::Null")]
+        security_mechanism: SecurityMechanism,
+    }
+
+    impl SocketConfig {
+        pub fn apply<T>(&self, socket: &Socket<T>) -> ZmqResult<()>
+        where
+            T: sealed::SocketType,
+        {
+            #[cfg(feature = "draft-api")]
+            socket.set_busy_poll(self.busy_poll)?;
+            socket.set_connect_timeout(self.connect_timeout)?;
+            socket.set_handshake_interval(self.handshake_interval)?;
+            socket.set_heartbeat_interval(self.heartbeat_interval)?;
+            socket.set_heartbeat_timeout(self.heartbeat_timeout)?;
+            socket.set_heartbeat_timetolive(self.heartbeat_timetolive)?;
+            socket.set_immediate(self.immediate)?;
+            socket.set_ipv6(self.ipv6)?;
+            socket.set_linger(self.linger)?;
+            socket.set_max_message_size(self.max_message_size)?;
+            socket.set_receive_buffer(self.receive_buffer)?;
+            socket.set_receive_highwater_mark(self.receive_highwater_mark)?;
+            socket.set_receive_timeout(self.receive_timeout)?;
+            socket.set_reconnect_interval(self.reconnect_interval)?;
+            socket.set_reconnect_interval_max(self.reconnect_interval_max)?;
+            socket.set_send_buffer(self.send_buffer)?;
+            socket.set_send_highwater_mark(self.send_highwater_mark)?;
+            socket.set_send_timeout(self.send_timeout)?;
+            socket.set_zap_domain(&self.zap_domain)?;
+            socket.set_security_mechanism(&self.security_mechanism)?;
+
+            Ok(())
+        }
+    }
+}

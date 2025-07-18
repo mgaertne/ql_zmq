@@ -3,6 +3,8 @@ use crate::{
     socket::{Socket, SocketOption},
 };
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[cfg_attr(feature = "builder", derive(serde::Serialize, serde::Deserialize))]
 pub struct ZapDomain {
     domain: String,
 }

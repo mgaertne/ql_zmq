@@ -6,8 +6,8 @@ use arzmq::{
     message::Message,
     security::SecurityMechanism,
     socket::{
-        DealerSocket, MonitorFlags, MonitorReceiver, MonitorSocket, MonitorSocketEvent, Receiver,
-        SendFlags, Sender, Socket,
+        DealerConfigBuilder, DealerSocket, MonitorFlags, MonitorReceiver, MonitorSocket,
+        MonitorSocketEvent, Receiver, SendFlags, Sender, Socket, SocketConfigBuilder,
     },
 };
 use tokio::{
@@ -55,33 +55,36 @@ impl MonitoredDealer {
     }
 
     async fn configure(&self, password: &str, identity: &str) -> Result<()> {
-        let dealer = self.dealer.read().await;
-
-        dealer.set_security_mechanism(SecurityMechanism::PlainClient {
-            username: "rcon".into(),
-            password: password.into(),
-        })?;
-
         let identity_str = if identity.is_empty() {
             let identity = Uuid::new_v4();
             identity.to_string().replace("-", "")
         } else {
             identity.to_string()
         };
-        dealer.set_routing_id(identity_str)?;
 
-        dealer.set_hello_message("register")?;
-        dealer.set_immediate(true)?;
+        let socket_config = SocketConfigBuilder::default()
+            .security_mechanism(SecurityMechanism::PlainClient {
+                username: "rcon".into(),
+                password: password.into(),
+            })
+            .immediate(true)
+            .receive_timeout(0)
+            .receive_highwater_mark(0)
+            .send_timeout(0)
+            .send_highwater_mark(0)
+            .heartbeat_interval(600_000)
+            .heartbeat_timeout(600_000)
+            .zap_domain("rcon")
+            .build()?;
 
-        dealer.set_receive_timeout(0)?;
-        dealer.set_receive_highwater_mark(0)?;
-        dealer.set_send_timeout(0)?;
-        dealer.set_send_highwater_mark(0)?;
+        let dealer_config = DealerConfigBuilder::default()
+            .socket_config(socket_config)
+            .routing_id(identity_str)
+            .hello_message("register")
+            .build()?;
 
-        dealer.set_heartbeat_interval(600_000)?;
-        dealer.set_heartbeat_timeout(600_000)?;
-
-        dealer.set_zap_domain("rcon".into())?;
+        let dealer = self.dealer.read().await;
+        dealer_config.apply(&dealer)?;
 
         Ok(())
     }
