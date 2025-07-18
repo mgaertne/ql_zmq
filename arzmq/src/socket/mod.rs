@@ -61,7 +61,6 @@ pub use dish::DishSocket;
 #[doc(cfg(feature = "draft-api"))]
 pub use gather::GatherSocket;
 use monitor::Monitor;
-#[cfg(feature = "futures")]
 pub use monitor::{MonitorSocket, MonitorSocketEvent};
 pub use pair::PairSocket;
 #[cfg(feature = "draft-api")]
