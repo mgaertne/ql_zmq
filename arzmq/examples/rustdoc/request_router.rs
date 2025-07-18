@@ -37,7 +37,7 @@ fn run_request_socket(context: &Context, endpoint: &str, iterations: i32) -> Zmq
 
     for request_no in 1..=iterations {
         println!("Sending request {request_no}");
-        request.send_msg("Hello".into(), SendFlags::empty())?;
+        request.send_msg("Hello", SendFlags::empty())?;
 
         let message = request.recv_msg(RecvFlags::empty())?;
         println!("Received reply {request_no:2} {message}");

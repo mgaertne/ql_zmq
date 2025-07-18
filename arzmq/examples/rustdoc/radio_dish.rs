@@ -1,7 +1,4 @@
-use core::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
+use core::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use arzmq::{
@@ -20,8 +17,6 @@ fn run_radio_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
 
     thread::spawn(move || {
         while KEEP_RUNNING.load(Ordering::Acquire) {
-            thread::sleep(Duration::from_millis(100));
-
             let message: Message = "radio msg".into();
             message.set_group(GROUP).unwrap();
 

@@ -15,7 +15,7 @@ fn run_push_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
 
     thread::spawn(move || {
         while KEEP_RUNNING.load(Ordering::Acquire) {
-            push.send_msg("Important update".into(), SendFlags::empty())
+            push.send_msg("Important update", SendFlags::empty())
                 .unwrap();
         }
     });

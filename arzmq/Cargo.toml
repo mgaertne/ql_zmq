@@ -50,7 +50,7 @@ examples-draft-api = ["draft-api", "arzmq-sys/draft-api"]
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["-Z", "unstable-options", "-Z", "rustdoc-scrape-examples", "--cfg", "docsrs"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [lints]
 workspace = true

@@ -1,7 +1,4 @@
-use core::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
+use core::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use arzmq::{
@@ -19,8 +16,6 @@ fn run_server_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
 
     thread::spawn(move || {
         while KEEP_RUNNING.load(Ordering::Acquire) {
-            thread::sleep(Duration::from_millis(100));
-
             let message = server.recv_msg(RecvFlags::empty()).unwrap();
             println!("Received message: \"{message}\"");
 
@@ -40,7 +35,7 @@ fn run_client_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqR
     client.connect(endpoint)?;
 
     for number in 0..iterations {
-        client.send_msg("Hello".into(), SendFlags::empty())?;
+        client.send_msg("Hello", SendFlags::empty())?;
         let zmq_msg = client.recv_msg(RecvFlags::empty())?;
         println!("Received msg {number}: {zmq_msg}",);
     }

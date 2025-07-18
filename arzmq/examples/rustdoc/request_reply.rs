@@ -14,7 +14,7 @@ fn run_reply_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqRe
         for _ in 1..=iterations {
             let message = reply.recv_msg(RecvFlags::empty()).unwrap();
             println!("Received request: {message}");
-            reply.send_msg("World".into(), SendFlags::empty()).unwrap();
+            reply.send_msg("World", SendFlags::empty()).unwrap();
         }
     });
 
@@ -27,7 +27,7 @@ fn run_request_socket(context: &Context, endpoint: &str, iterations: i32) -> Zmq
 
     for request_no in 1..=iterations {
         println!("Sending request {request_no}");
-        request.send_msg("Hello".into(), SendFlags::empty())?;
+        request.send_msg("Hello", SendFlags::empty())?;
 
         let message = request.recv_msg(RecvFlags::empty())?;
         println!("Received reply {request_no:2} {message}");

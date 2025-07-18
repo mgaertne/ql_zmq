@@ -17,9 +17,6 @@ pub mod socket;
 pub mod builder;
 
 pub mod auth;
-#[cfg(feature = "futures")]
-#[doc(cfg(feature = "futures"))]
-pub mod futures;
 
 use alloc::ffi::CString;
 use core::{hint::cold_path, ptr};

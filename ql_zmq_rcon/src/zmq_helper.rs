@@ -3,10 +3,12 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use anyhow::Result;
 use arzmq::{
     builder::ContextBuilder,
-    futures::{AsyncMonitorReceiver, AsyncReceiver, AsyncSender},
     message::Message,
     security::SecurityMechanism,
-    socket::{DealerSocket, MonitorFlags, MonitorSocket, MonitorSocketEvent, SendFlags, Socket},
+    socket::{
+        AsyncMonitorReceiver, DealerSocket, MonitorFlags, MonitorSocket, MonitorSocketEvent,
+        Receiver, SendFlags, Sender, Socket,
+    },
 };
 use tokio::{
     select,

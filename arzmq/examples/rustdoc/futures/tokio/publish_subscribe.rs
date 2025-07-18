@@ -4,8 +4,7 @@ use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use arzmq::{
     ZmqResult,
     context::Context,
-    futures::{AsyncReceiver, AsyncSender},
-    socket::{PublishSocket, SendFlags, SubscribeSocket},
+    socket::{PublishSocket, Receiver, SendFlags, Sender, SubscribeSocket},
 };
 use tokio::{join, task::spawn};
 
@@ -33,7 +32,7 @@ async fn run_subscriber(subscribe: SubscribeSocket) -> ZmqResult<()> {
 async fn run_publisher(publisher: PublishSocket) -> ZmqResult<()> {
     while KEEP_RUNNING.load(Ordering::Acquire) {
         publisher
-            .send_msg_async("arzmq-example important update".into(), SendFlags::empty())
+            .send_msg_async("arzmq-example important update", SendFlags::empty())
             .await;
     }
 

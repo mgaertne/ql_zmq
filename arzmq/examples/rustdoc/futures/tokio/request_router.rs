@@ -4,8 +4,10 @@ use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use arzmq::{
     ZmqResult,
     context::Context,
-    futures::{AsyncMultipartReceiver, AsyncMultipartSender, AsyncReceiver, AsyncSender},
-    socket::{RequestSocket, RouterSocket, SendFlags},
+    socket::{
+        MultipartReceiver, MultipartSender, Receiver, RequestSocket, RouterSocket, SendFlags,
+        Sender,
+    },
 };
 use tokio::{join, task};
 
@@ -32,9 +34,7 @@ async fn run_requester(request: RequestSocket) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         let request_no = ITERATIONS.load(Ordering::Acquire);
         println!("Sending request {request_no}");
-        let _ = request
-            .send_msg_async("Hello".into(), SendFlags::empty())
-            .await;
+        let _ = request.send_msg_async("Hello", SendFlags::empty()).await;
 
         loop {
             if let Some(message) = request.recv_msg_async().await {

@@ -14,9 +14,7 @@ fn run_channel_server(context: &Context, endpoint: &str, iterations: i32) -> Zmq
         for _ in 1..=iterations {
             let message = channel.recv_msg(RecvFlags::empty()).unwrap();
             println!("Received request: {message}");
-            channel
-                .send_msg("World".into(), SendFlags::empty())
-                .unwrap();
+            channel.send_msg("World", SendFlags::empty()).unwrap();
         }
     });
 
@@ -29,7 +27,7 @@ fn run_channel_client(context: &Context, endpoint: &str, iterations: i32) -> Zmq
 
     for request_no in 1..=iterations {
         println!("Sending request {request_no}");
-        channel.send_msg("Hello".into(), SendFlags::empty())?;
+        channel.send_msg("Hello", SendFlags::empty())?;
 
         let message = channel.recv_msg(RecvFlags::empty())?;
         println!("Received reply {request_no:2} {message}");

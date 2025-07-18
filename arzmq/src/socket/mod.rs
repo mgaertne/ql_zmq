@@ -1,6 +1,10 @@
 use alloc::sync::Arc;
 use core::{iter, marker::PhantomData, ops::ControlFlow};
 
+#[cfg(feature = "futures")]
+use ::futures::FutureExt;
+#[cfg(feature = "futures")]
+use async_trait::async_trait;
 use bitflags::bitflags;
 use derive_more::From;
 use num_traits::PrimInt;
@@ -57,6 +61,9 @@ pub use dish::DishSocket;
 #[doc(cfg(feature = "draft-api"))]
 pub use gather::GatherSocket;
 use monitor::Monitor;
+#[cfg(feature = "futures")]
+#[doc(cfg(feature = "futures"))]
+pub use monitor::futures::AsyncMonitorReceiver;
 pub use monitor::{MonitorSocket, MonitorSocketEvent};
 pub use pair::PairSocket;
 #[cfg(feature = "draft-api")]
@@ -1862,12 +1869,39 @@ bitflags! {
     }
 }
 
+#[cfg_attr(feature = "futures", async_trait)]
 pub trait Receiver {
     fn recv_msg<F>(&self, flags: F) -> ZmqResult<Message>
     where
         F: Into<RecvFlags> + Copy;
+
+    #[cfg(feature = "futures")]
+    #[doc(cfg(feature = "futures"))]
+    async fn recv_msg_async(&self) -> Option<Message>;
 }
 
+#[cfg_attr(feature = "futures", async_trait)]
+impl<T> Receiver for Socket<T>
+where
+    T: sealed::SocketType + sealed::ReceiverFlag + Unpin,
+    Socket<T>: Sync,
+{
+    fn recv_msg<F>(&self, flags: F) -> ZmqResult<Message>
+    where
+        F: Into<RecvFlags> + Copy,
+    {
+        self.socket
+            .recv(flags.into().bits())
+            .map(Message::from_raw_msg)
+    }
+
+    #[cfg(feature = "futures")]
+    async fn recv_msg_async(&self) -> Option<Message> {
+        futures::MessageReceivingFuture { receiver: self }.now_or_never()
+    }
+}
+
+#[cfg_attr(feature = "futures", async_trait)]
 pub trait MultipartReceiver: Receiver {
     fn recv_multipart<F>(&self, flags: F) -> ZmqResult<MultipartMessage>
     where
@@ -1892,16 +1926,22 @@ pub trait MultipartReceiver: Receiver {
             .break_value()
             .unwrap()
     }
-}
 
-impl<T: sealed::SocketType + sealed::ReceiverFlag + Unpin> Receiver for Socket<T> {
-    fn recv_msg<F>(&self, flags: F) -> ZmqResult<Message>
-    where
-        F: Into<RecvFlags> + Copy,
-    {
-        self.socket
-            .recv(flags.into().bits())
-            .map(Message::from_raw_msg)
+    #[cfg(feature = "futures")]
+    #[doc(cfg(feature = "futures"))]
+    async fn recv_multipart_async(&self) -> MultipartMessage {
+        let mut result = MultipartMessage::new();
+
+        loop {
+            if let Some(item) = self.recv_msg_async().await {
+                let got_more = item.get_more();
+                result.push_back(item);
+
+                if !got_more {
+                    return result;
+                }
+            }
+        }
     }
 }
 
@@ -1916,19 +1956,60 @@ bitflags! {
     }
 }
 
+#[cfg_attr(feature = "futures", async_trait)]
 pub trait Sender {
-    fn send_msg<F>(&self, msg: Message, flags: F) -> ZmqResult<()>
+    fn send_msg<M, F>(&self, msg: M, flags: F) -> ZmqResult<()>
     where
+        M: Into<Message>,
         F: Into<SendFlags> + Copy;
+
+    #[cfg(feature = "futures")]
+    #[doc(cfg(feature = "futures"))]
+    async fn send_msg_async<M, F>(&self, msg: M, flags: F) -> Option<()>
+    where
+        M: Into<Message> + Clone + Send,
+        F: Into<SendFlags> + Copy + Send;
 }
 
-pub trait MultipartSender: Sender {
-    fn send_multipart<F>(&self, iter: MultipartMessage, flags: F) -> ZmqResult<()>
+#[cfg_attr(feature = "futures", async_trait)]
+impl<T> Sender for Socket<T>
+where
+    T: sealed::SocketType + sealed::SenderFlag + Unpin,
+    Socket<T>: Sync,
+{
+    fn send_msg<M, F>(&self, msg: M, flags: F) -> ZmqResult<()>
     where
+        M: Into<Message>,
+        F: Into<SendFlags> + Copy,
+    {
+        msg.into().send(self, flags.into().bits())
+    }
+
+    #[cfg(feature = "futures")]
+    #[doc(cfg(feature = "futures"))]
+    async fn send_msg_async<M, F>(&self, msg: M, flags: F) -> Option<()>
+    where
+        M: Into<Message> + Clone + Send,
+        F: Into<SendFlags> + Copy + Send,
+    {
+        futures::MessageSendingFuture {
+            receiver: self,
+            message: msg,
+            flags: flags.into(),
+        }
+        .now_or_never()
+    }
+}
+
+#[cfg_attr(feature = "futures", async_trait)]
+pub trait MultipartSender: Sender {
+    fn send_multipart<M, F>(&self, iter: M, flags: F) -> ZmqResult<()>
+    where
+        M: Into<MultipartMessage>,
         F: Into<SendFlags> + Copy,
     {
         let mut last_part: Option<Message> = None;
-        for part in iter {
+        for part in iter.into() {
             let maybe_last = last_part.take();
             if let Some(last) = maybe_last {
                 self.send_msg(last, flags.into() | SendFlags::SEND_MORE)?;
@@ -1941,14 +2022,87 @@ pub trait MultipartSender: Sender {
             Ok(())
         }
     }
+
+    #[cfg(feature = "futures")]
+    #[doc(cfg(feature = "futures"))]
+    async fn send_multipart_async<M, F>(&self, multipart: M, flags: F) -> Option<()>
+    where
+        M: Into<MultipartMessage> + Send,
+        F: Into<SendFlags> + Copy + Send,
+    {
+        let mut last_part = None;
+        for part in multipart.into() {
+            let maybe_last = last_part.take();
+            if let Some(last) = maybe_last {
+                self.send_msg_async(last, flags.into() | SendFlags::SEND_MORE)
+                    .await?;
+            }
+            last_part = Some(part);
+        }
+        if let Some(last) = last_part {
+            self.send_msg_async(last, flags.into()).await
+        } else {
+            None
+        }
+    }
 }
 
-impl<T: sealed::SocketType + sealed::SenderFlag + Unpin> Sender for Socket<T> {
-    fn send_msg<F>(&self, msg: Message, flags: F) -> ZmqResult<()>
+#[cfg(feature = "futures")]
+mod futures {
+    use core::{pin::Pin, task::Poll};
+
+    use super::{RecvFlags, SendFlags, Socket};
+    use crate::{
+        message::{Message, Sendable},
+        sealed,
+    };
+
+    pub(super) struct MessageSendingFuture<'a, T, M>
     where
-        F: Into<SendFlags> + Copy,
+        T: sealed::SocketType + sealed::SenderFlag + Unpin,
+        M: Into<Message> + Clone + Send,
     {
-        msg.send(self, flags.into().bits())
+        pub(super) receiver: &'a Socket<T>,
+        pub(super) message: M,
+        pub(super) flags: SendFlags,
+    }
+
+    impl<'a, T, M> Future for MessageSendingFuture<'a, T, M>
+    where
+        T: sealed::SocketType + sealed::SenderFlag + Unpin,
+        M: Into<Message> + Clone + Send,
+    {
+        type Output = ();
+
+        fn poll(self: Pin<&mut Self>, _ctx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
+            let message = self.message.clone().into();
+
+            message
+                .send(self.receiver, self.flags.bits())
+                .map_or(Poll::Pending, Poll::Ready)
+        }
+    }
+
+    pub(super) struct MessageReceivingFuture<'a, T>
+    where
+        T: sealed::SocketType + sealed::ReceiverFlag + Unpin,
+    {
+        pub(super) receiver: &'a Socket<T>,
+    }
+
+    impl<T> Future for MessageReceivingFuture<'_, T>
+    where
+        T: sealed::SocketType + sealed::ReceiverFlag + Unpin,
+    {
+        type Output = Message;
+
+        fn poll(self: Pin<&mut Self>, _ctx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+            self.receiver
+                .socket
+                .recv(RecvFlags::DONT_WAIT.bits())
+                .map(Message::from_raw_msg)
+                .map_or(Poll::Pending, Poll::Ready)
+        }
     }
 }
 

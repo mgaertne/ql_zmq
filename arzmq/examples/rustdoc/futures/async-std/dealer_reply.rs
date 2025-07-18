@@ -4,8 +4,8 @@ use core::sync::atomic::{AtomicI32, Ordering};
 use arzmq::{
     ZmqResult,
     context::Context,
-    futures::{AsyncMultipartReceiver, AsyncMultipartSender},
-    socket::{DealerSocket, ReplySocket, SendFlags},
+    message::Message,
+    socket::{DealerSocket, MultipartReceiver, MultipartSender, ReplySocket, SendFlags},
 };
 use async_std::task;
 use futures::join;
@@ -32,9 +32,9 @@ async fn run_dealer(dealer: DealerSocket) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         let request_no = ITERATIONS.load(Ordering::Acquire);
         println!("Sending request {request_no}");
-        let multipart = vec![vec![].into(), "Hello".into()];
+        let multipart: Vec<Message> = vec![vec![].into(), "Hello".into()];
         let _ = dealer
-            .send_multipart_async(multipart.into(), SendFlags::empty())
+            .send_multipart_async(multipart, SendFlags::empty())
             .await;
 
         let mut message = dealer.recv_multipart_async().await;

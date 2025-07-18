@@ -18,7 +18,7 @@ fn run_publish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
         while KEEP_RUNNING.load(Ordering::Acquire) {
             let published_msg = format!("{SUBSCRIBED_TOPIC} important update");
             publish
-                .send_msg(published_msg.as_str().into(), SendFlags::empty())
+                .send_msg(&published_msg, SendFlags::empty())
                 .unwrap();
         }
     });

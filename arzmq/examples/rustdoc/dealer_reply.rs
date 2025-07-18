@@ -3,6 +3,7 @@ use std::thread;
 use arzmq::{
     ZmqResult,
     context::Context,
+    message::Message,
     socket::{DealerSocket, MultipartReceiver, MultipartSender, RecvFlags, ReplySocket, SendFlags},
 };
 
@@ -31,8 +32,8 @@ fn run_dealer_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqR
 
     for request_no in 1..=iterations {
         println!("Sending request {request_no}");
-        let multipart = vec![vec![].into(), "Hello".into()];
-        dealer.send_multipart(multipart.into(), SendFlags::empty())?;
+        let multipart: Vec<Message> = vec![vec![].into(), "Hello".into()];
+        dealer.send_multipart(multipart, SendFlags::empty())?;
 
         let mut message = dealer.recv_multipart(RecvFlags::empty())?;
         let content = message.pop_back().unwrap();

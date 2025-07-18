@@ -4,8 +4,7 @@ use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use arzmq::{
     ZmqResult,
     context::Context,
-    futures::{AsyncReceiver, AsyncSender},
-    socket::{ReplySocket, RequestSocket, SendFlags},
+    socket::{Receiver, ReplySocket, RequestSocket, SendFlags, Sender},
 };
 use async_std::task;
 use futures::join;
@@ -17,9 +16,7 @@ async fn run_replier(reply: ReplySocket) -> ZmqResult<()> {
     while KEEP_RUNNING.load(Ordering::Acquire) {
         if let Some(message) = reply.recv_msg_async().await {
             println!("Received request: {message}");
-            reply
-                .send_msg_async("World".into(), SendFlags::empty())
-                .await;
+            reply.send_msg_async("World", SendFlags::empty()).await;
         }
     }
 
@@ -30,9 +27,7 @@ async fn run_requester(request: RequestSocket) -> ZmqResult<()> {
     while ITERATIONS.load(Ordering::Acquire) > 0 {
         let request_no = ITERATIONS.load(Ordering::Acquire);
         println!("Sending request {request_no}");
-        let _ = request
-            .send_msg_async("Hello".into(), SendFlags::empty())
-            .await;
+        let _ = request.send_msg_async("Hello", SendFlags::empty()).await;
 
         loop {
             if let Some(message) = request.recv_msg_async().await {

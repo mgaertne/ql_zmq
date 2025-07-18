@@ -3,10 +3,12 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use anyhow::Result;
 use arzmq::{
     builder::ContextBuilder,
-    futures::{AsyncMonitorReceiver, AsyncReceiver},
     message::Message,
     security::SecurityMechanism,
-    socket::{MonitorFlags, MonitorSocket, MonitorSocketEvent, Socket, SubscribeSocket},
+    socket::{
+        AsyncMonitorReceiver, MonitorFlags, MonitorSocket, MonitorSocketEvent, Receiver, Socket,
+        SubscribeSocket,
+    },
 };
 use serde_json::Value;
 use tokio::{
