@@ -4,6 +4,7 @@
 extern crate alloc;
 extern crate core;
 
+pub mod auth;
 pub mod context;
 #[doc(hidden)]
 pub mod error;
@@ -11,12 +12,6 @@ mod ffi;
 pub mod message;
 pub mod security;
 pub mod socket;
-
-#[cfg(feature = "builder")]
-#[doc(cfg(feature = "builder"))]
-pub mod builder;
-
-pub mod auth;
 
 use alloc::ffi::CString;
 use core::{hint::cold_path, ptr};

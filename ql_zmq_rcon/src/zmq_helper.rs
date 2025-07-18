@@ -2,7 +2,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use arzmq::{
-    builder::ContextBuilder,
+    context::ContextBuilder,
     message::Message,
     security::SecurityMechanism,
     socket::{
