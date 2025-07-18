@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use builder::{ContextBuilder, ContextConfig};
+pub use builder::{ContextConfig, ContextConfigBuilder};
 use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 
 use crate::{ZmqResult, ffi::RawContext, zmq_sys_crate};
@@ -191,6 +191,23 @@ impl Context {
         Ok(option_value != 0)
     }
 
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn set_zero_copy_receiving(&self, value: bool) -> ZmqResult<()> {
+        let option_value = match value {
+            false => 0,
+            _ => 1,
+        };
+        self.set_option(SetContextOption::ZeroCopyReceiving, option_value)
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub fn zero_copy_receiving(&self) -> ZmqResult<bool> {
+        let option_value = self.get_option(GetContextOption::ZeroCopyReceiving)?;
+        Ok(option_value != 0)
+    }
+
     pub fn shutdown(&self) -> ZmqResult<()> {
         self.inner.shutdown()
     }
@@ -206,116 +223,41 @@ impl Clone for Context {
 
 #[cfg(feature = "builder")]
 mod builder {
+    use derive_builder::Builder;
     use serde::{Deserialize, Serialize};
 
     use crate::{ZmqResult, context::Context};
 
-    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize))]
     pub struct ContextConfig {
-        blocky: Option<bool>,
-        ipv6: Option<bool>,
-        io_threads: Option<i32>,
-        max_sockets: Option<i32>,
+        #[builder(default = true)]
+        blocky: bool,
+        #[builder(setter(into), default = 1)]
+        io_threads: i32,
+        #[builder(setter(into), default = "i32::MAX")]
+        max_message_size: i32,
+        #[cfg(feature = "draft-api")]
+        #[doc(cfg(feature = "draft-api"))]
+        #[builder(default = true)]
+        zero_copy_receiving: bool,
+        #[builder(setter(into), default = 1023)]
+        max_sockets: i32,
+        #[builder(default = false)]
+        ipv6: bool,
     }
 
     impl ContextConfig {
-        pub fn new() -> Self {
-            Self::default()
-        }
-
-        pub fn build(&self) -> ZmqResult<Context> {
-            let context = Context::new()?;
-            self.apply(&context)?;
-
-            Ok(context)
-        }
-
         pub fn apply(&self, context: &Context) -> ZmqResult<()> {
-            self.ipv6
-                .iter()
-                .try_for_each(|&ipv6| context.set_ipv6(ipv6))?;
-            self.blocky
-                .iter()
-                .try_for_each(|&blocky| context.set_blocky(blocky))?;
-            self.io_threads
-                .iter()
-                .try_for_each(|&io_threads| context.set_io_threads(io_threads))?;
-            self.max_sockets
-                .iter()
-                .try_for_each(|&max_sockets| context.set_max_sockets(max_sockets))?;
+            context.set_blocky(self.blocky)?;
+            context.set_io_threads(self.io_threads)?;
+            context.set_max_message_size(self.max_message_size)?;
+            #[cfg(feature = "draft-api")]
+            context.set_zero_copy_receiving(self.zero_copy_receiving)?;
+            context.set_max_sockets(self.max_sockets)?;
+            context.set_ipv6(self.ipv6)?;
 
             Ok(())
-        }
-
-        pub fn blocky(&self) -> Option<bool> {
-            self.blocky
-        }
-
-        pub fn set_blocky(&mut self, value: Option<bool>) {
-            self.blocky = value;
-        }
-
-        pub fn ipv6(&self) -> Option<bool> {
-            self.ipv6
-        }
-
-        pub fn set_ipv6(&mut self, value: Option<bool>) {
-            self.ipv6 = value;
-        }
-
-        pub fn io_threads(&self) -> Option<i32> {
-            self.io_threads
-        }
-
-        pub fn set_io_threads(&mut self, value: Option<i32>) {
-            self.io_threads = value;
-        }
-
-        pub fn max_sockets(&mut self) -> Option<i32> {
-            self.max_sockets
-        }
-
-        pub fn set_max_sockets(&mut self, value: Option<i32>) {
-            self.max_sockets = value;
-        }
-    }
-
-    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-    pub struct ContextBuilder {
-        contig: ContextConfig,
-    }
-
-    impl ContextBuilder {
-        pub fn new() -> Self {
-            Self::default()
-        }
-
-        pub fn build(&self) -> ZmqResult<Context> {
-            self.contig.build()
-        }
-
-        pub fn apply(&self, handle: &Context) -> ZmqResult<()> {
-            self.contig.apply(handle)
-        }
-
-        pub fn blocky(&mut self, value: bool) -> &mut Self {
-            self.contig.set_blocky(Some(value));
-            self
-        }
-
-        pub fn ipv6(&mut self, value: bool) -> &mut Self {
-            self.contig.set_ipv6(Some(value));
-            self
-        }
-
-        pub fn io_threads(&mut self, value: i32) -> &mut Self {
-            self.contig.set_io_threads(Some(value));
-            self
-        }
-
-        pub fn max_sockets(&mut self, value: i32) -> &mut Self {
-            self.contig.set_max_sockets(Some(value));
-            self
         }
     }
 }

@@ -2,7 +2,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use arzmq::{
-    context::ContextBuilder,
+    context::{Context, ContextConfigBuilder},
     message::Message,
     security::SecurityMechanism,
     socket::{
@@ -28,11 +28,13 @@ unsafe impl Sync for MonitoredSubscriber {}
 
 impl MonitoredSubscriber {
     fn new() -> Result<Self> {
-        let context = ContextBuilder::new()
+        let config = ContextConfigBuilder::default()
             .blocky(false)
             .max_sockets(10)
             .io_threads(1)
             .build()?;
+        let context = Context::new()?;
+        config.apply(&context)?;
         let subscriber = Socket::from_context(&context)?;
         let monitor = subscriber.monitor(
             MonitorFlags::HandshakeSucceeded
