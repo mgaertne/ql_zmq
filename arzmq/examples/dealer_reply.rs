@@ -3,9 +3,10 @@ use std::thread;
 use arzmq::{
     ZmqResult,
     context::Context,
-    message::Message,
-    socket::{DealerSocket, MultipartReceiver, MultipartSender, RecvFlags, ReplySocket, SendFlags},
+    socket::{MultipartReceiver, MultipartSender, RecvFlags, ReplySocket, SendFlags},
 };
+
+mod common;
 
 fn run_reply_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
     let reply = ReplySocket::from_context(context)?;
@@ -26,25 +27,6 @@ fn run_reply_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqRe
     Ok(())
 }
 
-fn run_dealer_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let dealer = DealerSocket::from_context(context)?;
-    dealer.connect(endpoint)?;
-
-    for request_no in 1..=iterations {
-        println!("Sending request {request_no}");
-        let multipart: Vec<Message> = vec![vec![].into(), "Hello".into()];
-        dealer.send_multipart(multipart, SendFlags::empty())?;
-
-        let mut message = dealer.recv_multipart(RecvFlags::empty())?;
-        let content = message.pop_back().unwrap();
-        if !content.is_empty() {
-            println!("Received reply {request_no:2} {content}");
-        }
-    }
-
-    Ok(())
-}
-
 fn main() -> ZmqResult<()> {
     let port = 5556;
     let iterations = 10;
@@ -55,7 +37,7 @@ fn main() -> ZmqResult<()> {
     run_reply_socket(&context, &reply_endpoint, iterations)?;
 
     let dealer_endpoint = format!("tcp://localhost:{port}");
-    run_dealer_socket(&context, &dealer_endpoint, 10)?;
+    common::run_dealer_client(&context, &dealer_endpoint, 10)?;
 
     Ok(())
 }
