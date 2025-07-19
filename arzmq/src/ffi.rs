@@ -39,7 +39,7 @@ impl RawContext {
         }
     }
 
-    pub(crate) fn set(&self, option: i32, value: i32) -> ZmqResult<()> {
+    fn set(&self, option: i32, value: i32) -> ZmqResult<()> {
         let context = self.context.lock();
         if unsafe { zmq_sys_crate::zmq_ctx_set(*context, option, value) } == -1 {
             cold_path();
@@ -56,7 +56,7 @@ impl RawContext {
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    pub(crate) fn set_ext(&self, option: i32, value: &str) -> ZmqResult<()> {
+    fn set_ext(&self, option: i32, value: &str) -> ZmqResult<()> {
         let c_value = CString::from_str(value)?;
 
         let context = self.context.lock();
@@ -81,7 +81,25 @@ impl RawContext {
         Ok(())
     }
 
-    pub(crate) fn get(&self, option: i32) -> ZmqResult<i32> {
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn set_ctxopt_string(&self, option: i32, value: &str) -> ZmqResult<()> {
+        self.set_ext(option, value)
+    }
+
+    pub(crate) fn set_ctxopt_bool(&self, option: i32, value: bool) -> ZmqResult<()> {
+        let value = if value { 1 } else { 0 };
+        self.set(option, value)
+    }
+
+    pub(crate) fn set_ctxopt_int<V>(&self, option: i32, value: V) -> ZmqResult<()>
+    where
+        V: PrimInt + Into<i32>,
+    {
+        self.set(option, value.into())
+    }
+
+    fn get(&self, option: i32) -> ZmqResult<i32> {
         let context = self.context.lock();
         match unsafe { zmq_sys_crate::zmq_ctx_get(*context, option) } {
             -1 => match unsafe { zmq_sys_crate::zmq_errno() } {
@@ -121,6 +139,23 @@ impl RawContext {
             .to_owned()
             .into_string()
             .map_err(ZmqError::from)
+    }
+
+    #[cfg(feature = "draft-api")]
+    #[doc(cfg(feature = "draft-api"))]
+    pub(crate) fn get_ctxopt_string(&self, option: i32) -> ZmqResult<String> {
+        self.get_ext(option)
+    }
+
+    pub(crate) fn get_ctxpt_bool(&self, option: i32) -> ZmqResult<bool> {
+        self.get(option).map(|value| value != 0)
+    }
+
+    pub(crate) fn get_ctxopt_int<V>(&self, option: i32) -> ZmqResult<V>
+    where
+        V: PrimInt + From<i32>,
+    {
+        self.get(option).map(|value| value.into())
     }
 
     pub(crate) fn shutdown(&self) -> ZmqResult<()> {
@@ -367,7 +402,10 @@ impl RawSocket {
         )
     }
 
-    pub(crate) fn set_sockopt_int<V: PrimInt>(&self, option: i32, value: V) -> ZmqResult<()> {
+    pub(crate) fn set_sockopt_int<V>(&self, option: i32, value: V) -> ZmqResult<()>
+    where
+        V: PrimInt,
+    {
         self.set_sockopt(option, &value as *const V as *const c_void, size_of::<V>())
     }
 

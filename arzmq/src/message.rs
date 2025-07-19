@@ -7,7 +7,12 @@ use core::ops::RangeBounds;
 use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 use parking_lot::FairMutex;
 
-use crate::{ZmqResult, ffi::RawMessage, sealed, socket::Socket};
+use crate::{
+    ZmqResult,
+    ffi::RawMessage,
+    sealed,
+    socket::{MultipartSender, Socket},
+};
 
 #[derive(DebugDeriveMore, DisplayDeriveMore)]
 #[debug("Message {{ {:?} }}", inner.lock())]
@@ -224,5 +229,15 @@ impl<'a> IntoIterator for &'a mut MultipartMessage {
 
     fn into_iter(self) -> IterMut<'a, Message> {
         self.iter_mut()
+    }
+}
+
+impl<S> Sendable<S> for MultipartMessage
+where
+    S: sealed::SocketType + sealed::SenderFlag,
+    Socket<S>: MultipartSender,
+{
+    fn send(self, socket: &Socket<S>, flags: i32) -> ZmqResult<()> {
+        socket.send_multipart(self, flags)
     }
 }

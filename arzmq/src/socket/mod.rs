@@ -390,7 +390,7 @@ impl<T: sealed::SocketType> Socket<T> {
     /// [`SocketOption`]: SocketOption
     pub fn set_sockopt_int<V>(&self, option: SocketOption, value: V) -> ZmqResult<()>
     where
-        V: PrimInt + Default,
+        V: PrimInt,
     {
         self.socket.set_sockopt_int(option.into(), value)
     }
@@ -2208,7 +2208,7 @@ pub(crate) mod builder {
         immediate: bool,
         #[builder(default = false)]
         ipv6: bool,
-        #[builder(setter(into), default = -1)]
+        #[builder(setter(into), default = 0)]
         linger: i32,
         #[builder(setter(into), default = -1)]
         max_message_size: i64,

@@ -17,7 +17,6 @@ pub enum ZmqError {
     /// EINVAL
     #[error("Invalid argument")]
     InvalidArgument,
-
     /// ENOTSUP
     #[error("Not supported")]
     Unsupported,
@@ -72,7 +71,6 @@ pub enum ZmqError {
     /// ENETRESET
     #[error("Network dropped connection on reset")]
     NetworkReset,
-
     /// EFSM
     #[error("Operation cannot be accomplished in current state")]
     OperationNotPossible,
@@ -85,14 +83,12 @@ pub enum ZmqError {
     /// EMTHREAD
     #[error("I/O thread unavaible")]
     IoThreadUnavailable,
-
     /// ENOENT
     #[error("Endpoint not in use")]
     EndpointNotInUse,
     /// EINTR
     #[error("Interrupted function call")]
     Interrupted,
-
     /// EMFILE
     #[error("Too many open files")]
     TooManyOpenFiles,
@@ -115,7 +111,6 @@ impl From<i32> for ZmqError {
             zmq_sys_crate::errno::EAGAIN => Self::Again,
             zmq_sys_crate::errno::EFAULT => Self::ContextInvalid,
             zmq_sys_crate::errno::EINVAL => Self::InvalidArgument,
-
             zmq_sys_crate::errno::ENOTSUP => Self::Unsupported,
             zmq_sys_crate::errno::EPROTONOSUPPORT => Self::ProtocolNotSupported,
             zmq_sys_crate::errno::ENOBUFS => Self::NoBufferSpaceAvailable,
@@ -134,15 +129,12 @@ impl From<i32> for ZmqError {
             zmq_sys_crate::errno::ETIMEDOUT => Self::ConnectionTimeout,
             zmq_sys_crate::errno::EHOSTUNREACH => Self::HostUnreachable,
             zmq_sys_crate::errno::ENETRESET => Self::NetworkReset,
-
             zmq_sys_crate::errno::EFSM => Self::OperationNotPossible,
             zmq_sys_crate::errno::ENOCOMPATPROTO => Self::ProtocolIncompatible,
             zmq_sys_crate::errno::ETERM => Self::ContextTerminated,
             zmq_sys_crate::errno::EMTHREAD => Self::IoThreadUnavailable,
-
             zmq_sys_crate::errno::ENOENT => Self::EndpointNotInUse,
             zmq_sys_crate::errno::EINTR => Self::Interrupted,
-
             zmq_sys_crate::errno::EMFILE => Self::TooManyOpenFiles,
             zmq_sys_crate::errno::EPROTO => Self::TransportNotSupported,
             zmq_sys_crate::errno::ENODEV => Self::NonExistentInterface,
