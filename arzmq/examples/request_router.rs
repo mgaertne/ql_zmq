@@ -3,48 +3,10 @@ use std::thread;
 use arzmq::{
     ZmqResult,
     context::Context,
-    socket::{
-        MultipartReceiver, MultipartSender, Receiver, RecvFlags, RequestSocket, RouterSocket,
-        SendFlags, Sender,
-    },
+    socket::{RequestSocket, RouterSocket},
 };
 
-fn run_router_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let router = RouterSocket::from_context(context)?;
-    router.bind(endpoint)?;
-
-    thread::spawn(move || {
-        for _ in 1..=iterations {
-            let mut multipart = router.recv_multipart(RecvFlags::empty()).unwrap();
-            let content = multipart.pop_back().unwrap();
-            if !content.is_empty() {
-                println!("Received request: {content}");
-            }
-            multipart.push_back("World".into());
-            router
-                .send_multipart(multipart, SendFlags::empty())
-                .unwrap();
-        }
-    });
-
-    Ok(())
-}
-
-fn run_request_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let request = RequestSocket::from_context(context)?;
-    request.connect(endpoint)?;
-    request.set_routing_id("request-router")?;
-
-    for request_no in 1..=iterations {
-        println!("Sending request {request_no}");
-        request.send_msg("Hello", SendFlags::empty())?;
-
-        let message = request.recv_msg(RecvFlags::empty())?;
-        println!("Received reply {request_no:2} {message}");
-    }
-
-    Ok(())
-}
+mod common;
 
 fn main() -> ZmqResult<()> {
     let port = 5556;
@@ -52,11 +14,23 @@ fn main() -> ZmqResult<()> {
 
     let context = Context::new()?;
 
+    let router = RouterSocket::from_context(&context)?;
+
     let router_endpoint = format!("tcp://*:{port}");
-    run_router_socket(&context, &router_endpoint, iterations)?;
+    router.bind(&router_endpoint)?;
+
+    thread::spawn(move || {
+        (1..=iterations)
+            .try_for_each(|_| common::run_multipart_recv_reply(&router, "World"))
+            .unwrap();
+    });
+
+    let request = RequestSocket::from_context(&context)?;
 
     let request_endpoint = format!("tcp://localhost:{port}");
-    run_request_socket(&context, &request_endpoint, iterations)?;
+    request.connect(&request_endpoint)?;
+
+    (1..=iterations).try_for_each(|_| common::run_send_recv(&request, "Hello"))?;
 
     Ok(())
 }

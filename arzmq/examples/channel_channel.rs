@@ -1,40 +1,8 @@
 use std::thread;
 
-use arzmq::{
-    ZmqResult,
-    context::Context,
-    socket::{ChannelSocket, Receiver, RecvFlags, SendFlags, Sender},
-};
+use arzmq::{ZmqResult, context::Context, socket::ChannelSocket};
 
-fn run_channel_server(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let channel = ChannelSocket::from_context(context)?;
-    channel.bind(endpoint)?;
-
-    thread::spawn(move || {
-        for _ in 1..=iterations {
-            let message = channel.recv_msg(RecvFlags::empty()).unwrap();
-            println!("Received request: {message}");
-            channel.send_msg("World", SendFlags::empty()).unwrap();
-        }
-    });
-
-    Ok(())
-}
-
-fn run_channel_client(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let channel = ChannelSocket::from_context(context)?;
-    channel.connect(endpoint)?;
-
-    for request_no in 1..=iterations {
-        println!("Sending request {request_no}");
-        channel.send_msg("Hello", SendFlags::empty())?;
-
-        let message = channel.recv_msg(RecvFlags::empty())?;
-        println!("Received reply {request_no:2} {message}");
-    }
-
-    Ok(())
-}
+mod common;
 
 fn main() -> ZmqResult<()> {
     let endpoint = "inproc://arzmq-example-pair";
@@ -42,9 +10,19 @@ fn main() -> ZmqResult<()> {
 
     let context = Context::new()?;
 
-    run_channel_server(&context, endpoint, iterations)?;
+    let channel_server = ChannelSocket::from_context(&context)?;
+    channel_server.bind(endpoint)?;
 
-    run_channel_client(&context, endpoint, iterations)?;
+    thread::spawn(move || {
+        (1..=iterations)
+            .try_for_each(|_| common::run_recv_send(&channel_server, "World"))
+            .unwrap();
+    });
+
+    let channel_client = ChannelSocket::from_context(&context)?;
+    channel_client.connect(endpoint)?;
+
+    (1..=iterations).try_for_each(|_| common::run_send_recv(&channel_client, "Hello"))?;
 
     Ok(())
 }

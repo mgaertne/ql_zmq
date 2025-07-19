@@ -1,4 +1,4 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::Ordering;
 use std::thread;
 
 use arzmq::{
@@ -7,8 +7,11 @@ use arzmq::{
     socket::{Receiver, RecvFlags, SendFlags, Sender, XPublishSocket, XSubscribeSocket},
 };
 
+mod common;
+
+use common::KEEP_RUNNING;
+
 const SUBSCRIBED_TOPIC: &str = "arzmq-example";
-static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
 
 fn run_xpublish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
     let xpublish = XPublishSocket::from_context(context)?;
@@ -22,7 +25,6 @@ fn run_xpublish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
                 subscription_bytes[0],
                 str::from_utf8(&subscription_bytes[1..]).unwrap(),
             );
-            assert_eq!(first_byte, 1);
             println!("{first_byte} {subscription_topic}");
 
             let published_msg = format!("{SUBSCRIBED_TOPIC} important update");
@@ -31,29 +33,6 @@ fn run_xpublish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
                 .unwrap();
         }
     });
-
-    Ok(())
-}
-
-fn run_xsubscribe_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let xsubscribe = XSubscribeSocket::from_context(context)?;
-    xsubscribe.connect(endpoint)?;
-
-    xsubscribe.subscribe(SUBSCRIBED_TOPIC)?;
-
-    for number in 0..iterations {
-        let zmq_msg = xsubscribe.recv_msg(RecvFlags::empty())?;
-        let zmq_str = zmq_msg.to_string();
-        let pubsub_item = zmq_str.split_once(" ");
-        assert_eq!(Some((SUBSCRIBED_TOPIC, "important update")), pubsub_item);
-
-        let (topic, item) = pubsub_item.unwrap();
-        println!("Received msg for topic {topic:?}: {item}",);
-
-        xsubscribe.subscribe(format!("topic-{number}"))?;
-    }
-
-    KEEP_RUNNING.store(false, Ordering::Release);
 
     Ok(())
 }
@@ -67,8 +46,23 @@ fn main() -> ZmqResult<()> {
     let xpublish_endpoint = format!("tcp://*:{port}");
     run_xpublish_socket(&context, &xpublish_endpoint)?;
 
-    let subscribe_endpoint = format!("tcp://localhost:{port}");
-    run_xsubscribe_socket(&context, &subscribe_endpoint, iterations)?;
+    let xsubscribe = XSubscribeSocket::from_context(&context)?;
+
+    let xsubscribe_endpoint = format!("tcp://localhost:{port}");
+    xsubscribe.connect(&xsubscribe_endpoint)?;
+
+    xsubscribe.subscribe(SUBSCRIBED_TOPIC)?;
+
+    (1..=iterations).try_for_each(|number| {
+        common::run_subscribe_client(&xsubscribe, SUBSCRIBED_TOPIC)?;
+        if number % 2 == 1 {
+            xsubscribe.subscribe(format!("topic-{number}"))
+        } else {
+            xsubscribe.unsubscribe(format!("topic-{}", number - 1))
+        }
+    })?;
+
+    KEEP_RUNNING.store(false, Ordering::Release);
 
     Ok(())
 }

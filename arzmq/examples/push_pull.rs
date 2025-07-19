@@ -1,41 +1,15 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::Ordering;
 use std::thread;
 
 use arzmq::{
-    ZmqResult,
+    ZmqError, ZmqResult,
     context::Context,
-    socket::{PullSocket, PushSocket, Receiver, RecvFlags, SendFlags, Sender},
+    socket::{PullSocket, PushSocket, Receiver, RecvFlags},
 };
 
-static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
+mod common;
 
-fn run_push_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
-    let push = PushSocket::from_context(context)?;
-    push.bind(endpoint)?;
-
-    thread::spawn(move || {
-        while KEEP_RUNNING.load(Ordering::Acquire) {
-            push.send_msg("Important update", SendFlags::empty())
-                .unwrap();
-        }
-    });
-
-    Ok(())
-}
-
-fn run_pull_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let pull = PullSocket::from_context(context)?;
-    pull.connect(endpoint)?;
-
-    for i in 1..=iterations {
-        let msg = pull.recv_msg(RecvFlags::empty())?;
-        println!("Received message {i:2}: {msg}");
-    }
-
-    KEEP_RUNNING.store(false, Ordering::Release);
-
-    Ok(())
-}
+use common::KEEP_RUNNING;
 
 fn main() -> ZmqResult<()> {
     let port = 5556;
@@ -43,11 +17,26 @@ fn main() -> ZmqResult<()> {
 
     let context = Context::new()?;
 
+    let push = PushSocket::from_context(&context)?;
+
     let push_endpoint = format!("tcp://*:{port}");
-    run_push_socket(&context, &push_endpoint)?;
+    push.bind(&push_endpoint)?;
+
+    thread::spawn(move || common::run_publisher(&push, "important update").unwrap());
+
+    let pull = PullSocket::from_context(&context)?;
 
     let pull_endpoint = format!("tcp://localhost:{port}");
-    run_pull_socket(&context, &pull_endpoint, iterations)?;
+    pull.connect(&pull_endpoint)?;
+
+    (1..=iterations).try_for_each(|i| {
+        let msg = pull.recv_msg(RecvFlags::empty())?;
+        println!("Received message {i:2}: {msg}");
+
+        Ok::<(), ZmqError>(())
+    })?;
+
+    KEEP_RUNNING.store(false, Ordering::Release);
 
     Ok(())
 }

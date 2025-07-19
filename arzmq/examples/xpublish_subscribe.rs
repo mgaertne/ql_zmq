@@ -49,11 +49,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let subscribe = SubscribeSocket::from_context(&context)?;
     let subscribe_endpoint = format!("tcp://localhost:{port}");
-    subscribe.connect(subscribe_endpoint)?;
+    subscribe.connect(&subscribe_endpoint)?;
 
     subscribe.subscribe(SUBSCRIBED_TOPIC)?;
 
-    common::run_subscribe_client(&subscribe, SUBSCRIBED_TOPIC, iterations)?;
+    (1..=iterations).try_for_each(|number| {
+        common::run_subscribe_client(&subscribe, SUBSCRIBED_TOPIC)?;
+
+        subscribe.subscribe(format!("topic-{number}"))
+    })?;
 
     KEEP_RUNNING.store(false, Ordering::Release);
 
