@@ -21,7 +21,7 @@ default = []
 draft-api = []
 libsodium = ["libsodium-sys-stable"]
 
-[dependencies]
+[target."cfg(not(windows))".dependencies]
 libsodium-sys-stable = { version = ">=1.22", optional = true }
 
 [build-dependencies]
@@ -30,4 +30,3 @@ bindgen = { version = "0.72" }
 
 [target."cfg(unix)".dependencies]
 libc = { version = "1.0.0-alpha.1", default-features = false }
-
