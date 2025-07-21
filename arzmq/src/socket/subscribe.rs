@@ -151,3 +151,37 @@ impl Socket<Subscribe> {
         self.get_sockopt_int(SocketOption::TopicsCount)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::SubscribeSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct SubscribeConfig {
+        socket_config: SocketConfig,
+        #[builder(default = false)]
+        conflate: bool,
+        #[builder(default = false)]
+        invert_matching: bool,
+        #[builder(setter(into), default = "Default::default()")]
+        subscribe: String,
+    }
+
+    impl SubscribeConfig {
+        pub fn apply(&self, socket: &SubscribeSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.set_conflate(self.conflate)?;
+            socket.set_invert_matching(self.invert_matching)?;
+            socket.subscribe(&self.subscribe)?;
+
+            Ok(())
+        }
+    }
+}

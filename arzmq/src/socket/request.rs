@@ -129,3 +129,37 @@ impl Socket<Request> {
         self.set_sockopt_bool(SocketOption::ProbeRouter, value)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::RequestSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct RequestConfig {
+        socket_config: SocketConfig,
+        #[builder(default = false)]
+        correlate: bool,
+        #[builder(default = false)]
+        relaxed: bool,
+        #[builder(setter(into), default = "Default::default()")]
+        routing_id: String,
+    }
+
+    impl RequestConfig {
+        pub fn apply(&self, socket: &RequestSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.set_correlate(self.correlate)?;
+            socket.set_relaxed(self.relaxed)?;
+            socket.set_routing_id(&self.routing_id)?;
+
+            Ok(())
+        }
+    }
+}

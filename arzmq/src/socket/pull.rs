@@ -49,3 +49,31 @@ impl Socket<Pull> {
         self.set_sockopt_bool(SocketOption::Conflate, value)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::PullSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct PullConfig {
+        socket_config: SocketConfig,
+        #[builder(default = false)]
+        conflate: bool,
+    }
+
+    impl PullConfig {
+        pub fn apply(&self, socket: &PullSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.set_conflate(self.conflate)?;
+
+            Ok(())
+        }
+    }
+}

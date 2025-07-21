@@ -73,3 +73,31 @@ impl Socket<Reply> {
         self.get_sockopt_string(SocketOption::RoutingId)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::ReplySocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct ReplyConfig {
+        socket_config: SocketConfig,
+        #[builder(setter(into), default = "Default::default()")]
+        routing_id: String,
+    }
+
+    impl ReplyConfig {
+        pub fn apply(&self, socket: &ReplySocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.set_routing_id(&self.routing_id)?;
+
+            Ok(())
+        }
+    }
+}

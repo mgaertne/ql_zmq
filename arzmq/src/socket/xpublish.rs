@@ -226,3 +226,61 @@ impl Socket<XPublish> {
         self.get_sockopt_int(SocketOption::TopicsCount)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::XPublishSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct XPublishConfig {
+        socket_config: SocketConfig,
+        #[builder(default = false)]
+        invert_matching: bool,
+        #[builder(default = false)]
+        nodrop: bool,
+        #[builder(default = false)]
+        verbose: bool,
+        #[builder(default = false)]
+        verboser: bool,
+        #[builder(default = false)]
+        manual: bool,
+        #[cfg(feature = "draft-api")]
+        #[doc(cfg(feature = "draft-api"))]
+        #[builder(default = false)]
+        manual_last_value: bool,
+        #[cfg(feature = "draft-api")]
+        #[doc(cfg(feature = "draft-api"))]
+        #[builder(default = "Default::default()")]
+        welcome_msg: String,
+        #[cfg(feature = "draft-api")]
+        #[doc(cfg(feature = "draft-api"))]
+        #[builder(default = false)]
+        only_first_subscribe: bool,
+    }
+
+    impl XPublishConfig {
+        pub fn apply(&self, socket: &XPublishSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.set_invert_matching(self.invert_matching)?;
+            socket.set_nodrop(self.nodrop)?;
+            socket.set_verbose(self.verbose)?;
+            socket.set_verboser(self.verboser)?;
+            socket.set_manual(self.manual)?;
+            #[cfg(feature = "draft-api")]
+            socket.set_manual_last_value(self.manual_last_value)?;
+            #[cfg(feature = "draft-api")]
+            socket.set_welcome_msg(&self.welcome_msg)?;
+            #[cfg(feature = "draft-api")]
+            socket.set_only_first_subscribe(self.only_first_subscribe)?;
+
+            Ok(())
+        }
+    }
+}

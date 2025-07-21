@@ -131,3 +131,37 @@ impl Socket<Publish> {
         self.get_sockopt_int(SocketOption::TopicsCount)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::PublishSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct PublishConfig {
+        socket_config: SocketConfig,
+        #[builder(default = false)]
+        conflate: bool,
+        #[builder(default = false)]
+        invert_matching: bool,
+        #[builder(default = false)]
+        nodrop: bool,
+    }
+
+    impl PublishConfig {
+        pub fn apply(&self, socket: &PublishSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.set_conflate(self.conflate)?;
+            socket.set_invert_matching(self.invert_matching)?;
+            socket.set_nodrop(self.nodrop)?;
+
+            Ok(())
+        }
+    }
+}

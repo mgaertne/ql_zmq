@@ -65,6 +65,8 @@ impl MultipartReceiver for Socket<Router> {}
 
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[cfg_attr(feature = "builder", derive(serde::Serialize, serde::Deserialize))]
 pub struct RouterNotify(i32);
 
 #[cfg(feature = "draft-api")]
@@ -279,5 +281,62 @@ impl Socket<Router> {
     pub fn router_notify(&self) -> ZmqResult<RouterNotify> {
         self.get_sockopt_int(SocketOption::RouterNotify)
             .map(RouterNotify::from_bits_truncate)
+    }
+}
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    #[cfg(feature = "draft-api")]
+    use super::RouterNotify;
+    use super::RouterSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct RouterConfig {
+        socket_config: SocketConfig,
+        #[cfg(feature = "draft-api")]
+        #[doc(cfg(feature = "draft-api"))]
+        #[builder(setter(into), default = "Default::default()")]
+        hello_message: String,
+        #[cfg(feature = "draft-api")]
+        #[doc(cfg(feature = "draft-api"))]
+        #[builder(setter(into), default = "Default::default()")]
+        disconnect_message: String,
+        #[cfg(feature = "draft-api")]
+        #[doc(cfg(feature = "draft-api"))]
+        #[builder(setter(into), default = "RouterNotify::empty()")]
+        router_notify: RouterNotify,
+        #[builder(setter(into), default = "Default::default()")]
+        routing_id: String,
+        #[builder(default = false)]
+        router_mandatory: bool,
+        #[builder(default = false)]
+        router_handover: bool,
+        #[builder(setter(into), default = "Default::default()")]
+        connect_routing_id: String,
+    }
+
+    impl RouterConfig {
+        pub fn apply(&self, socket: &RouterSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            #[cfg(feature = "draft-api")]
+            socket.set_hello_message(&self.hello_message)?;
+            #[cfg(feature = "draft-api")]
+            socket.set_disconnect_message(&self.disconnect_message)?;
+            #[cfg(feature = "draft-api")]
+            socket.set_router_notify(self.router_notify)?;
+            socket.set_routing_id(&self.routing_id)?;
+            socket.set_router_mandatory(self.router_mandatory)?;
+            socket.set_router_handover(self.router_handover)?;
+            socket.set_connect_routing_id(&self.connect_routing_id)?;
+
+            Ok(())
+        }
     }
 }

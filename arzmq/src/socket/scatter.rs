@@ -32,3 +32,11 @@ unsafe impl Sync for Socket<Scatter> {}
 unsafe impl Send for Socket<Scatter> {}
 
 impl Socket<Scatter> {}
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use crate::socket::{SocketConfig, SocketConfigBuilder};
+
+    pub type ScatterConfig = SocketConfig;
+    pub type ScatterConfigBuilder = SocketConfigBuilder;
+}

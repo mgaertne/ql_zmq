@@ -41,3 +41,29 @@ impl Socket<Dish> {
         self.socket.leave(group.as_ref())
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::DishSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct DishConfig {
+        socket_config: SocketConfig,
+        #[builder(setter(into), default = "Default::default()")]
+        join: String,
+    }
+
+    impl DishConfig {
+        pub fn apply(&self, socket: &DishSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.join(&self.join)?;
+
+            Ok(())
+        }
+    }
+}

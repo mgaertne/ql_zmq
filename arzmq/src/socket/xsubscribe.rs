@@ -119,3 +119,37 @@ impl Socket<XSubscribe> {
         self.set_sockopt_bool(SocketOption::XsubVerboseUnsubscribe, value)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::XSubscribeSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct XSubscribeConfig {
+        socket_config: SocketConfig,
+        #[builder(setter(into), default = "Default::default()")]
+        subscribe: String,
+        #[cfg(feature = "draft-api")]
+        #[doc(cfg(feature = "draft-api"))]
+        #[builder(default = false)]
+        only_first_subscribe: bool,
+    }
+
+    impl XSubscribeConfig {
+        pub fn apply(&self, socket: &XSubscribeSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            #[cfg(feature = "draft-api")]
+            socket.set_only_first_subscribe(self.only_first_subscribe)?;
+            socket.subscribe(&self.subscribe)?;
+
+            Ok(())
+        }
+    }
+}

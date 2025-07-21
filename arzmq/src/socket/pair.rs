@@ -49,3 +49,11 @@ impl MultipartSender for Socket<Pair> {}
 impl MultipartReceiver for Socket<Pair> {}
 
 impl Socket<Pair> {}
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use crate::socket::{SocketConfig, SocketConfigBuilder};
+
+    pub type PairConfig = SocketConfig;
+    pub type PairConfigBuilder = SocketConfigBuilder;
+}

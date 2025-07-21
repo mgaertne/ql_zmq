@@ -48,3 +48,31 @@ impl Socket<Radio> {
         self.set_sockopt_bool(SocketOption::MulticastLoop, value)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::RadioSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct RadioConfig {
+        socket_config: SocketConfig,
+        #[builder(default = false)]
+        multicast_loop: bool,
+    }
+
+    impl RadioConfig {
+        pub fn apply(&self, socket: &RadioSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.set_multicast_loop(self.multicast_loop)?;
+
+            Ok(())
+        }
+    }
+}

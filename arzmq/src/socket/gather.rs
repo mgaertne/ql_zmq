@@ -24,3 +24,11 @@ unsafe impl Sync for Socket<Gather> {}
 unsafe impl Send for Socket<Gather> {}
 
 impl Socket<Gather> {}
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use crate::socket::{SocketConfig, SocketConfigBuilder};
+
+    pub type GatherConfig = SocketConfig;
+    pub type GatherConfigBuilder = SocketConfigBuilder;
+}

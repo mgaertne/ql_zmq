@@ -134,3 +134,37 @@ impl Socket<Peer> {
         self.set_sockopt_string(SocketOption::DisconnectMessage, value)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::PeerSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct PeerConfig {
+        socket_config: SocketConfig,
+        #[builder(setter(into), default = "Default::default()")]
+        hiccup_msg: String,
+        #[builder(setter(into), default = "Default::default()")]
+        hello_message: String,
+        #[builder(setter(into), default = "Default::default()")]
+        disconnect_message: String,
+    }
+
+    impl PeerConfig {
+        pub fn apply(&self, socket: &PeerSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.set_hiccup_message(&self.hiccup_msg)?;
+            socket.set_hello_message(&self.hello_message)?;
+            socket.set_disconnect_message(&self.disconnect_message)?;
+
+            Ok(())
+        }
+    }
+}

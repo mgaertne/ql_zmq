@@ -86,3 +86,34 @@ impl Socket<Client> {
         self.set_sockopt_string(SocketOption::HelloMessage, value)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::ClientSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct ClientConfig {
+        socket_config: SocketConfig,
+        #[builder(setter(into), default = "Default::default()")]
+        hiccup_msg: String,
+        #[builder(setter(into), default = "Default::default()")]
+        hello_message: String,
+    }
+
+    impl ClientConfig {
+        pub fn apply(&self, socket: &ClientSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.set_hiccup_message(&self.hiccup_msg)?;
+            socket.set_hello_message(&self.hello_message)?;
+
+            Ok(())
+        }
+    }
+}

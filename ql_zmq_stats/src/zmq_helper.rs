@@ -7,7 +7,7 @@ use arzmq::{
     security::SecurityMechanism,
     socket::{
         MonitorFlags, MonitorReceiver, MonitorSocket, MonitorSocketEvent, Receiver, Socket,
-        SocketConfigBuilder, SubscribeSocket,
+        SocketConfigBuilder, SubscribeConfigBuilder, SubscribeSocket,
     },
 };
 use serde_json::Value;
@@ -53,7 +53,7 @@ impl MonitoredSubscriber {
     }
 
     async fn configure(&self, password: &str) -> Result<()> {
-        let config = SocketConfigBuilder::default()
+        let socket_config = SocketConfigBuilder::default()
             .security_mechanism(SecurityMechanism::PlainClient {
                 username: "stats".into(),
                 password: password.into(),
@@ -65,6 +65,11 @@ impl MonitoredSubscriber {
             .zap_domain("stats")
             .build()?;
 
+        let config = SubscribeConfigBuilder::default()
+            .socket_config(socket_config)
+            .subscribe("")
+            .build()?;
+
         let subscriber = self.subscriber.read().await;
         config.apply(&subscriber)?;
 
@@ -74,8 +79,6 @@ impl MonitoredSubscriber {
     async fn connect(&self, address: &str) -> Result<()> {
         let socket = self.subscriber.read().await;
         socket.connect(address)?;
-
-        socket.subscribe("")?;
 
         Ok(())
     }

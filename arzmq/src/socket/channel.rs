@@ -38,3 +38,11 @@ unsafe impl Sync for Socket<Channel> {}
 unsafe impl Send for Socket<Channel> {}
 
 impl Socket<Channel> {}
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use crate::socket::{SocketConfig, SocketConfigBuilder};
+
+    pub type ChannelConfig = SocketConfig;
+    pub type ChannelConfigBuilder = SocketConfigBuilder;
+}

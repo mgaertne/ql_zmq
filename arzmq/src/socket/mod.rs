@@ -53,9 +53,15 @@ pub use builder::{SocketConfig, SocketConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use channel::ChannelSocket;
+#[cfg(all(feature = "draft-api", feature = "builder"))]
+#[doc(cfg(all(feature = "draft-api", feature = "builder")))]
+pub use channel::builder::{ChannelConfig, ChannelConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use client::ClientSocket;
+#[cfg(all(feature = "draft-api", feature = "builder"))]
+#[doc(cfg(all(feature = "draft-api", feature = "builder")))]
+pub use client::builder::{ClientConfig, ClientConfigBuilder};
 pub use dealer::DealerSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
@@ -63,37 +69,88 @@ pub use dealer::builder::{DealerConfig, DealerConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use dish::DishSocket;
+#[cfg(all(feature = "draft-api", feature = "builder"))]
+#[doc(cfg(all(feature = "draft-api", feature = "builder")))]
+pub use dish::builder::{DishConfig, DishConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use gather::GatherSocket;
+#[cfg(all(feature = "draft-api", feature = "builder"))]
+#[doc(cfg(all(feature = "draft-api", feature = "builder")))]
+pub use gather::builder::{GatherConfig, GatherConfigBuilder};
 use monitor::Monitor;
 pub use monitor::{MonitorReceiver, MonitorSocket, MonitorSocketEvent};
 pub use pair::PairSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use pair::builder::{PairConfig, PairConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use peer::PeerSocket;
+#[cfg(all(feature = "draft-api", feature = "builder"))]
+#[doc(cfg(all(feature = "draft-api", feature = "builder")))]
+pub use peer::builder::{PeerConfig, PeerConfigBuilder};
 pub use publish::PublishSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use publish::builder::{PublishConfig, PublishConfigBuilder};
 pub use pull::PullSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use pull::builder::{PullConfig, PullConfigBuilder};
 pub use push::PushSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use push::builder::{PushConfig, PushConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use radio::RadioSocket;
+#[cfg(all(feature = "draft-api", feature = "builder"))]
+#[doc(cfg(all(feature = "draft-api", feature = "builder")))]
+pub use radio::builder::{RadioConfig, RadioConfigBuilder};
 pub use reply::ReplySocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use reply::builder::{ReplyConfig, ReplyConfigBuilder};
 pub use request::RequestSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use request::builder::{RequestConfig, RequestConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use router::RouterNotify;
 pub use router::RouterSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use router::builder::{RouterConfig, RouterConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use scatter::ScatterSocket;
+#[cfg(all(feature = "draft-api", feature = "builder"))]
+#[doc(cfg(all(feature = "draft-api", feature = "builder")))]
+pub use scatter::builder::{ScatterConfig, ScatterConfigBuilder};
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use server::ServerSocket;
+#[cfg(all(feature = "draft-api", feature = "builder"))]
+#[doc(cfg(all(feature = "draft-api", feature = "builder")))]
+pub use server::builder::{ServerConfig, ServerConfigBuilder};
 pub use stream::StreamSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use stream::builder::{StreamConfig, StreamConfigBuilder};
 pub use subscribe::SubscribeSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use subscribe::builder::{SubscribeConfig, SubscribeConfigBuilder};
 pub use xpublish::XPublishSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use xpublish::builder::{XPublishConfig, XPublishConfigBuilder};
 pub use xsubscribe::XSubscribeSocket;
+#[cfg(feature = "builder")]
+#[doc(cfg(feature = "builder"))]
+pub use xsubscribe::builder::{XSubscribeConfig, XSubscribeConfigBuilder};
 
 #[doc(cfg(zmq_have_gssapi))]
 use crate::security::GssApiNametype;

@@ -136,3 +136,40 @@ impl Socket<Stream> {
         self.set_sockopt_bool(SocketOption::StreamNotify, value)
     }
 }
+
+#[cfg(feature = "builder")]
+pub(crate) mod builder {
+    use core::default::Default;
+
+    use derive_builder::Builder;
+    use serde::{Deserialize, Serialize};
+
+    use super::StreamSocket;
+    use crate::{ZmqResult, socket::SocketConfig};
+
+    #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
+    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    pub struct StreamConfig {
+        socket_config: SocketConfig,
+        #[builder(setter(into), default = "Default::default()")]
+        routing_id: String,
+        #[builder(setter(into), default = "Default::default()")]
+        connect_routing_id: String,
+        #[cfg(feature = "draft-api")]
+        #[doc(cfg(feature = "draft-api"))]
+        #[builder(default = false)]
+        stream_notify: bool,
+    }
+
+    impl StreamConfig {
+        pub fn apply(&self, socket: &StreamSocket) -> ZmqResult<()> {
+            self.socket_config.apply(socket)?;
+            socket.set_routing_id(&self.routing_id)?;
+            socket.set_connect_routing_id(&self.connect_routing_id)?;
+            #[cfg(feature = "draft-api")]
+            socket.set_stream_notify(self.stream_notify)?;
+
+            Ok(())
+        }
+    }
+}
