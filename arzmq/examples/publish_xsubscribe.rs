@@ -36,7 +36,7 @@ fn main() -> ZmqResult<()> {
 
     xsubscribe.subscribe(SUBSCRIBED_TOPIC)?;
 
-    (1..=iterations).try_for_each(|number| {
+    (0..iterations).try_for_each(|number| {
         common::run_subscribe_client(&xsubscribe, SUBSCRIBED_TOPIC)?;
         xsubscribe.subscribe(format!("topic-{number}"))
     })?;

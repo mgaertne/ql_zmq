@@ -16,7 +16,7 @@ fn main() -> ZmqResult<()> {
     dealer_server.bind(&server_endpoint)?;
 
     thread::spawn(move || {
-        (1..=iterations)
+        (0..iterations)
             .try_for_each(|_| common::run_multipart_recv_reply(&dealer_server, "World"))
             .unwrap();
     });
@@ -26,7 +26,7 @@ fn main() -> ZmqResult<()> {
     let client_endpoint = format!("tcp://localhost:{port}");
     dealer_client.connect(&client_endpoint)?;
 
-    (1..=iterations).try_for_each(|_| common::run_multipart_send_recv(&dealer_client, "Hello"))?;
+    (0..iterations).try_for_each(|_| common::run_multipart_send_recv(&dealer_client, "Hello"))?;
 
     Ok(())
 }

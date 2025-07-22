@@ -21,7 +21,7 @@ pub enum SecurityMechanism {
     #[display("PlainServer {{ username = {username}, password = {password} }}")]
     PlainServer { username: String, password: String },
     #[cfg(feature = "curve")]
-    #[doc(cfg(feature = "curve"))]
+    #[doc(cfg(all(feature = "curve", not(windows))))]
     #[display("CurveClient {{ ... }}")]
     CurveClient {
         server_key: Vec<u8>,
@@ -29,7 +29,7 @@ pub enum SecurityMechanism {
         secret_key: Vec<u8>,
     },
     #[cfg(feature = "curve")]
-    #[doc(cfg(feature = "curve"))]
+    #[doc(cfg(all(feature = "curve", not(windows))))]
     #[display("CurveServer {{ ... }}")]
     CurveServer { secret_key: Vec<u8> },
     #[doc(cfg(zmq_have_gssapi))]
@@ -130,7 +130,7 @@ impl<T: sealed::SocketType> TryFrom<&Socket<T>> for SecurityMechanism {
 }
 
 #[cfg(feature = "curve")]
-#[doc(cfg(feature = "curve"))]
+#[doc(cfg(all(feature = "curve", not(windows))))]
 pub use z85::{DecodeError as Z85DecodeError, decode as z85_decode, encode as z85_encode};
 
 /// # generate a new CURVE keypair
@@ -141,7 +141,7 @@ pub use z85::{DecodeError as Z85DecodeError, decode as z85_decode, encode as z85
 /// [`curve_keypair()`]: curve_keypair
 /// [`z85_encode()`]: z85_encode
 #[cfg(feature = "curve")]
-#[doc(cfg(feature = "curve"))]
+#[doc(cfg(all(feature = "curve", not(windows))))]
 pub fn curve_keypair() -> ZmqResult<(Vec<c_char>, Vec<c_char>)> {
     let mut public_key: [c_char; 41] = [0; 41];
     let mut secret_key: [c_char; 41] = [0; 41];
@@ -167,7 +167,7 @@ pub fn curve_keypair() -> ZmqResult<(Vec<c_char>, Vec<c_char>)> {
 /// [`curve_public()`]: curve_public
 /// [`z85_encode()`]: z85_encode
 #[cfg(feature = "curve")]
-#[doc(cfg(feature = "curve"))]
+#[doc(cfg(all(feature = "curve", not(windows))))]
 pub fn curve_public<T>(mut secret_key: T) -> ZmqResult<Vec<c_char>>
 where
     T: AsMut<[c_char]>,

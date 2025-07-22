@@ -98,7 +98,10 @@ mod has_capability_tests {
 
     #[test]
     fn has_curve_capability() {
-        assert_eq!(has_capability(Capability::Curve), cfg!(feature = "curve"));
+        assert_eq!(
+            has_capability(Capability::Curve),
+            cfg!(all(feature = "curve", not(windows)))
+        );
     }
 
     #[test]

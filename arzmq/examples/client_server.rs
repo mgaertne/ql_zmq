@@ -1,4 +1,4 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::Ordering;
 use std::thread;
 
 use arzmq::{
@@ -8,54 +8,44 @@ use arzmq::{
     socket::{ClientSocket, Receiver, RecvFlags, SendFlags, Sender, ServerSocket},
 };
 
-static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
+mod common;
 
-fn run_server_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
-    let server = ServerSocket::from_context(context)?;
-    server.bind(endpoint)?;
+use common::KEEP_RUNNING;
 
-    thread::spawn(move || {
-        while KEEP_RUNNING.load(Ordering::Acquire) {
-            let message = server.recv_msg(RecvFlags::empty()).unwrap();
-            println!("Received message: \"{message}\"");
+fn run_server_socket(server: &ServerSocket, reply: &str) -> ZmqResult<()> {
+    let message = server.recv_msg(RecvFlags::empty())?;
+    println!("Received message: \"{message:?}\"");
 
-            let returned: Message = "World".into();
-            returned
-                .set_routing_id(message.routing_id().unwrap())
-                .unwrap();
-            server.send_msg(returned, SendFlags::empty()).unwrap();
-        }
-    });
-
-    Ok(())
-}
-
-fn run_client_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let client = ClientSocket::from_context(context)?;
-    client.connect(endpoint)?;
-
-    for number in 0..iterations {
-        client.send_msg("Hello", SendFlags::empty())?;
-        let zmq_msg = client.recv_msg(RecvFlags::empty())?;
-        println!("Received msg {number}: {zmq_msg}",);
-    }
-
-    KEEP_RUNNING.store(false, Ordering::Release);
-
-    Ok(())
+    let returned: Message = reply.into();
+    returned.set_routing_id(message.routing_id().unwrap())?;
+    server.send_msg(returned, SendFlags::empty())
 }
 
 fn main() -> ZmqResult<()> {
-    let port = 5556;
+    let port = 5678;
     let iterations = 10;
 
     let context = Context::new()?;
 
-    let publish_endpoint = format!("tcp://*:{port}");
-    run_server_socket(&context, &publish_endpoint)?;
+    let server = ServerSocket::from_context(&context)?;
 
-    let subscribe_endpoint = format!("tcp://localhost:{port}");
-    run_client_socket(&context, &subscribe_endpoint, iterations)?;
+    let server_endpoint = format!("tcp://*:{port}");
+    server.bind(&server_endpoint)?;
+
+    thread::spawn(move || {
+        while KEEP_RUNNING.load(Ordering::Acquire) {
+            run_server_socket(&server, "World").unwrap();
+        }
+    });
+
+    let client = ClientSocket::from_context(&context)?;
+
+    let client_endpoint = format!("tcp://localhost:{port}");
+    client.connect(&client_endpoint)?;
+
+    (0..iterations).try_for_each(|_| common::run_send_recv(&client, "Hello"))?;
+
+    KEEP_RUNNING.store(false, Ordering::Release);
 
     Ok(())
 }

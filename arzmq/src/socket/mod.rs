@@ -1,3 +1,680 @@
+//! # 0MQ sockets
+//!
+//! Sockets are the main entry point to interact with other 0MQ sockets. They come in different
+//! [`SocketType`]s for interactions.
+//!
+//! # Key differences to conventional sockets
+//! Generally speaking, conventional sockets present a synchronous interface to either
+//! connection-oriented reliable byte streams (SOCK_STREAM), or connection-less unreliable
+//! datagrams (SOCK_DGRAM). In comparison, 0MQ sockets present an abstraction of an asynchronous
+//! message queue, with the exact queueing semantics depending on the socket type in use. Where
+//! conventional sockets transfer streams of bytes or discrete datagrams, 0MQ sockets transfer
+//! discrete messages.
+//!
+//! 0MQ sockets being asynchronous means that the timings of the physical connection setup and tear
+//! down, reconnect and effective delivery are transparent to the user and organized by 0MQ itself.
+//! Further, messages may be queued in the event that a peer is unavailable to receive them.
+//!
+//! Conventional sockets allow only strict one-to-one (two peers), many-to-one (many clients, one
+//! server), or in some cases one-to-many (multicast) relationships. With the exception of
+//! [`Pair`] and [`Channel`], 0MQ sockets may be connected to multiple endpoints using
+//! [`connect()`], while simultaneously accepting incoming connections from multiple endpoints
+//! bound to the socket using [`bind()`], thus allowing many-to-many relationships.
+//!
+//! # Socket types
+//! The following sections present the socket types defined by 0MQ, grouped by the general
+//! messaging pattern which is built from related socket types.
+//!
+//! [`SocketType`]: SocketType
+//! [`Pair`]: PairSocket
+//! [`Channel`]: ChannelSocket
+//! [`connect()`]: Socket::connect
+//! [`bind()`]: Socket::bind
+//!
+//! ## Publish-Subscribe pattern
+//! The publish-subscribe pattern is used for one-to-many distribution of data from a single
+//! [`Publish`]er to multiple [`Subscribe`]ers in a fan out fashion.
+//!
+//! ### Examples:
+//! Publish-Subscribe:
+//! ```
+//! # use core::sync::atomic::{Ordering, AtomicBool};
+//! # use std::thread;
+//! #
+//! # use arzmq::{
+//! #     ZmqResult,
+//! #     context::Context,
+//! #     socket::{PublishSocket, SubscribeSocket, Sender, SendFlags, Receiver, RecvFlags},
+//! # };
+//! #
+//! static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
+//!
+//! const SUBSCRIBED_TOPIC: &str = "arzmq-example";
+//!
+//! pub fn run_publisher<S>(socket: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: Sender,
+//! {
+//!     while KEEP_RUNNING.load(Ordering::Acquire) {
+//!         socket.send_msg(msg, SendFlags::empty())?;
+//!     }
+//!
+//!     Ok(())
+//! }
+//!
+//! pub fn run_subscribe_client<S>(socket: &S, subscribed_topic: &str) -> ZmqResult<()>
+//! where
+//!    S: Receiver,
+//! {
+//!     let zmq_msg = socket.recv_msg(RecvFlags::empty())?;
+//!     let zmq_str = zmq_msg.to_string();
+//!     let pubsub_item = zmq_str.split_once(" ");
+//!     assert_eq!(Some((subscribed_topic, "important update")), pubsub_item);
+//!
+//!     Ok(())
+//! }
+//!
+//! fn main() -> ZmqResult<()> {
+//!     let port = 5555;
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let publish = PublishSocket::from_context(&context)?;
+//!
+//!     let publish_endpoint = format!("tcp://*:{port}");
+//!     publish.bind(&publish_endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         let published_msg = format!("{SUBSCRIBED_TOPIC} important update");
+//!         run_publisher(&publish, &published_msg).unwrap();
+//!     });
+//!
+//!     let subscribe = SubscribeSocket::from_context(&context)?;
+//!
+//!     let subscribe_endpoint = format!("tcp://localhost:{port}");
+//!     subscribe.connect(&subscribe_endpoint)?;
+//!
+//!     subscribe.subscribe(SUBSCRIBED_TOPIC)?;
+//!
+//!     (0..iterations).try_for_each(|number| {
+//!         run_subscribe_client(&subscribe, SUBSCRIBED_TOPIC)
+//!     })?;
+//!
+//!     KEEP_RUNNING.store(false, Ordering::Release);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! XPublish-XSubscribe:
+//! ```
+//! # use core::sync::atomic::{Ordering, AtomicBool};
+//! # use std::thread;
+//! #
+//! # use arzmq::{
+//! #     ZmqResult,
+//! #     context::Context,
+//! #     socket::{Receiver, RecvFlags, SendFlags, Sender, XPublishSocket, XSubscribeSocket},
+//! # };
+//! #
+//! static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
+//!
+//! const SUBSCRIBED_TOPIC: &str = "arzmq-example";
+//!
+//! fn run_xpublish_socket(xpublish: &XPublishSocket, msg: &str) -> ZmqResult<()> {
+//!     while KEEP_RUNNING.load(Ordering::Acquire) {
+//!         let published_msg = format!("{SUBSCRIBED_TOPIC} {msg}");
+//!         xpublish.send_msg(&published_msg, SendFlags::empty())?;
+//!     }
+//!
+//!     Ok(())
+//! }
+//!
+//! pub fn run_subscribe_client<S>(socket: &S, subscribed_topic: &str) -> ZmqResult<()>
+//! where
+//!    S: Receiver,
+//! {
+//!     let zmq_msg = socket.recv_msg(RecvFlags::empty())?;
+//!     let zmq_str = zmq_msg.to_string();
+//!     let pubsub_item = zmq_str.split_once(" ");
+//!     assert_eq!(Some((subscribed_topic, "important update")), pubsub_item);
+//!
+//!     Ok(())
+//! }
+//!
+//! fn main() -> ZmqResult<()> {
+//!     let port = 5556;
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let xpublish = XPublishSocket::from_context(&context)?;
+//!
+//!     let xpublish_endpoint = format!("tcp://*:{port}");
+//!     xpublish.bind(&xpublish_endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         run_xpublish_socket(&xpublish, "important update").unwrap();
+//!     });
+//!
+//!     let xsubscribe = XSubscribeSocket::from_context(&context)?;
+//!
+//!     let xsubscribe_endpoint = format!("tcp://localhost:{port}");
+//!     xsubscribe.connect(&xsubscribe_endpoint)?;
+//!
+//!     xsubscribe.subscribe(SUBSCRIBED_TOPIC)?;
+//!
+//!     (0..iterations).try_for_each(|number| {
+//!         run_subscribe_client(&xsubscribe, SUBSCRIBED_TOPIC)
+//!     })?;
+//!
+//!     KEEP_RUNNING.store(false, Ordering::Release);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! [`Publish`]: PublishSocket
+//! [`Subscribe`]: SubscribeSocket
+//!
+//! ## Client-Server pattern <span class="stab portability"><code>draft-api</code></span>
+//! The client-server pattern is used to allow a single [`Server`] server talk to one or more
+//! [`Client`] clients. The client always starts the conversation, after which either peer can send
+//! messages asynchronously, to the other.
+//!
+//! ### Examples:
+//! ```
+//! # #[cfg(feature = "draft-api")]
+//! # use core::sync::atomic::{AtomicBool, Ordering};
+//! # #[cfg(feature = "draft-api")]
+//! # use std::thread;
+//! #
+//! # #[cfg(feature = "draft-api")]
+//! # use arzmq::{
+//! #     ZmqError, ZmqResult,
+//! #     context::Context,
+//! #     message::Message,
+//! #     socket::{ClientSocket, Receiver, RecvFlags, SendFlags, Sender, ServerSocket},
+//! # };
+//! #
+//! # #[cfg(feature = "draft-api")]
+//! static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
+//!
+//! # #[cfg(feature = "draft-api")]
+//! fn run_server_socket(server: &ServerSocket, reply: &str) -> ZmqResult<()> {
+//!     while KEEP_RUNNING.load(Ordering::Acquire) {
+//!         let message = server.recv_msg(RecvFlags::empty())?;
+//!         assert_eq!(message.to_string(), "Hello");
+//!
+//!         let returned: Message = reply.into();
+//!         returned.set_routing_id(message.routing_id().unwrap())?;
+//!         server.send_msg(returned, SendFlags::empty())?;
+//!     }
+//!
+//!     Ok(())
+//! }
+//!
+//! # #[cfg(feature = "draft-api")]
+//! pub fn run_send_recv<S>(send_recv: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: Sender + Receiver,
+//! {
+//!     send_recv.send_msg(msg, SendFlags::empty())?;
+//!
+//!     let message = send_recv.recv_msg(RecvFlags::empty())?;
+//!     assert_eq!(message.to_string(), "World");
+//!
+//!     Ok(())
+//! }
+//!
+//! # #[cfg(feature = "draft-api")]
+//! fn main() -> ZmqResult<()> {
+//!     let port = 5678;
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let server = ServerSocket::from_context(&context)?;
+//!
+//!     let server_endpoint = format!("tcp://*:{port}");
+//!     server.bind(&server_endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!             run_server_socket(&server, "World").unwrap();
+//!     });
+//!
+//!     let client = ClientSocket::from_context(&context)?;
+//!
+//!     let client_endpoint = format!("tcp://localhost:{port}");
+//!     client.connect(&client_endpoint)?;
+//!
+//!     (0..iterations).try_for_each(|number| {
+//!         run_send_recv(&client, "Hello")
+//!      })?;
+//!
+//!     KEEP_RUNNING.store(false, Ordering::Release);
+//!
+//!     Ok(())
+//! }
+//! # #[cfg(not(feature = "draft-api"))]
+//! # fn main() {}
+//! ```
+//!
+//! [`Server`]: ServerSocket
+//! [`Client`]: ClientSocket
+//!
+//! ## Radio-Dish pattern <span class="stab portability"><code>draft-api</code></span>
+//!
+//! The radio-dish pattern is used for one-to-many distribution of data from a single publisher to
+//! multiple subscribers in a fan out fashion.
+//!
+//! Radio-dish is using groups (vs Pub-sub topics), [`Dish`] sockets can #[`join()`] a group and
+//! each message sent by [´Radio´] sockets belong to a group.
+//!
+//! Groups are null terminated strings limited to 16 chars length (including null). The intention
+//! is to increase the length to 40 chars (including null). The encoding of groups shall be UTF8.
+//!
+//! ### Example
+//!
+//! ```
+//! # #[cfg(feature = "draft-api")]
+//! # use core::sync::atomic::{AtomicBool, Ordering};
+//! # #[cfg(feature = "draft-api")]
+//! # use std::thread;
+//! #
+//! # #[cfg(feature = "draft-api")]
+//! # use arzmq::{
+//! #     ZmqError, ZmqResult,
+//! #     context::Context,
+//! #     message::Message,
+//! #     socket::{DishSocket, RadioSocket, Receiver, RecvFlags, SendFlags, Sender},
+//! # };
+//! #
+//! # #[cfg(feature = "draft-api")]
+//! static GROUP: &str = "radio-dish-ex";
+//!
+//! # #[cfg(feature = "draft-api")]
+//! static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
+//!
+//! # #[cfg(feature = "draft-api")]
+//! fn run_radio_socket(radio: &RadioSocket, message: &str) -> ZmqResult<()> {
+//!     while KEEP_RUNNING.load(Ordering::Acquire) {
+//!         let msg: Message = message.into();
+//!         msg.set_group(GROUP).unwrap();
+//!
+//!         radio.send_msg(msg, SendFlags::empty()).unwrap();
+//!     }
+//!
+//!     Ok(())
+//! }
+//!
+//! # #[cfg(feature = "draft-api")]
+//! fn main() -> ZmqResult<()> {
+//!     let port = 5679;
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let radio = RadioSocket::from_context(&context)?;
+//!
+//!     let radio_endpoint = format!("tcp://*:{port}");
+//!     radio.bind(&radio_endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         run_radio_socket(&radio, "radio msg").unwrap();
+//!     });
+//!
+//!     let dish = DishSocket::from_context(&context)?;
+//!
+//!     let dish_endpoint = format!("tcp://localhost:{port}");
+//!     dish.connect(&dish_endpoint)?;
+//!     dish.join(GROUP)?;
+//!
+//!     (0..iterations).try_for_each(|_| {
+//!         let msg = dish.recv_msg(RecvFlags::empty())?;
+//!         assert_eq!(msg.to_string(), "radio msg");
+//!         Ok::<(), ZmqError>(())
+//!     })?;
+//!
+//!     KEEP_RUNNING.store(false, Ordering::Release);
+//!
+//!     Ok(())
+//! }
+//! # #[cfg(not(feature = "draft-api"))]
+//! # fn main() {}
+//! ```
+//!
+//! [`Radio`]: RadioSocket
+//! [`Dish`]: DishSocket
+//! [`join()`]: DishSocket::join
+//!
+//! ## Pipeline pattern ([`Push`]/[`Pull`])
+//! The pipeline pattern is used for distributing data to nodes arranged in a pipeline. Data always
+//! flows down the pipeline, and each stage of the pipeline is connected to at least one node. When
+//! a pipeline stage is connected to multiple nodes data is round-robined among all connected nodes
+//!
+//! ### Example
+//! ```
+//! # use core::sync::atomic::{Ordering, AtomicBool};
+//! # use std::thread;
+//! #
+//! # use arzmq::{
+//! #     ZmqError, ZmqResult,
+//! #     context::Context,
+//! #     socket::{PullSocket, PushSocket, Sender, SendFlags, Receiver, RecvFlags},
+//! # };
+//! #
+//! static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
+//!
+//! fn main() -> ZmqResult<()> {
+//!     let port = 5557;
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let push = PushSocket::from_context(&context)?;
+//!
+//!     let push_endpoint = format!("tcp://*:{port}");
+//!     push.bind(&push_endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         while KEEP_RUNNING.load(Ordering::Acquire) {
+//!             push.send_msg("important update", SendFlags::empty()).unwrap();
+//!         }
+//!     });
+//!
+//!     let pull = PullSocket::from_context(&context)?;
+//!
+//!     let pull_endpoint = format!("tcp://localhost:{port}");
+//!     pull.connect(&pull_endpoint)?;
+//!
+//!     (0..iterations).try_for_each(|_| {
+//!         let msg = pull.recv_msg(RecvFlags::empty())?;
+//!         assert_eq!(msg.to_string(), "important update");
+//!
+//!         Ok::<(), ZmqError>(())
+//!     })?;
+//!
+//!     KEEP_RUNNING.store(false, Ordering::Release);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! [`Push`]: PushSocket
+//! [`Pull`]: PullSocket
+//!
+//! ## Scatter-gather pattern <span class="stab portability"><code>draft-api</code></span>
+//! The [`Scatter`]-[`Gather`] pattern is the thread-safe version of the pipeline pattern. The
+//! scatter-gather pattern is used for distributing data to nodes arranged in a pipeline. Data
+//! always flows down the pipeline, and each stage of the pipeline is connected to at least one
+//! node. When a pipeline stage is connected to multiple nodes data is round-robined among all
+//! connected nodes.
+//!
+//! ### Example
+//! ```
+//! # #[cfg(feature = "draft-api")]
+//! # use core::sync::atomic::{AtomicBool, Ordering};
+//! # #[cfg(feature = "draft-api")]
+//! # use std::thread;
+//! #
+//! # #[cfg(feature = "draft-api")]
+//! # use arzmq::{
+//! #     ZmqResult, ZmqError,
+//! #     context::Context,
+//! #     socket::{GatherSocket, Receiver, RecvFlags, ScatterSocket, SendFlags, Sender},
+//! # };
+//! #
+//! # #[cfg(feature = "draft-api")]
+//! static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
+//!
+//! # #[cfg(feature = "draft-api")]
+//! pub fn run_publisher<S>(socket: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: Sender,
+//! {
+//!     while KEEP_RUNNING.load(Ordering::Acquire) {
+//!         socket.send_msg(msg, SendFlags::empty())?;
+//!     }
+//!
+//!     Ok(())
+//! }
+//!
+//! # #[cfg(feature = "draft-api")]
+//! fn main() -> ZmqResult<()> {
+//!     let port = 5680;
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let scatter = ScatterSocket::from_context(&context)?;
+//!
+//!     let scatter_endpoint = format!("tcp://*:{port}");
+//!     scatter.bind(&scatter_endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         run_publisher(&scatter, "important update").unwrap();
+//!     });
+//!
+//!     let gather = GatherSocket::from_context(&context)?;
+//!
+//!     let gather_endpoint = format!("tcp://localhost:{port}");
+//!     gather.connect(&gather_endpoint)?;
+//!
+//!     (0..iterations).try_for_each(|_| {
+//!         let msg = gather.recv_msg(RecvFlags::empty())?;
+//!         assert_eq!(msg.to_string(), "important update");
+//!
+//!         Ok::<(), ZmqError>(())
+//!     })?;
+//!
+//!     KEEP_RUNNING.store(false, Ordering::Release);
+//!
+//!     Ok(())
+//! }
+//! # #[cfg(not(feature = "draft-api"))]
+//! # fn main() {}
+//! ```
+//!
+//! [`Scatter`]: ScatterSocket
+//! [`Gather`]: GatherSocket
+//!
+//! ## Exclusive pair pattern
+//! The exclusive [`Pair`] pattern is used to connect a peer to precisely one other peer. This pattern
+//! is used for inter-thread communication across the inproc transport.
+//!
+//! ### Example
+//! ```
+//! # use std::thread;
+//! #
+//! # use arzmq::{
+//! #     ZmqResult,
+//! #     context::Context,
+//! #     socket::{PairSocket, Sender, Receiver, SendFlags, RecvFlags}
+//! # };
+//! #
+//! pub fn run_recv_send<S>(recv_send: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: Receiver + Sender,
+//! {
+//!     let message = recv_send.recv_msg(RecvFlags::empty())?;
+//!     assert_eq!(message.to_string(), "Hello");
+//!
+//!     recv_send.send_msg(msg, SendFlags::empty())
+//! }
+//!
+//! pub fn run_send_recv<S>(send_recv: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: Sender + Receiver,
+//! {
+//!     send_recv.send_msg(msg, SendFlags::empty())?;
+//!
+//!     let message = send_recv.recv_msg(RecvFlags::empty())?;
+//!     assert_eq!(message.to_string(), "World");
+//!
+//!     Ok(())
+//! }
+//!
+//! fn main() -> ZmqResult<()> {
+//!     let endpoint = "inproc://arzmq-example-pair";
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let pair_server = PairSocket::from_context(&context)?;
+//!     pair_server.bind(endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         (0..iterations)
+//!             .try_for_each(|_| run_recv_send(&pair_server, "World"))
+//!             .unwrap();
+//!     });
+//!
+//!     let pair_client = PairSocket::from_context(&context)?;
+//!     pair_client.connect(endpoint)?;
+//!
+//!     (0..iterations).try_for_each(|_| run_send_recv(&pair_client, "Hello"))?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! [`Pair`]: PairSocket
+//!
+//! ## Peer-to-peer pattern
+//! The peer-to-peer pattern is used to connect a [`Peer`] to multiple peers. Peer can both connect
+//! and bind and mix both of them with the same socket. The peer-to-peer pattern is useful to build
+//! peer-to-peer networks (e.g zyre, bitcoin, torrent) where a peer can both accept connections
+//! from other peers or connect to them.
+//!
+//! ### Example
+//! ```
+//! # #[cfg(feature = "draft-api")]
+//! # use std::thread;
+//! #
+//! # #[cfg(feature = "draft-api")]
+//! # use arzmq::{
+//! #     ZmqResult,
+//! #     context::Context,
+//! #     message::Message,
+//! #     socket::{PeerSocket, Receiver, RecvFlags, SendFlags, Sender},
+//! # };
+//! #
+//! # #[cfg(feature = "draft-api")]
+//! fn run_peer_server(peer: &PeerSocket, msg: &str) -> ZmqResult<()> {
+//!     let message = peer.recv_msg(RecvFlags::empty())?;
+//!     assert_eq!(message.to_string(), "Hello");
+//!
+//!     let response: Message = msg.into();
+//!     response.set_routing_id(message.routing_id().unwrap())?;
+//!     peer.send_msg(response, SendFlags::empty())
+//! }
+//!
+//! # #[cfg(feature = "draft-api")]
+//! fn run_peer_client(peer: &PeerSocket, routing_id: u32, msg: &str) -> ZmqResult<()> {
+//!     let request: Message = msg.into();
+//!     request.set_routing_id(routing_id)?;
+//!     peer.send_msg(request, SendFlags::empty())?;
+//!
+//!     let message = peer.recv_msg(RecvFlags::empty())?;
+//!     assert_eq!(message.to_string(), "World");
+//!
+//!     Ok(())
+//! }
+//!
+//! # #[cfg(feature = "draft-api")]
+//! fn main() -> ZmqResult<()> {
+//!     let endpoint = "inproc://arzmq-example-peer";
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let peer_server = PeerSocket::from_context(&context)?;
+//!     peer_server.bind(endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         (0..iterations).try_for_each(|_| {
+//!             run_peer_server(&peer_server, "World")
+//!         }).unwrap();
+//!     });
+//!
+//!     let peer_client = PeerSocket::from_context(&context)?;
+//!     let routing_id = peer_client.connect_peer(endpoint)?;
+//!
+//!     (0..iterations).try_for_each(|_| run_peer_client(&peer_client, routing_id, "Hello"))
+//! }
+//! # #[cfg(not(feature = "draft-api"))]
+//! # fn main() {}
+//! ```
+//!
+//! [`Peer`]: PeerSocket
+//!
+//! ## Channel pattern
+//!
+//! ### Example
+//! ```
+//! # #[cfg(feature = "draft-api")]
+//! # use std::thread;
+//! #
+//! # #[cfg(feature = "draft-api")]
+//! # use arzmq::{
+//! #     ZmqResult,
+//! #     context::Context,
+//! #     socket::{ChannelSocket, Sender, Receiver, SendFlags, RecvFlags}
+//! # };
+//! #
+//! # #[cfg(feature = "draft-api")]
+//! pub fn run_recv_send<S>(recv_send: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: Receiver + Sender,
+//! {
+//!     let message = recv_send.recv_msg(RecvFlags::empty())?;
+//!     assert_eq!(message.to_string(), "Hello");
+//!
+//!     recv_send.send_msg(msg, SendFlags::empty())
+//! }
+//!
+//! # #[cfg(feature = "draft-api")]
+//! pub fn run_send_recv<S>(send_recv: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: Sender + Receiver,
+//! {
+//!     send_recv.send_msg(msg, SendFlags::empty())?;
+//!
+//!     let message = send_recv.recv_msg(RecvFlags::empty())?;
+//!     assert_eq!(message.to_string(), "World");
+//!
+//!     Ok(())
+//! }
+//!
+//! # #[cfg(feature = "draft-api")]
+//! fn main() -> ZmqResult<()> {
+//!     let endpoint = "inproc://arzmq-example-channel";
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let channel_server = ChannelSocket::from_context(&context)?;
+//!     channel_server.bind(endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         (0..iterations)
+//!             .try_for_each(|_| run_recv_send(&channel_server, "World"))
+//!             .unwrap();
+//!     });
+//!
+//!     let channel_client = ChannelSocket::from_context(&context)?;
+//!     channel_client.connect(endpoint)?;
+//!
+//!     (0..iterations).try_for_each(|_| run_send_recv(&channel_client, "Hello"))
+//! }
+//! # #[cfg(not(feature = "draft-api"))]
+//! # fn main() {}
+//! ```
+//!
+//! [`Channel`]: ChannelSocket
+
 use alloc::sync::Arc;
 use core::{iter, marker::PhantomData, ops::ControlFlow};
 
@@ -242,16 +919,16 @@ pub enum SocketOption {
     PlainUsername = zmq_sys_crate::ZMQ_PLAIN_USERNAME as i32,
     PlainPassword = zmq_sys_crate::ZMQ_PLAIN_PASSWORD as i32,
     #[cfg(feature = "curve")]
-    #[doc(cfg(feature = "curve"))]
+    #[doc(cfg(all(feature = "curve", not(windows))))]
     CurvePublicKey = zmq_sys_crate::ZMQ_CURVE_PUBLICKEY as i32,
     #[cfg(feature = "curve")]
-    #[doc(cfg(feature = "curve"))]
+    #[doc(cfg(all(feature = "curve", not(windows))))]
     CurveSecretKey = zmq_sys_crate::ZMQ_CURVE_SECRETKEY as i32,
     #[cfg(feature = "curve")]
-    #[doc(cfg(feature = "curve"))]
+    #[doc(cfg(all(feature = "curve", not(windows))))]
     CurveServer = zmq_sys_crate::ZMQ_CURVE_SERVER as i32,
     #[cfg(feature = "curve")]
-    #[doc(cfg(feature = "curve"))]
+    #[doc(cfg(all(feature = "curve", not(windows))))]
     CurveServerKey = zmq_sys_crate::ZMQ_CURVE_SERVERKEY as i32,
     ProbeRouter = zmq_sys_crate::ZMQ_PROBE_ROUTER as i32,
     RequestCorrelate = zmq_sys_crate::ZMQ_REQ_CORRELATE as i32,

@@ -14,7 +14,7 @@ fn main() -> ZmqResult<()> {
     pair_server.bind(endpoint)?;
 
     thread::spawn(move || {
-        (1..=iterations)
+        (0..iterations)
             .try_for_each(|_| common::run_recv_send(&pair_server, "World"))
             .unwrap();
     });
@@ -22,7 +22,7 @@ fn main() -> ZmqResult<()> {
     let pair_client = PairSocket::from_context(&context)?;
     pair_client.connect(endpoint)?;
 
-    (1..=iterations).try_for_each(|_| common::run_send_recv(&pair_client, "Hello"))?;
+    (0..iterations).try_for_each(|_| common::run_send_recv(&pair_client, "Hello"))?;
 
     Ok(())
 }

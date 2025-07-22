@@ -2,7 +2,7 @@ use core::error::Error;
 use std::{io::prelude::*, net::TcpListener, thread};
 
 use arzmq::{
-    ZmqResult,
+    ZmqError, ZmqResult,
     context::Context,
     message::MultipartMessage,
     socket::{MultipartReceiver, MultipartSender, RecvFlags, SendFlags, StreamSocket},
@@ -38,7 +38,7 @@ fn run_stream_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqR
     let mut connect_msg = zmq_stream.recv_multipart(RecvFlags::empty())?;
     let routing_id = connect_msg.pop_front().unwrap();
 
-    for request_no in 1..=iterations {
+    (0..iterations).try_for_each(|request_no| {
         let mut multipart = MultipartMessage::new();
         multipart.push_back(routing_id.clone());
         multipart.push_back("Hello".into());
@@ -50,9 +50,9 @@ fn run_stream_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqR
             "Received reply {request_no:2} {}",
             message.pop_back().unwrap()
         );
-    }
 
-    Ok(())
+        Ok::<(), ZmqError>(())
+    })
 }
 
 fn main() -> Result<(), Box<dyn Error>> {

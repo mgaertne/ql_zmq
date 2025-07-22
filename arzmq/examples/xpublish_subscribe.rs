@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     subscribe.subscribe(SUBSCRIBED_TOPIC)?;
 
-    (1..=iterations).try_for_each(|number| {
+    (0..iterations).try_for_each(|number| {
         common::run_subscribe_client(&subscribe, SUBSCRIBED_TOPIC)?;
 
         subscribe.subscribe(format!("topic-{number}"))

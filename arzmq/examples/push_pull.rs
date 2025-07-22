@@ -12,7 +12,7 @@ mod common;
 use common::KEEP_RUNNING;
 
 fn main() -> ZmqResult<()> {
-    let port = 5556;
+    let port = 5557;
     let iterations = 10;
 
     let context = Context::new()?;
@@ -29,7 +29,7 @@ fn main() -> ZmqResult<()> {
     let pull_endpoint = format!("tcp://localhost:{port}");
     pull.connect(&pull_endpoint)?;
 
-    (1..=iterations).try_for_each(|i| {
+    (0..iterations).try_for_each(|i| {
         let msg = pull.recv_msg(RecvFlags::empty())?;
         println!("Received message {i:2}: {msg}");
 

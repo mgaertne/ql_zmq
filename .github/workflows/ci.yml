@@ -32,7 +32,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo check --tests
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack check --each-feature --clean-per-run --tests
 
   check-examples:
     name: Check (examples)
@@ -80,7 +82,9 @@ jobs:
         with:
           toolchain: nightly
           components: clippy
-      - run: cargo clippy --tests -- -D warnings
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack clippy --each-feature --clean-per-run --tests -- -D warnings
 
   clippy-examples:
     name: Clippy (examples)
@@ -129,7 +133,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo test --verbose
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack test --each-feature --clean-per-run --verbose
 
   examples:
     name: examples

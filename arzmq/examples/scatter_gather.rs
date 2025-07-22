@@ -1,54 +1,44 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::Ordering;
 use std::thread;
 
 use arzmq::{
-    ZmqResult,
+    ZmqError, ZmqResult,
     context::Context,
-    socket::{GatherSocket, Receiver, RecvFlags, ScatterSocket, SendFlags, Sender},
+    socket::{GatherSocket, Receiver, RecvFlags, ScatterSocket},
 };
 
-static KEEP_RUNNING: AtomicBool = AtomicBool::new(true);
+mod common;
 
-fn run_scatter_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
-    let scatter = ScatterSocket::from_context(context)?;
-    scatter.bind(endpoint)?;
-
-    thread::spawn(move || {
-        while KEEP_RUNNING.load(Ordering::Acquire) {
-            scatter
-                .send_msg("Important update", SendFlags::empty())
-                .unwrap();
-        }
-    });
-
-    Ok(())
-}
-
-fn run_gather_socket(context: &Context, endpoint: &str, iterations: i32) -> ZmqResult<()> {
-    let gather = GatherSocket::from_context(context)?;
-    gather.connect(endpoint)?;
-
-    for i in 1..=iterations {
-        let msg = gather.recv_msg(RecvFlags::empty())?;
-        println!("Received message {i:2}: {msg}");
-    }
-
-    KEEP_RUNNING.store(false, Ordering::Release);
-
-    Ok(())
-}
+use common::KEEP_RUNNING;
 
 fn main() -> ZmqResult<()> {
-    let port = 5556;
+    let port = 5680;
     let iterations = 10;
 
     let context = Context::new()?;
 
-    let push_endpoint = format!("tcp://*:{port}");
-    run_scatter_socket(&context, &push_endpoint)?;
+    let scatter = ScatterSocket::from_context(&context)?;
 
-    let pull_endpoint = format!("tcp://localhost:{port}");
-    run_gather_socket(&context, &pull_endpoint, iterations)?;
+    let scatter_endpoint = format!("tcp://*:{port}");
+    scatter.bind(&scatter_endpoint)?;
+
+    thread::spawn(move || {
+        common::run_publisher(&scatter, "important update").unwrap();
+    });
+
+    let gather = GatherSocket::from_context(&context)?;
+
+    let gather_endpoint = format!("tcp://localhost:{port}");
+    gather.connect(&gather_endpoint)?;
+
+    (0..iterations).try_for_each(|i| {
+        let msg = gather.recv_msg(RecvFlags::empty())?;
+        println!("Received message {i:2}: {msg:?}");
+
+        Ok::<(), ZmqError>(())
+    })?;
+
+    KEEP_RUNNING.store(false, Ordering::Release);
 
     Ok(())
 }

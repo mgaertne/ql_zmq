@@ -13,28 +13,17 @@ use common::KEEP_RUNNING;
 
 const SUBSCRIBED_TOPIC: &str = "arzmq-example";
 
-fn run_xpublish_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
-    let xpublish = XPublishSocket::from_context(context)?;
-    xpublish.bind(endpoint)?;
+fn run_xpublish_socket(xpublish: &XPublishSocket, msg: &str) -> ZmqResult<()> {
+    let subscription = xpublish.recv_msg(RecvFlags::empty())?;
+    let subscription_bytes = subscription.bytes();
+    let (first_byte, subscription_topic) = (
+        subscription_bytes[0],
+        str::from_utf8(&subscription_bytes[1..]).unwrap(),
+    );
+    println!("{first_byte} {subscription_topic}");
 
-    thread::spawn(move || {
-        while KEEP_RUNNING.load(Ordering::Acquire) {
-            let subscription = xpublish.recv_msg(RecvFlags::empty()).unwrap();
-            let subscription_bytes = subscription.bytes();
-            let (first_byte, subscription_topic) = (
-                subscription_bytes[0],
-                str::from_utf8(&subscription_bytes[1..]).unwrap(),
-            );
-            println!("{first_byte} {subscription_topic}");
-
-            let published_msg = format!("{SUBSCRIBED_TOPIC} important update");
-            xpublish
-                .send_msg(&published_msg, SendFlags::empty())
-                .unwrap();
-        }
-    });
-
-    Ok(())
+    let published_msg = format!("{SUBSCRIBED_TOPIC} {msg}");
+    xpublish.send_msg(&published_msg, SendFlags::empty())
 }
 
 fn main() -> ZmqResult<()> {
@@ -43,8 +32,16 @@ fn main() -> ZmqResult<()> {
 
     let context = Context::new()?;
 
+    let xpublish = XPublishSocket::from_context(&context)?;
+
     let xpublish_endpoint = format!("tcp://*:{port}");
-    run_xpublish_socket(&context, &xpublish_endpoint)?;
+    xpublish.bind(&xpublish_endpoint)?;
+
+    thread::spawn(move || {
+        while KEEP_RUNNING.load(Ordering::Acquire) {
+            run_xpublish_socket(&xpublish, "important update").unwrap();
+        }
+    });
 
     let xsubscribe = XSubscribeSocket::from_context(&context)?;
 
@@ -53,9 +50,9 @@ fn main() -> ZmqResult<()> {
 
     xsubscribe.subscribe(SUBSCRIBED_TOPIC)?;
 
-    (1..=iterations).try_for_each(|number| {
+    (0..iterations).try_for_each(|number| {
         common::run_subscribe_client(&xsubscribe, SUBSCRIBED_TOPIC)?;
-        if number % 2 == 1 {
+        if number % 2 == 0 {
             xsubscribe.subscribe(format!("topic-{number}"))
         } else {
             xsubscribe.unsubscribe(format!("topic-{}", number - 1))

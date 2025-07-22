@@ -14,7 +14,7 @@ use common::KEEP_RUNNING;
 const SUBSCRIBED_TOPIC: &str = "arzmq-example";
 
 fn main() -> ZmqResult<()> {
-    let port = 5556;
+    let port = 5555;
     let iterations = 10;
 
     let context = Context::new()?;
@@ -36,7 +36,7 @@ fn main() -> ZmqResult<()> {
 
     subscribe.subscribe(SUBSCRIBED_TOPIC)?;
 
-    (1..=iterations).try_for_each(|number| {
+    (0..iterations).try_for_each(|number| {
         common::run_subscribe_client(&subscribe, SUBSCRIBED_TOPIC)?;
 
         subscribe.subscribe(format!("topic-{number}"))

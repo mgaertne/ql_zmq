@@ -40,16 +40,11 @@ impl MultipartReceiver for Socket<XPublish> {}
 impl Socket<XPublish> {
     /// # Establish message filter `ZMQ_SUBSCRIBE`
     ///
-    /// The [`subscribe()`] option shall establish a new message filter on a [`Subscriber`] socket.
-    /// Newly created [`Subscriber`] sockets shall filter out all incoming messages, therefore you
-    /// should call this option to establish an initial message filter.
+    /// The [`subscribe()`] option shall establish a new message filter on a [`XPublish`] socket
+    /// if subscription management is set to manual via [`set_manual()`].
     ///
-    /// An empty `topic` of length zero shall subscribe to all incoming messages. A non-empty
-    /// `topic` shall subscribe to all messages beginning with the specified prefix. Multiple
-    /// filters may be attached to a single [`Subscriber`] socket, in which case a message shall
-    /// be accepted if it matches at least one filter.
-    ///
-    /// [`Subscriber`]: super::SubscribeSocket
+    /// [`XPublish`]: XPublishSocket
+    /// [`set_manual()`]: #method.set_manual
     /// [`subscribe()`]: #method.subscribe
     pub fn subscribe<V>(&self, topic: V) -> ZmqResult<()>
     where

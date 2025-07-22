@@ -30,7 +30,7 @@ fn main() -> ZmqResult<()> {
     let request_endpoint = format!("tcp://localhost:{port}");
     request.connect(&request_endpoint)?;
 
-    (1..=iterations).try_for_each(|_| common::run_send_recv(&request, "Hello"))?;
+    (0..iterations).try_for_each(|_| common::run_send_recv(&request, "Hello"))?;
 
     Ok(())
 }

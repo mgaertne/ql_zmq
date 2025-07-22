@@ -5,7 +5,7 @@ use arzmq::{ZmqResult, context::Context, socket::ChannelSocket};
 mod common;
 
 fn main() -> ZmqResult<()> {
-    let endpoint = "inproc://arzmq-example-pair";
+    let endpoint = "inproc://arzmq-example-channel";
     let iterations = 10;
 
     let context = Context::new()?;
@@ -22,7 +22,5 @@ fn main() -> ZmqResult<()> {
     let channel_client = ChannelSocket::from_context(&context)?;
     channel_client.connect(endpoint)?;
 
-    (1..=iterations).try_for_each(|_| common::run_send_recv(&channel_client, "Hello"))?;
-
-    Ok(())
+    (0..iterations).try_for_each(|_| common::run_send_recv(&channel_client, "Hello"))
 }
