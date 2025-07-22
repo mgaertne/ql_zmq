@@ -41,8 +41,8 @@ impl Socket<Channel> {}
 
 #[cfg(feature = "builder")]
 pub(crate) mod builder {
-    use crate::socket::{SocketConfig, SocketConfigBuilder};
+    use crate::socket::SocketBuilder;
 
-    pub type ChannelConfig = SocketConfig;
-    pub type ChannelConfigBuilder = SocketConfigBuilder;
+    /// Builder for [`ChannelSocket`](super::ChannelSocket)
+    pub type ChannelBuilder = SocketBuilder;
 }

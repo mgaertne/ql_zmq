@@ -138,12 +138,20 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::RequestSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
+    #[builder(
+        pattern = "owned",
+        name = "RequestBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`RequestSocket`].\n\n")]
+    #[allow(dead_code)]
     pub struct RequestConfig {
-        socket_config: SocketConfig,
+        socket_config: SocketBuilder,
         #[builder(default = false)]
         correlate: bool,
         #[builder(default = false)]
@@ -152,14 +160,33 @@ pub(crate) mod builder {
         routing_id: String,
     }
 
-    impl RequestConfig {
-        pub fn apply(&self, socket: &RequestSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_correlate(self.correlate)?;
-            socket.set_relaxed(self.relaxed)?;
-            socket.set_routing_id(&self.routing_id)?;
+    impl RequestBuilder {
+        pub fn apply(self, socket: &RequestSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(correlate) = self.correlate {
+                socket.set_correlate(correlate)?;
+            }
+
+            if let Some(relaxed) = self.relaxed {
+                socket.set_relaxed(relaxed)?;
+            }
+
+            if let Some(routing_id) = self.routing_id {
+                socket.set_routing_id(&routing_id)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<RequestSocket> {
+            let socket = RequestSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

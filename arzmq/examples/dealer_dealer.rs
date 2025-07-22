@@ -5,7 +5,7 @@ use arzmq::{ZmqResult, context::Context, socket::DealerSocket};
 mod common;
 
 fn main() -> ZmqResult<()> {
-    let port = 5556;
+    let port = 5562;
     let iterations = 10;
 
     let context = Context::new()?;
@@ -26,7 +26,5 @@ fn main() -> ZmqResult<()> {
     let client_endpoint = format!("tcp://localhost:{port}");
     dealer_client.connect(&client_endpoint)?;
 
-    (0..iterations).try_for_each(|_| common::run_multipart_send_recv(&dealer_client, "Hello"))?;
-
-    Ok(())
+    (0..iterations).try_for_each(|_| common::run_multipart_send_recv(&dealer_client, "Hello"))
 }

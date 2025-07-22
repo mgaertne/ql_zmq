@@ -230,12 +230,20 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::XPublishSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct XPublishConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "XPublishBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`XPublishSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct XPublishConfig {
+        socket_config: SocketBuilder,
         #[builder(default = false)]
         invert_matching: bool,
         #[builder(default = false)]
@@ -260,22 +268,56 @@ pub(crate) mod builder {
         only_first_subscribe: bool,
     }
 
-    impl XPublishConfig {
-        pub fn apply(&self, socket: &XPublishSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_invert_matching(self.invert_matching)?;
-            socket.set_nodrop(self.nodrop)?;
-            socket.set_verbose(self.verbose)?;
-            socket.set_verboser(self.verboser)?;
-            socket.set_manual(self.manual)?;
+    impl XPublishBuilder {
+        pub fn apply(self, socket: &XPublishSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(invert_matching) = self.invert_matching {
+                socket.set_invert_matching(invert_matching)?;
+            }
+
+            if let Some(nodrop) = self.nodrop {
+                socket.set_nodrop(nodrop)?;
+            }
+
+            if let Some(verbose) = self.verbose {
+                socket.set_verbose(verbose)?;
+            }
+
+            if let Some(verboser) = self.verboser {
+                socket.set_verboser(verboser)?;
+            }
+
+            if let Some(manual) = self.manual {
+                socket.set_manual(manual)?;
+            }
+
             #[cfg(feature = "draft-api")]
-            socket.set_manual_last_value(self.manual_last_value)?;
+            if let Some(manual_last_value) = self.manual_last_value {
+                socket.set_manual_last_value(manual_last_value)?;
+            }
+
             #[cfg(feature = "draft-api")]
-            socket.set_welcome_msg(&self.welcome_msg)?;
+            if let Some(welcome_msg) = self.welcome_msg {
+                socket.set_welcome_msg(&welcome_msg)?;
+            }
+
             #[cfg(feature = "draft-api")]
-            socket.set_only_first_subscribe(self.only_first_subscribe)?;
+            if let Some(only_first_subscribe) = self.only_first_subscribe {
+                socket.set_only_first_subscribe(only_first_subscribe)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<XPublishSocket> {
+            let socket = XPublishSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

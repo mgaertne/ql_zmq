@@ -27,8 +27,8 @@ impl Socket<Gather> {}
 
 #[cfg(feature = "builder")]
 pub(crate) mod builder {
-    use crate::socket::{SocketConfig, SocketConfigBuilder};
+    use crate::socket::SocketBuilder;
 
-    pub type GatherConfig = SocketConfig;
-    pub type GatherConfigBuilder = SocketConfigBuilder;
+    /// Builder for [`GatherSocket`](super::GatherSocket)
+    pub type GatherBuilder = SocketBuilder;
 }

@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use builder::{ContextConfig, ContextConfigBuilder};
+pub use builder::ContextBuilder;
 use derive_more::{Debug as DebugDeriveMore, Display as DisplayDeriveMore};
 use num_traits::PrimInt;
 
@@ -168,7 +168,7 @@ impl Context {
     /// behavior is that abrupt termination will cause message loss. Most real applications use
     /// some form of handshaking to ensure applications receive termination messages, and then
     /// terminate the context with [`Linger`] set to zero on all sockets. This setting is an easier
-    /// way to get the same result. When '[`Blocky`] is set to `false`, all new sockets are given a
+    /// way to get the same result. When [`Blocky`] is set to `false`, all new sockets are given a
     /// linger timeout of zero.
     ///
     /// Default: `true` (old behavior)
@@ -365,35 +365,88 @@ mod builder {
     use crate::{ZmqResult, context::Context};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize))]
-    pub struct ContextConfig {
+    #[builder(
+        pattern = "owned",
+        name = "ContextBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`Context`].\n\n")]
+    #[allow(dead_code)]
+    struct ContextConfig {
         #[builder(default = false)]
+        /// Blocky behavior, see [`set_blocky()`].
+        ///
+        /// [`set_blocky()`]: Context::set_blocky
         blocky: bool,
         #[builder(setter(into), default = 1)]
+        /// Number of I/O threads, see [`set_io_threads()`].
+        ///
+        /// [`set_io_threads()`]: Context::set_io_threads
         io_threads: i32,
         #[builder(setter(into), default = "i32::MAX")]
+        /// Maximum message size, see [`set_max_message_size()`].
+        ///
+        /// [`set_max_message_size()`]: Context::set_max_message_size
         max_message_size: i32,
         #[cfg(feature = "draft-api")]
         #[doc(cfg(feature = "draft-api"))]
         #[builder(default = true)]
+        /// Specify message decoding strategy, see [`set_zero_copy_receiving()`].
+        ///
+        /// [`set_zero_copy_receiving()`]: Context::set_zero_copy_receiving
         zero_copy_receiving: bool,
         #[builder(setter(into), default = 1023)]
+        /// Maximum number of sockets, see [`set_max_sockets()`].
+        ///
+        /// [`set_max_sockets()`]: Context::set_max_sockets
         max_sockets: i32,
         #[builder(default = false)]
+        /// IPv6 option, see [`set_ipv6()`].
+        ///
+        /// [`set_ipv6()`]: Context::set_ipv6
         ipv6: bool,
     }
 
-    impl ContextConfig {
-        pub fn apply(&self, context: &Context) -> ZmqResult<()> {
-            context.set_blocky(self.blocky)?;
-            context.set_io_threads(self.io_threads)?;
-            context.set_max_message_size(self.max_message_size)?;
+    impl ContextBuilder {
+        /// Applies this builder to the provided context
+        pub fn apply(self, context: &Context) -> ZmqResult<()> {
+            if let Some(blocky) = self.blocky {
+                context.set_blocky(blocky)?;
+            }
+
+            if let Some(io_threads) = self.io_threads {
+                context.set_io_threads(io_threads)?;
+            }
+
+            if let Some(max_msg_size) = self.max_message_size {
+                context.set_max_message_size(max_msg_size)?;
+            }
+
+            if let Some(max_sockets) = self.max_sockets {
+                context.set_max_sockets(max_sockets)?;
+            }
+
+            if let Some(ipv6) = self.ipv6 {
+                context.set_ipv6(ipv6)?;
+            }
+
             #[cfg(feature = "draft-api")]
-            context.set_zero_copy_receiving(self.zero_copy_receiving)?;
-            context.set_max_sockets(self.max_sockets)?;
-            context.set_ipv6(self.ipv6)?;
+            if let Some(zero_copy_receiving) = self.zero_copy_receiving {
+                context.set_zero_copy_receiving(zero_copy_receiving)?;
+            }
 
             Ok(())
+        }
+
+        /// Builds a new context and applies this builder to it.
+        pub fn build(self) -> ZmqResult<Context> {
+            let context = Context::new()?;
+
+            self.apply(&context)?;
+
+            Ok(context)
         }
     }
 }

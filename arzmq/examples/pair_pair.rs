@@ -22,7 +22,5 @@ fn main() -> ZmqResult<()> {
     let pair_client = PairSocket::from_context(&context)?;
     pair_client.connect(endpoint)?;
 
-    (0..iterations).try_for_each(|_| common::run_send_recv(&pair_client, "Hello"))?;
-
-    Ok(())
+    (0..iterations).try_for_each(|_| common::run_send_recv(&pair_client, "Hello"))
 }

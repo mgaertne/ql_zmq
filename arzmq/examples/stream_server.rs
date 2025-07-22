@@ -7,57 +7,56 @@ use arzmq::{
     socket::{MultipartReceiver, MultipartSender, RecvFlags, SendFlags, StreamSocket},
 };
 
-fn run_stream_socket(context: &Context, endpoint: &str) -> ZmqResult<()> {
-    let zmq_stream = StreamSocket::from_context(context)?;
-    zmq_stream.bind(endpoint)?;
+fn run_stream_socket(zmq_stream: &StreamSocket, _routing_id: &[u8], msg: &str) -> ZmqResult<()> {
+    let mut message = zmq_stream.recv_multipart(RecvFlags::empty())?;
+    println!("Received request: {:?}", message.pop_back().unwrap());
 
-    thread::spawn(move || {
-        let mut connect_msg = zmq_stream.recv_multipart(RecvFlags::empty()).unwrap();
-        let _routing_id = connect_msg.pop_front().unwrap();
-
-        loop {
-            let mut message = zmq_stream.recv_multipart(RecvFlags::empty()).unwrap();
-            println!("Received request: {}", message.pop_back().unwrap());
-
-            message.push_back("World".into());
-            zmq_stream
-                .send_multipart(message, SendFlags::empty())
-                .unwrap();
-        }
-    });
-
-    Ok(())
+    message.push_back(msg.into());
+    zmq_stream.send_multipart(message, SendFlags::empty())
 }
 
 fn run_tcp_client(endpoint: &str, iterations: i32) -> Result<(), Box<dyn Error>> {
     let mut tcp_stream = TcpStream::connect(endpoint)?;
-    for request_no in 1..=iterations {
+    (0..iterations).try_for_each(|request_no| {
         println!("Sending requrst {request_no}");
         tcp_stream.write_all("Hello".as_bytes()).unwrap();
 
         let mut buffer = [0; 256];
-        if let Ok(length) = tcp_stream.read(&mut buffer) {
-            if length == 0 {
-                continue;
-            }
+        if let Ok(length) = tcp_stream.read(&mut buffer)
+            && length != 0
+        {
             let recevied_msg = &buffer[..length];
             println!(
                 "Received reply {request_no:2} {}",
                 str::from_utf8(recevied_msg).unwrap()
             );
         }
-    }
+
+        Ok::<(), Box<dyn Error>>(())
+    })?;
+
     Ok(())
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let port = 5556;
+    let port = 5559;
     let iterations = 10;
 
     let context = Context::new()?;
 
+    let zmq_stream = StreamSocket::from_context(&context)?;
+
     let stream_endpoint = format!("tcp://*:{port}");
-    run_stream_socket(&context, &stream_endpoint)?;
+    zmq_stream.bind(&stream_endpoint)?;
+
+    thread::spawn(move || {
+        let mut connect_msg = zmq_stream.recv_multipart(RecvFlags::empty()).unwrap();
+        let routing_id = connect_msg.pop_front().unwrap();
+
+        loop {
+            run_stream_socket(&zmq_stream, &routing_id.bytes(), "World").unwrap();
+        }
+    });
 
     let tcp_endpoint = format!("127.0.0.1:{port}");
     run_tcp_client(&tcp_endpoint, iterations)?;

@@ -90,25 +90,49 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::ServerSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct ServerConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "ServerBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`ServerSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct ServerConfig {
+        socket_config: SocketBuilder,
         #[builder(setter(into), default = "Default::default()")]
         hello_message: String,
         #[builder(setter(into), default = "Default::default()")]
         disconnect_message: String,
     }
 
-    impl ServerConfig {
-        pub fn apply(&self, socket: &ServerSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_hello_message(&self.hello_message)?;
-            socket.set_disconnect_message(&self.disconnect_message)?;
+    impl ServerBuilder {
+        pub fn apply(self, socket: &ServerSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(hello_message) = self.hello_message {
+                socket.set_hello_message(hello_message)?;
+            }
+
+            if let Some(disconnect_message) = self.disconnect_message {
+                socket.set_disconnect_message(disconnect_message)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<ServerSocket> {
+            let socket = ServerSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

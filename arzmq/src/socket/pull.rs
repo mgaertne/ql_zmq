@@ -58,22 +58,43 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::PullSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct PullConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "PullBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`PullSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct PullConfig {
+        socket_config: SocketBuilder,
         #[builder(default = false)]
         conflate: bool,
     }
 
-    impl PullConfig {
-        pub fn apply(&self, socket: &PullSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_conflate(self.conflate)?;
+    impl PullBuilder {
+        pub fn apply(self, socket: &PullSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(conflate) = self.conflate {
+                socket.set_conflate(conflate)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<PullSocket> {
+            let socket = PullSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

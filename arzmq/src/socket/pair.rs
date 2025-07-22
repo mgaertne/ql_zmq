@@ -52,8 +52,8 @@ impl Socket<Pair> {}
 
 #[cfg(feature = "builder")]
 pub(crate) mod builder {
-    use crate::socket::{SocketConfig, SocketConfigBuilder};
+    use crate::socket::SocketBuilder;
 
-    pub type PairConfig = SocketConfig;
-    pub type PairConfigBuilder = SocketConfigBuilder;
+    /// Builder for [`PairSocket`](super::PairSocket)
+    pub type PairBuilder = SocketBuilder;
 }

@@ -128,12 +128,20 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::XSubscribeSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct XSubscribeConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "XSubscribeBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`XSubscribeSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct XSubscribeConfig {
+        socket_config: SocketBuilder,
         #[builder(setter(into), default = "Default::default()")]
         subscribe: String,
         #[cfg(feature = "draft-api")]
@@ -142,14 +150,30 @@ pub(crate) mod builder {
         only_first_subscribe: bool,
     }
 
-    impl XSubscribeConfig {
-        pub fn apply(&self, socket: &XSubscribeSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
+    impl XSubscribeBuilder {
+        pub fn apply(self, socket: &XSubscribeSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
             #[cfg(feature = "draft-api")]
-            socket.set_only_first_subscribe(self.only_first_subscribe)?;
-            socket.subscribe(&self.subscribe)?;
+            if let Some(only_first_subscribe) = self.only_first_subscribe {
+                socket.set_only_first_subscribe(only_first_subscribe)?;
+            }
+
+            if let Some(subscribe) = self.subscribe {
+                socket.subscribe(&subscribe)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<XSubscribeSocket> {
+            let socket = XSubscribeSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

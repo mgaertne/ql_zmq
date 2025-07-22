@@ -35,8 +35,8 @@ impl Socket<Scatter> {}
 
 #[cfg(feature = "builder")]
 pub(crate) mod builder {
-    use crate::socket::{SocketConfig, SocketConfigBuilder};
+    use crate::socket::SocketBuilder;
 
-    pub type ScatterConfig = SocketConfig;
-    pub type ScatterConfigBuilder = SocketConfigBuilder;
+    /// Builder for [`ScatterSocket`](super::ScatterSocket)
+    pub type ScatterBuilder = SocketBuilder;
 }

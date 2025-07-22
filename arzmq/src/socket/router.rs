@@ -294,12 +294,20 @@ pub(crate) mod builder {
     #[cfg(feature = "draft-api")]
     use super::RouterNotify;
     use super::RouterSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct RouterConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "RouterBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`RouterSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct RouterConfig {
+        socket_config: SocketBuilder,
         #[cfg(feature = "draft-api")]
         #[doc(cfg(feature = "draft-api"))]
         #[builder(setter(into), default = "Default::default()")]
@@ -322,21 +330,52 @@ pub(crate) mod builder {
         connect_routing_id: String,
     }
 
-    impl RouterConfig {
-        pub fn apply(&self, socket: &RouterSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
+    impl RouterBuilder {
+        pub fn apply(self, socket: &RouterSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
             #[cfg(feature = "draft-api")]
-            socket.set_hello_message(&self.hello_message)?;
+            if let Some(hello_message) = self.hello_message {
+                socket.set_hello_message(&hello_message)?;
+            }
+
             #[cfg(feature = "draft-api")]
-            socket.set_disconnect_message(&self.disconnect_message)?;
+            if let Some(disconnect_message) = self.disconnect_message {
+                socket.set_disconnect_message(&disconnect_message)?;
+            }
+
             #[cfg(feature = "draft-api")]
-            socket.set_router_notify(self.router_notify)?;
-            socket.set_routing_id(&self.routing_id)?;
-            socket.set_router_mandatory(self.router_mandatory)?;
-            socket.set_router_handover(self.router_handover)?;
-            socket.set_connect_routing_id(&self.connect_routing_id)?;
+            if let Some(router_notify) = self.router_notify {
+                socket.set_router_notify(router_notify)?;
+            }
+
+            if let Some(routing_id) = self.routing_id {
+                socket.set_routing_id(&routing_id)?;
+            }
+
+            if let Some(router_mandatory) = self.router_mandatory {
+                socket.set_router_mandatory(router_mandatory)?;
+            }
+
+            if let Some(router_handover) = self.router_handover {
+                socket.set_router_handover(router_handover)?;
+            }
+
+            if let Some(connect_routing_id) = self.connect_routing_id {
+                socket.set_connect_routing_id(&connect_routing_id)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<RouterSocket> {
+            let socket = RouterSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

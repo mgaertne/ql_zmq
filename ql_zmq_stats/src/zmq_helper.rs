@@ -2,12 +2,12 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use arzmq::{
-    context::{Context, ContextConfigBuilder},
+    context::ContextBuilder,
     message::Message,
     security::SecurityMechanism,
     socket::{
         MonitorFlags, MonitorReceiver, MonitorSocket, MonitorSocketEvent, Receiver, Socket,
-        SocketConfigBuilder, SubscribeConfigBuilder, SubscribeSocket,
+        SocketBuilder, SubscribeBuilder, SubscribeSocket,
     },
 };
 use serde_json::Value;
@@ -28,13 +28,12 @@ unsafe impl Sync for MonitoredSubscriber {}
 
 impl MonitoredSubscriber {
     fn new() -> Result<Self> {
-        let config = ContextConfigBuilder::default()
+        let context = ContextBuilder::default()
             .blocky(false)
             .max_sockets(10)
             .io_threads(1)
             .build()?;
-        let context = Context::new()?;
-        config.apply(&context)?;
+
         let subscriber = Socket::from_context(&context)?;
         let monitor = subscriber.monitor(
             MonitorFlags::HandshakeSucceeded
@@ -53,7 +52,7 @@ impl MonitoredSubscriber {
     }
 
     async fn configure(&self, password: &str) -> Result<()> {
-        let socket_config = SocketConfigBuilder::default()
+        let socket_config = SocketBuilder::default()
             .security_mechanism(SecurityMechanism::PlainClient {
                 username: "stats".into(),
                 password: password.into(),
@@ -62,13 +61,11 @@ impl MonitoredSubscriber {
             .receive_highwater_mark(0)
             .send_timeout(0)
             .receive_highwater_mark(0)
-            .zap_domain("stats")
-            .build()?;
+            .zap_domain("stats");
 
-        let config = SubscribeConfigBuilder::default()
+        let config = SubscribeBuilder::default()
             .socket_config(socket_config)
-            .subscribe("")
-            .build()?;
+            .subscribe("");
 
         let subscriber = self.subscriber.read().await;
         config.apply(&subscriber)?;

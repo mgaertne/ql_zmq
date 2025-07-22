@@ -174,12 +174,20 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::DealerSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct DealerConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "DealerBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`DealerSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct DealerConfig {
+        socket_config: SocketBuilder,
         #[builder(default = false)]
         conflate: bool,
         #[cfg(feature = "draft-api")]
@@ -194,17 +202,39 @@ pub(crate) mod builder {
         routing_id: String,
     }
 
-    impl DealerConfig {
-        pub fn apply(&self, socket: &DealerSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_conflate(self.conflate)?;
+    impl DealerBuilder {
+        pub fn apply(self, socket: &DealerSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(conflate) = self.conflate {
+                socket.set_conflate(conflate)?;
+            }
+
             #[cfg(feature = "draft-api")]
-            socket.set_hiccup_message(&self.hiccup_msg)?;
+            if let Some(hiccup_message) = self.hiccup_msg {
+                socket.set_hiccup_message(&hiccup_message)?;
+            }
+
             #[cfg(feature = "draft-api")]
-            socket.set_hello_message(&self.hello_message)?;
-            socket.set_routing_id(&self.routing_id)?;
+            if let Some(hello_message) = self.hello_message {
+                socket.set_hello_message(&hello_message)?;
+            }
+
+            if let Some(routing_id) = self.routing_id {
+                socket.set_routing_id(&routing_id)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<DealerSocket> {
+            let socket = DealerSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

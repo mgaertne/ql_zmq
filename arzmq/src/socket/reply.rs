@@ -82,22 +82,43 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::ReplySocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct ReplyConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "ReplyBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`ReplySocket`].\n\n")]
+    #[allow(dead_code)]
+    struct ReplyConfig {
+        socket_config: SocketBuilder,
         #[builder(setter(into), default = "Default::default()")]
         routing_id: String,
     }
 
-    impl ReplyConfig {
-        pub fn apply(&self, socket: &ReplySocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_routing_id(&self.routing_id)?;
+    impl ReplyBuilder {
+        pub fn apply(self, socket: &ReplySocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(routing_id) = self.routing_id {
+                socket.set_routing_id(routing_id)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<ReplySocket> {
+            let socket = ReplySocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

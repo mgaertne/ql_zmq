@@ -48,22 +48,43 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::DishSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct DishConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "DishBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`DishSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct DishConfig {
+        socket_config: SocketBuilder,
         #[builder(setter(into), default = "Default::default()")]
         join: String,
     }
 
-    impl DishConfig {
-        pub fn apply(&self, socket: &DishSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.join(&self.join)?;
+    impl DishBuilder {
+        pub fn apply(self, socket: &DishSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(join) = self.join {
+                socket.join(&join)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<DishSocket> {
+            let socket = DishSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

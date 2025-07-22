@@ -534,9 +534,7 @@
 //!     let pair_client = PairSocket::from_context(&context)?;
 //!     pair_client.connect(endpoint)?;
 //!
-//!     (0..iterations).try_for_each(|_| run_send_recv(&pair_client, "Hello"))?;
-//!
-//!     Ok(())
+//!     (0..iterations).try_for_each(|_| run_send_recv(&pair_client, "Hello"))
 //! }
 //! ```
 //!
@@ -678,6 +676,345 @@
 //!
 //! [`Channel`]: ChannelSocket
 //! [`Pair`]: PairSocket
+//!
+//! ## Native pattern ([`Stream`])
+//! The native pattern is used for communicating with TCP peers and allows asynchronous requests
+//! and replies in either direction.
+//!
+//! ### Example
+//! Stream as client:
+//! ```
+//! # use core::error::Error;
+//! # use std::{io::prelude::*, net::TcpListener, thread};
+//! #
+//! # use arzmq::{
+//! #     ZmqResult,
+//! #     context::Context,
+//! #     message::MultipartMessage,
+//! #     socket::{MultipartReceiver, MultipartSender, RecvFlags, SendFlags, StreamSocket},
+//! # };
+//! #
+//! fn run_tcp_server(endpoint: &str) -> Result<(), Box<dyn Error>> {
+//!     let tcp_listener = TcpListener::bind(endpoint)?;
+//!     thread::spawn(move || {
+//!         let (mut tcp_stream, _socket_addr) = tcp_listener.accept().unwrap();
+//!         tcp_stream.write_all("".as_bytes()).unwrap();
+//!         loop {
+//!             let mut buffer = [0; 256];
+//!             if let Ok(length) = tcp_stream.read(&mut buffer) {
+//!                 if length == 0 {
+//!                     break;
+//!                 }
+//!                 let recevied_msg = &buffer[..length];
+//!                 assert_eq!(str::from_utf8(recevied_msg).unwrap(), "Hello");
+//!                 tcp_stream.write_all("World".as_bytes()).unwrap();
+//!             }
+//!         }
+//!     });
+//!
+//!     Ok(())
+//! }
+//!
+//! fn run_stream_socket(zmq_stream: &StreamSocket, routing_id: &[u8], msg: &str) -> ZmqResult<()> {
+//!     let mut multipart = MultipartMessage::new();
+//!     multipart.push_back(routing_id.into());
+//!     multipart.push_back(msg.into());
+//!     zmq_stream.send_multipart(multipart, SendFlags::empty())?;
+//!
+//!     let mut message = zmq_stream.recv_multipart(RecvFlags::empty())?;
+//!     assert_eq!(message.pop_back().unwrap().to_string(), "World");
+//!
+//!     Ok(())
+//! }
+//!
+//! fn main() -> Result<(), Box<dyn Error>> {
+//!     let port = 5558;
+//!     let iterations = 10;
+//!
+//!     let tcp_endpoint = format!("127.0.0.1:{port}");
+//!     run_tcp_server(&tcp_endpoint)?;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let zmq_stream = StreamSocket::from_context(&context)?;
+//!
+//!     let stream_endpoint = format!("tcp://127.0.0.1:{port}");
+//!     zmq_stream.connect(&stream_endpoint)?;
+//!
+//!     let mut connect_msg = zmq_stream.recv_multipart(RecvFlags::empty())?;
+//!     let routing_id = connect_msg.pop_front().unwrap();
+//!
+//!     (0..iterations)
+//!         .try_for_each(|_| run_stream_socket(&zmq_stream, &routing_id.bytes(), "Hello"))?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Stream as server:
+//! ```
+//! # use core::error::Error;
+//! # use std::{io::prelude::*, net::TcpStream, thread};
+//! #
+//! # use arzmq::{
+//! #     ZmqResult,
+//! #     context::Context,
+//! #     socket::{MultipartReceiver, MultipartSender, RecvFlags, SendFlags, StreamSocket},
+//! # };
+//! #
+//! fn run_stream_socket(zmq_stream: &StreamSocket, _routing_id: &[u8], msg: &str) -> ZmqResult<()> {
+//!     let mut message = zmq_stream.recv_multipart(RecvFlags::empty())?;
+//!     assert_eq!(message.pop_back().unwrap().to_string(), "Hello");
+//!
+//!     message.push_back(msg.into());
+//!     zmq_stream.send_multipart(message, SendFlags::empty())
+//! }
+//!
+//! fn run_tcp_client(endpoint: &str, iterations: i32) -> Result<(), Box<dyn Error>> {
+//!     let mut tcp_stream = TcpStream::connect(endpoint)?;
+//!     (0..iterations).try_for_each(|request_no| {
+//!         println!("Sending requrst {request_no}");
+//!         tcp_stream.write_all("Hello".as_bytes()).unwrap();
+//!
+//!         let mut buffer = [0; 256];
+//!         if let Ok(length) = tcp_stream.read(&mut buffer)
+//!             && length != 0
+//!         {
+//!             let recevied_msg = &buffer[..length];
+//!             assert_eq!(str::from_utf8(recevied_msg).unwrap(), "World");
+//!         }
+//!
+//!         Ok::<(), Box<dyn Error>>(())
+//!     })?;
+//!
+//!     Ok(())
+//! }
+//!
+//! fn main() -> Result<(), Box<dyn Error>> {
+//!     let port = 5559;
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let zmq_stream = StreamSocket::from_context(&context)?;
+//!
+//!     let stream_endpoint = format!("tcp://*:{port}");
+//!     zmq_stream.bind(&stream_endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         let mut connect_msg = zmq_stream.recv_multipart(RecvFlags::empty()).unwrap();
+//!         let routing_id = connect_msg.pop_front().unwrap();
+//!
+//!         loop {
+//!             run_stream_socket(&zmq_stream, &routing_id.bytes(), "World").unwrap();
+//!         }
+//!     });
+//!
+//!     let tcp_endpoint = format!("127.0.0.1:{port}");
+//!     run_tcp_client(&tcp_endpoint, iterations)?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! [`Stream`]: StreamSocket
+//!
+//! ## Request-Reply pattern
+//! The request-reply pattern is used for sending requests from a [`Request`] client to one or more
+//! [`Reply`] services, and receiving subsequent replies to each request sent.
+//!
+//! ### Examples
+//! Request-Reply sockets
+//! ```
+//! # use std::thread;
+//! #
+//! # use arzmq::{
+//! #     ZmqResult,
+//! #     context::Context,
+//! #     socket::{ReplySocket, RequestSocket, Sender, Receiver, SendFlags, RecvFlags},
+//! # };
+//! #
+//! pub fn run_recv_send<S>(recv_send: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: Receiver + Sender,
+//! {
+//!     let message = recv_send.recv_msg(RecvFlags::empty())?;
+//!     assert_eq!(message.to_string(), "Hello");
+//!
+//!     recv_send.send_msg(msg, SendFlags::empty())
+//! }
+//!
+//! pub fn run_send_recv<S>(send_recv: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: Sender + Receiver,
+//! {
+//!     send_recv.send_msg(msg, SendFlags::empty())?;
+//!
+//!     let message = send_recv.recv_msg(RecvFlags::empty())?;
+//!     assert_eq!(message.to_string(), "World");
+//!
+//!     Ok(())
+//! }
+//!
+//! fn main() -> ZmqResult<()> {
+//!     let port = 5560;
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let reply = ReplySocket::from_context(&context)?;
+//!
+//!     let reply_endpoint = format!("tcp://*:{port}");
+//!     reply.bind(&reply_endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         (1..=iterations)
+//!             .try_for_each(|_| run_recv_send(&reply, "World"))
+//!             .unwrap();
+//!     });
+//!
+//!     let request = RequestSocket::from_context(&context)?;
+//!
+//!     let request_endpoint = format!("tcp://localhost:{port}");
+//!     request.connect(&request_endpoint)?;
+//!
+//!     (0..iterations).try_for_each(|_| run_send_recv(&request, "Hello"))
+//! }
+//! ```
+//!
+//! Request-Router sockets
+//! ```
+//! # use std::thread;
+//! #
+//! # use arzmq::{
+//! #     ZmqResult,
+//! #     context::Context,
+//! #     socket::{RequestSocket, RouterSocket, Sender, Receiver, SendFlags, RecvFlags, MultipartSender, MultipartReceiver},
+//! # };
+//! #
+//! pub fn run_multipart_recv_reply<S>(recv_send: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: MultipartSender + MultipartReceiver,
+//! {
+//!     let mut multipart = recv_send.recv_multipart(RecvFlags::empty())?;
+//!
+//!     let content = multipart.pop_back().unwrap();
+//!     if !content.is_empty() {
+//!         assert_eq!(content.to_string(), "Hello");
+//!     }
+//!
+//!     multipart.push_back(msg.into());
+//!     recv_send.send_multipart(multipart, SendFlags::empty())
+//! }
+//!
+//! pub fn run_send_recv<S>(send_recv: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: Sender + Receiver,
+//! {
+//!     send_recv.send_msg(msg, SendFlags::empty())?;
+//!
+//!     let message = send_recv.recv_msg(RecvFlags::empty())?;
+//!     assert_eq!(message.to_string(), "World");
+//!
+//!     Ok(())
+//! }
+//!
+//! fn main() -> ZmqResult<()> {
+//!     let port = 5561;
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let router = RouterSocket::from_context(&context)?;
+//!
+//!     let router_endpoint = format!("tcp://*:{port}");
+//!     router.bind(&router_endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         (0..iterations)
+//!             .try_for_each(|_| run_multipart_recv_reply(&router, "World"))
+//!             .unwrap();
+//!     });
+//!
+//!     let request = RequestSocket::from_context(&context)?;
+//!
+//!     let request_endpoint = format!("tcp://localhost:{port}");
+//!     request.connect(&request_endpoint)?;
+//!
+//!     (0..iterations).try_for_each(|_| run_send_recv(&request, "Hello"))
+//! }
+//! ```
+//!
+//! Dealer-Router sockets
+//! ```
+//! # use std::thread;
+//! #
+//! # use arzmq::{
+//! #     ZmqResult,
+//! #     context::Context,
+//! #     message::Message,
+//! #     socket::{DealerSocket, RouterSocket, MultipartReceiver, MultipartSender, SendFlags, RecvFlags},
+//! # };
+//! #
+//! pub fn run_multipart_recv_reply<S>(recv_send: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: MultipartSender + MultipartReceiver,
+//! {
+//!     let mut multipart = recv_send.recv_multipart(RecvFlags::empty())?;
+//!
+//!     let content = multipart.pop_back().unwrap();
+//!     if !content.is_empty() {
+//!         assert_eq!(content.to_string(), "Hello");
+//!     }
+//!
+//!     multipart.push_back(msg.into());
+//!     recv_send.send_multipart(multipart, SendFlags::empty())
+//! }
+//!
+//! pub fn run_multipart_send_recv<S>(send_recv: &S, msg: &str) -> ZmqResult<()>
+//! where
+//!     S: MultipartReceiver + MultipartSender,
+//! {
+//!     println!("Sending message {msg:?}");
+//!     let multipart: Vec<Message> = vec![vec![].into(), msg.into()];
+//!     send_recv.send_multipart(multipart, SendFlags::empty())?;
+//!
+//!     let mut multipart = send_recv.recv_multipart(RecvFlags::empty())?;
+//!     let content = multipart.pop_back().unwrap();
+//!     if !content.is_empty() {
+//!         assert_eq!(content.to_string(), "World");
+//!     }
+//!
+//!     Ok(())
+//! }
+//!
+//! fn main() -> ZmqResult<()> {
+//!     let port = 5564;
+//!     let iterations = 10;
+//!
+//!     let context = Context::new()?;
+//!
+//!     let router = RouterSocket::from_context(&context)?;
+//!     let router_endpoint = format!("tcp://*:{port}");
+//!     router.bind(&router_endpoint)?;
+//!
+//!     thread::spawn(move || {
+//!         (0..iterations)
+//!             .try_for_each(|_| run_multipart_recv_reply(&router, "World"))
+//!             .unwrap();
+//!     });
+//!
+//!     let dealer = DealerSocket::from_context(&context)?;
+//!
+//!     let dealer_endpoint = format!("tcp://localhost:{port}");
+//!     dealer.connect(&dealer_endpoint)?;
+//!
+//!     (0..iterations).try_for_each(|_| run_multipart_send_recv(&dealer, "Hello"))
+//! }
+//! ```
+//!
+//! [`Request`]: RequestSocket
+//! [`Reply`]: ReplySocket
 
 use alloc::sync::Arc;
 use core::{iter, marker::PhantomData, ops::ControlFlow};
@@ -730,108 +1067,108 @@ mod xsubscribe;
 
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use builder::{SocketConfig, SocketConfigBuilder};
+pub use builder::SocketBuilder;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use channel::ChannelSocket;
 #[cfg(all(feature = "draft-api", feature = "builder"))]
 #[doc(cfg(all(feature = "draft-api", feature = "builder")))]
-pub use channel::builder::{ChannelConfig, ChannelConfigBuilder};
+pub use channel::builder::ChannelBuilder;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use client::ClientSocket;
 #[cfg(all(feature = "draft-api", feature = "builder"))]
 #[doc(cfg(all(feature = "draft-api", feature = "builder")))]
-pub use client::builder::{ClientConfig, ClientConfigBuilder};
+pub use client::builder::ClientBuilder;
 pub use dealer::DealerSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use dealer::builder::{DealerConfig, DealerConfigBuilder};
+pub use dealer::builder::DealerBuilder;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use dish::DishSocket;
 #[cfg(all(feature = "draft-api", feature = "builder"))]
 #[doc(cfg(all(feature = "draft-api", feature = "builder")))]
-pub use dish::builder::{DishConfig, DishConfigBuilder};
+pub use dish::builder::DishBuilder;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use gather::GatherSocket;
 #[cfg(all(feature = "draft-api", feature = "builder"))]
 #[doc(cfg(all(feature = "draft-api", feature = "builder")))]
-pub use gather::builder::{GatherConfig, GatherConfigBuilder};
+pub use gather::builder::GatherBuilder;
 use monitor::Monitor;
 pub use monitor::{MonitorReceiver, MonitorSocket, MonitorSocketEvent};
 pub use pair::PairSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use pair::builder::{PairConfig, PairConfigBuilder};
+pub use pair::builder::PairBuilder;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use peer::PeerSocket;
 #[cfg(all(feature = "draft-api", feature = "builder"))]
 #[doc(cfg(all(feature = "draft-api", feature = "builder")))]
-pub use peer::builder::{PeerConfig, PeerConfigBuilder};
+pub use peer::builder::PeerBuilder;
 pub use publish::PublishSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use publish::builder::{PublishConfig, PublishConfigBuilder};
+pub use publish::builder::PublishBuilder;
 pub use pull::PullSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use pull::builder::{PullConfig, PullConfigBuilder};
+pub use pull::builder::PullBuilder;
 pub use push::PushSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use push::builder::{PushConfig, PushConfigBuilder};
+pub use push::builder::PushBuilder;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use radio::RadioSocket;
 #[cfg(all(feature = "draft-api", feature = "builder"))]
 #[doc(cfg(all(feature = "draft-api", feature = "builder")))]
-pub use radio::builder::{RadioConfig, RadioConfigBuilder};
+pub use radio::builder::RadioBuilder;
 pub use reply::ReplySocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use reply::builder::{ReplyConfig, ReplyConfigBuilder};
+pub use reply::builder::ReplyBuilder;
 pub use request::RequestSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use request::builder::{RequestConfig, RequestConfigBuilder};
+pub use request::builder::RequestBuilder;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use router::RouterNotify;
 pub use router::RouterSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use router::builder::{RouterConfig, RouterConfigBuilder};
+pub use router::builder::RouterBuilder;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use scatter::ScatterSocket;
 #[cfg(all(feature = "draft-api", feature = "builder"))]
 #[doc(cfg(all(feature = "draft-api", feature = "builder")))]
-pub use scatter::builder::{ScatterConfig, ScatterConfigBuilder};
+pub use scatter::builder::ScatterBuilder;
 #[cfg(feature = "draft-api")]
 #[doc(cfg(feature = "draft-api"))]
 pub use server::ServerSocket;
 #[cfg(all(feature = "draft-api", feature = "builder"))]
 #[doc(cfg(all(feature = "draft-api", feature = "builder")))]
-pub use server::builder::{ServerConfig, ServerConfigBuilder};
+pub use server::builder::ServerBuilder;
 pub use stream::StreamSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use stream::builder::{StreamConfig, StreamConfigBuilder};
+pub use stream::builder::StreamBuilder;
 pub use subscribe::SubscribeSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use subscribe::builder::{SubscribeConfig, SubscribeConfigBuilder};
+pub use subscribe::builder::SubscribeBuilder;
 pub use xpublish::XPublishSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use xpublish::builder::{XPublishConfig, XPublishConfigBuilder};
+pub use xpublish::builder::XPublishBuilder;
 pub use xsubscribe::XSubscribeSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
-pub use xsubscribe::builder::{XSubscribeConfig, XSubscribeConfigBuilder};
+pub use xsubscribe::builder::XSubscribeBuilder;
 
 #[doc(cfg(zmq_have_gssapi))]
 use crate::security::GssApiNametype;
@@ -2923,11 +3260,22 @@ pub(crate) mod builder {
     use derive_builder::Builder;
     use serde::{Deserialize, Serialize};
 
-    use crate::{ZmqResult, auth::ZapDomain, sealed, security::SecurityMechanism, socket::Socket};
+    use crate::{
+        ZmqResult, auth::ZapDomain, context::Context, sealed, security::SecurityMechanism,
+        socket::Socket,
+    };
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize))]
-    pub struct SocketConfig {
+    #[builder(
+        pattern = "owned",
+        name = "SocketBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`Socket`].\n\n")]
+    #[allow(dead_code)]
+    struct SocketConfig {
         #[cfg(feature = "draft-api")]
         #[doc(cfg(feature = "draft-api"))]
         #[builder(default = false)]
@@ -2972,34 +3320,105 @@ pub(crate) mod builder {
         security_mechanism: SecurityMechanism,
     }
 
-    impl SocketConfig {
-        pub fn apply<T>(&self, socket: &Socket<T>) -> ZmqResult<()>
+    impl SocketBuilder {
+        /// Applies this builder to the provided socket
+        pub fn apply<T>(self, socket: &Socket<T>) -> ZmqResult<()>
         where
             T: sealed::SocketType,
         {
             #[cfg(feature = "draft-api")]
-            socket.set_busy_poll(self.busy_poll)?;
-            socket.set_connect_timeout(self.connect_timeout)?;
-            socket.set_handshake_interval(self.handshake_interval)?;
-            socket.set_heartbeat_interval(self.heartbeat_interval)?;
-            socket.set_heartbeat_timeout(self.heartbeat_timeout)?;
-            socket.set_heartbeat_timetolive(self.heartbeat_timetolive)?;
-            socket.set_immediate(self.immediate)?;
-            socket.set_ipv6(self.ipv6)?;
-            socket.set_linger(self.linger)?;
-            socket.set_max_message_size(self.max_message_size)?;
-            socket.set_receive_buffer(self.receive_buffer)?;
-            socket.set_receive_highwater_mark(self.receive_highwater_mark)?;
-            socket.set_receive_timeout(self.receive_timeout)?;
-            socket.set_reconnect_interval(self.reconnect_interval)?;
-            socket.set_reconnect_interval_max(self.reconnect_interval_max)?;
-            socket.set_send_buffer(self.send_buffer)?;
-            socket.set_send_highwater_mark(self.send_highwater_mark)?;
-            socket.set_send_timeout(self.send_timeout)?;
-            socket.set_zap_domain(&self.zap_domain)?;
-            socket.set_security_mechanism(&self.security_mechanism)?;
+            if let Some(busy_poll) = self.busy_poll {
+                socket.set_busy_poll(busy_poll)?;
+            }
+
+            if let Some(connect_timeout) = self.connect_timeout {
+                socket.set_connect_timeout(connect_timeout)?;
+            }
+
+            if let Some(handshake_interval) = self.handshake_interval {
+                socket.set_handshake_interval(handshake_interval)?;
+            }
+
+            if let Some(heartbeat_interval) = self.heartbeat_interval {
+                socket.set_heartbeat_interval(heartbeat_interval)?;
+            }
+
+            if let Some(heartbeat_timeout) = self.heartbeat_timeout {
+                socket.set_heartbeat_timeout(heartbeat_timeout)?;
+            }
+
+            if let Some(heartbeat_timetolive) = self.heartbeat_timetolive {
+                socket.set_heartbeat_timetolive(heartbeat_timetolive)?;
+            }
+
+            if let Some(immediate) = self.immediate {
+                socket.set_immediate(immediate)?;
+            }
+
+            if let Some(ipv6) = self.ipv6 {
+                socket.set_ipv6(ipv6)?;
+            }
+
+            if let Some(linger) = self.linger {
+                socket.set_linger(linger)?;
+            }
+
+            if let Some(max_msg_size) = self.max_message_size {
+                socket.set_max_message_size(max_msg_size)?;
+            }
+
+            if let Some(receive_buffer) = self.receive_buffer {
+                socket.set_receive_buffer(receive_buffer)?;
+            }
+
+            if let Some(receive_highwater_mark) = self.receive_highwater_mark {
+                socket.set_receive_highwater_mark(receive_highwater_mark)?;
+            }
+
+            if let Some(receive_timeout) = self.receive_timeout {
+                socket.set_receive_timeout(receive_timeout)?;
+            }
+
+            if let Some(reconnect_interval) = self.reconnect_interval {
+                socket.set_reconnect_interval(reconnect_interval)?;
+            }
+
+            if let Some(reconnect_interval_max) = self.reconnect_interval_max {
+                socket.set_reconnect_interval_max(reconnect_interval_max)?;
+            }
+
+            if let Some(send_buffer) = self.send_buffer {
+                socket.set_send_buffer(send_buffer)?;
+            }
+
+            if let Some(send_highwater_mark) = self.send_highwater_mark {
+                socket.set_send_highwater_mark(send_highwater_mark)?;
+            }
+
+            if let Some(send_timeout) = self.send_timeout {
+                socket.set_send_timeout(send_timeout)?;
+            }
+
+            if let Some(zap_domain) = self.zap_domain {
+                socket.set_zap_domain(&zap_domain)?;
+            }
+
+            if let Some(security_mechanism) = self.security_mechanism {
+                socket.set_security_mechanism(&security_mechanism)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context<T>(self, context: &Context) -> ZmqResult<Socket<T>>
+        where
+            T: sealed::SocketType,
+        {
+            let socket = Socket::<T>::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

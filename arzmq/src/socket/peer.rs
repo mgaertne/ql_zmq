@@ -143,12 +143,20 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::PeerSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct PeerConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "PeerBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`PeerSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct PeerConfig {
+        socket_config: SocketBuilder,
         #[builder(setter(into), default = "Default::default()")]
         hiccup_msg: String,
         #[builder(setter(into), default = "Default::default()")]
@@ -157,14 +165,33 @@ pub(crate) mod builder {
         disconnect_message: String,
     }
 
-    impl PeerConfig {
-        pub fn apply(&self, socket: &PeerSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_hiccup_message(&self.hiccup_msg)?;
-            socket.set_hello_message(&self.hello_message)?;
-            socket.set_disconnect_message(&self.disconnect_message)?;
+    impl PeerBuilder {
+        pub fn apply(self, socket: &PeerSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(hiccup_message) = self.hiccup_msg {
+                socket.set_hiccup_message(hiccup_message)?;
+            }
+
+            if let Some(hello_message) = self.hello_message {
+                socket.set_hello_message(hello_message)?;
+            }
+
+            if let Some(disconnect_message) = self.disconnect_message {
+                socket.set_disconnect_message(disconnect_message)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<PeerSocket> {
+            let socket = PeerSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

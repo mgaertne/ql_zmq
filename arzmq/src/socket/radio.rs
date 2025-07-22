@@ -57,22 +57,43 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::RadioSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct RadioConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "RadioBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`RadioSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct RadioConfig {
+        socket_config: SocketBuilder,
         #[builder(default = false)]
         multicast_loop: bool,
     }
 
-    impl RadioConfig {
-        pub fn apply(&self, socket: &RadioSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_multicast_loop(self.multicast_loop)?;
+    impl RadioBuilder {
+        pub fn apply(self, socket: &RadioSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(multicast_loop) = self.multicast_loop {
+                socket.set_multicast_loop(multicast_loop)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<RadioSocket> {
+            let socket = RadioSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

@@ -95,25 +95,49 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::ClientSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct ClientConfig {
-        socket_config: SocketConfig,
-        #[builder(setter(into), default = "Default::default()")]
+    #[builder(
+        pattern = "owned",
+        name = "ClientBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`ClientSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct ClientConfig {
+        socket_config: SocketBuilder,
+        #[builder(setter(into), default)]
         hiccup_msg: String,
-        #[builder(setter(into), default = "Default::default()")]
+        #[builder(setter(into), default)]
         hello_message: String,
     }
 
-    impl ClientConfig {
-        pub fn apply(&self, socket: &ClientSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_hiccup_message(&self.hiccup_msg)?;
-            socket.set_hello_message(&self.hello_message)?;
+    impl ClientBuilder {
+        pub fn apply(self, socket: &ClientSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(hiccup_message) = self.hiccup_msg {
+                socket.set_hiccup_message(hiccup_message)?;
+            }
+
+            if let Some(hello_message) = self.hello_message {
+                socket.set_hello_message(hello_message)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<ClientSocket> {
+            let socket = ClientSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

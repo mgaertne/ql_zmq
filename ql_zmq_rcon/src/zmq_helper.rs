@@ -2,12 +2,12 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use arzmq::{
-    context::{Context, ContextConfigBuilder},
+    context::ContextBuilder,
     message::Message,
     security::SecurityMechanism,
     socket::{
-        DealerConfigBuilder, DealerSocket, MonitorFlags, MonitorReceiver, MonitorSocket,
-        MonitorSocketEvent, Receiver, SendFlags, Sender, Socket, SocketConfigBuilder,
+        DealerBuilder, DealerSocket, MonitorFlags, MonitorReceiver, MonitorSocket,
+        MonitorSocketEvent, Receiver, SendFlags, Sender, Socket, SocketBuilder,
     },
 };
 use tokio::{
@@ -31,13 +31,11 @@ unsafe impl Sync for MonitoredDealer {}
 
 impl MonitoredDealer {
     fn new() -> Result<Self> {
-        let config = ContextConfigBuilder::default()
+        let context = ContextBuilder::default()
             .blocky(false)
             .max_sockets(10)
             .io_threads(2)
             .build()?;
-        let context = Context::new()?;
-        config.apply(&context)?;
 
         let dealer = Socket::from_context(&context)?;
         let monitor = dealer.monitor(
@@ -65,7 +63,7 @@ impl MonitoredDealer {
             identity.to_string()
         };
 
-        let socket_config = SocketConfigBuilder::default()
+        let socket_config = SocketBuilder::default()
             .security_mechanism(SecurityMechanism::PlainClient {
                 username: "rcon".into(),
                 password: password.into(),
@@ -77,14 +75,12 @@ impl MonitoredDealer {
             .send_highwater_mark(0)
             .heartbeat_interval(600_000)
             .heartbeat_timeout(600_000)
-            .zap_domain("rcon")
-            .build()?;
+            .zap_domain("rcon");
 
-        let dealer_config = DealerConfigBuilder::default()
+        let dealer_config = DealerBuilder::default()
             .socket_config(socket_config)
             .routing_id(identity_str)
-            .hello_message("register")
-            .build()?;
+            .hello_message("register");
 
         let dealer = self.dealer.read().await;
         dealer_config.apply(&dealer)?;

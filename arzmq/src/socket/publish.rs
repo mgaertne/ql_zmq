@@ -140,12 +140,20 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::PublishSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct PublishConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "PublishBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`PublishSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct PublishConfig {
+        socket_config: SocketBuilder,
         #[builder(default = false)]
         conflate: bool,
         #[builder(default = false)]
@@ -154,14 +162,33 @@ pub(crate) mod builder {
         nodrop: bool,
     }
 
-    impl PublishConfig {
-        pub fn apply(&self, socket: &PublishSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_conflate(self.conflate)?;
-            socket.set_invert_matching(self.invert_matching)?;
-            socket.set_nodrop(self.nodrop)?;
+    impl PublishBuilder {
+        pub fn apply(self, socket: &PublishSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(conflate) = self.conflate {
+                socket.set_conflate(conflate)?;
+            }
+
+            if let Some(invert_matching) = self.invert_matching {
+                socket.set_invert_matching(invert_matching)?;
+            }
+
+            if let Some(nodrop) = self.nodrop {
+                socket.set_nodrop(nodrop)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<PublishSocket> {
+            let socket = PublishSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }

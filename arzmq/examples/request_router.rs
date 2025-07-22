@@ -9,7 +9,7 @@ use arzmq::{
 mod common;
 
 fn main() -> ZmqResult<()> {
-    let port = 5556;
+    let port = 5561;
     let iterations = 10;
 
     let context = Context::new()?;
@@ -30,7 +30,5 @@ fn main() -> ZmqResult<()> {
     let request_endpoint = format!("tcp://localhost:{port}");
     request.connect(&request_endpoint)?;
 
-    (0..iterations).try_for_each(|_| common::run_send_recv(&request, "Hello"))?;
-
-    Ok(())
+    (0..iterations).try_for_each(|_| common::run_send_recv(&request, "Hello"))
 }

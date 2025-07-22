@@ -160,12 +160,20 @@ pub(crate) mod builder {
     use serde::{Deserialize, Serialize};
 
     use super::SubscribeSocket;
-    use crate::{ZmqResult, socket::SocketConfig};
+    use crate::{ZmqResult, context::Context, socket::SocketBuilder};
 
     #[derive(Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Builder)]
-    #[builder(derive(serde::Serialize, serde::Deserialize))]
-    pub struct SubscribeConfig {
-        socket_config: SocketConfig,
+    #[builder(
+        pattern = "owned",
+        name = "SubscribeBuilder",
+        public,
+        build_fn(skip, error = "ZmqError"),
+        derive(PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)
+    )]
+    #[builder_struct_attr(doc = "Builder for [`SubscribeSocket`].\n\n")]
+    #[allow(dead_code)]
+    struct SubscribeConfig {
+        socket_config: SocketBuilder,
         #[builder(default = false)]
         conflate: bool,
         #[builder(default = false)]
@@ -174,14 +182,33 @@ pub(crate) mod builder {
         subscribe: String,
     }
 
-    impl SubscribeConfig {
-        pub fn apply(&self, socket: &SubscribeSocket) -> ZmqResult<()> {
-            self.socket_config.apply(socket)?;
-            socket.set_conflate(self.conflate)?;
-            socket.set_invert_matching(self.invert_matching)?;
-            socket.subscribe(&self.subscribe)?;
+    impl SubscribeBuilder {
+        pub fn apply(self, socket: &SubscribeSocket) -> ZmqResult<()> {
+            if let Some(socket_config) = self.socket_config {
+                socket_config.apply(socket)?;
+            }
+
+            if let Some(conflate) = self.conflate {
+                socket.set_conflate(conflate)?;
+            }
+
+            if let Some(invert_matching) = self.invert_matching {
+                socket.set_invert_matching(invert_matching)?;
+            }
+
+            if let Some(subscribe) = self.subscribe {
+                socket.subscribe(subscribe)?;
+            }
 
             Ok(())
+        }
+
+        pub fn build_from_context(self, context: &Context) -> ZmqResult<SubscribeSocket> {
+            let socket = SubscribeSocket::from_context(context)?;
+
+            self.apply(&socket)?;
+
+            Ok(socket)
         }
     }
 }
