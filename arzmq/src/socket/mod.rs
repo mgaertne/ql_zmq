@@ -542,7 +542,7 @@
 //!
 //! [`Pair`]: PairSocket
 //!
-//! ## Peer-to-peer pattern
+//! ## Peer-to-peer pattern <span class="stab portability"><code>draft-api</code></span>
 //! The peer-to-peer pattern is used to connect a [`Peer`] to multiple peers. Peer can both connect
 //! and bind and mix both of them with the same socket. The peer-to-peer pattern is useful to build
 //! peer-to-peer networks (e.g zyre, bitcoin, torrent) where a peer can both accept connections
@@ -610,7 +610,10 @@
 //!
 //! [`Peer`]: PeerSocket
 //!
-//! ## Channel pattern
+//! ## Channel pattern <span class="stab portability"><code>draft-api</code></span>
+//! The [`Channel`] pattern is the thread-safe version of the exclusive [`Pair`] pattern. The
+//! channel pattern is used to connect a peer to precisely one other peer. This pattern is used for
+//! inter-thread communication across the inproc transport.
 //!
 //! ### Example
 //! ```
@@ -674,6 +677,7 @@
 //! ```
 //!
 //! [`Channel`]: ChannelSocket
+//! [`Pair`]: PairSocket
 
 use alloc::sync::Arc;
 use core::{iter, marker::PhantomData, ops::ControlFlow};
