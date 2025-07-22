@@ -1,6 +1,19 @@
+//! # Asynchronous Rust bindings for 0MQ (arzmq)
+
 #![feature(cold_path, doc_cfg, stmt_expr_attributes)]
 #![allow(clippy::items_after_test_module)]
 #![doc(test(no_crate_inject))]
+#![deny(
+    rustdoc::private_intra_doc_links,
+    rustdoc::broken_intra_doc_links,
+    rustdoc::invalid_codeblock_attributes,
+    rustdoc::bare_urls,
+    rustdoc::private_doc_tests,
+    rustdoc::invalid_html_tags,
+    rustdoc::invalid_rust_codeblocks,
+    rustdoc::unescaped_backticks,
+    rustdoc::redundant_explicit_links
+)]
 extern crate alloc;
 extern crate core;
 
@@ -33,6 +46,9 @@ mod sealed {
 }
 
 #[derive(Debug, Display, Clone, Eq, PartialEq)]
+/// 0MQ capabilities for use with the [`has_capability()`] function.
+///
+/// [`has_capability()`]: has_capability
 pub enum Capability {
     /// whether the library supports the `ipc://` protocol
     #[display("ipc")]
@@ -60,7 +76,7 @@ pub enum Capability {
     Draft,
 }
 
-/// # check a ZMQ capability
+/// # check a 0MQ capability
 ///
 /// The [`has_capability()`] function shall report whether a specified capability is available in
 /// the library. This allows bindings and applications to probe a library directly, for transport

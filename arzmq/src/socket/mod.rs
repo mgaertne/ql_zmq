@@ -1097,7 +1097,7 @@ pub use gather::GatherSocket;
 #[doc(cfg(all(feature = "draft-api", feature = "builder")))]
 pub use gather::builder::GatherBuilder;
 use monitor::Monitor;
-pub use monitor::{MonitorReceiver, MonitorSocket, MonitorSocketEvent};
+pub use monitor::{HandshakeProtocolError, MonitorReceiver, MonitorSocket, MonitorSocketEvent};
 pub use pair::PairSocket;
 #[cfg(feature = "builder")]
 #[doc(cfg(feature = "builder"))]
@@ -1175,239 +1175,549 @@ use crate::security::GssApiNametype;
 use crate::{auth::ZapDomain, security::SecurityMechanism};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-#[repr(i32)]
+/// Socket type
 pub enum SocketType {
-    Pair = zmq_sys_crate::ZMQ_PAIR as i32,
-    Publish = zmq_sys_crate::ZMQ_PUB as i32,
-    Subscribe = zmq_sys_crate::ZMQ_SUB as i32,
-    Request = zmq_sys_crate::ZMQ_REQ as i32,
-    Reply = zmq_sys_crate::ZMQ_REP as i32,
-    Dealer = zmq_sys_crate::ZMQ_DEALER as i32,
-    Router = zmq_sys_crate::ZMQ_ROUTER as i32,
-    Pull = zmq_sys_crate::ZMQ_PULL as i32,
-    Push = zmq_sys_crate::ZMQ_PUSH as i32,
-    XPublish = zmq_sys_crate::ZMQ_XPUB as i32,
-    XSubscribe = zmq_sys_crate::ZMQ_XSUB as i32,
-    Stream = zmq_sys_crate::ZMQ_STREAM as i32,
+    /// [`PairSocket`]
+    Pair,
+    /// [`PublishSocket`]
+    Publish,
+    /// [`SubscribeSocket`]
+    Subscribe,
+    /// [`RequestSocket`]
+    Request,
+    /// [`ReplySocket`]
+    Reply,
+    /// [`DealerSocket`]
+    Dealer,
+    /// [`RouterSocket`]
+    Router,
+    /// [`PullSocket`]
+    Pull,
+    /// [`PushSocket`]
+    Push,
+    /// [`XPublishSocket`]
+    XPublish,
+    /// [`XSubscribeSocket`]
+    XSubscribe,
+    /// [`StreamSocket`]
+    Stream,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Server = zmq_sys_crate::ZMQ_SERVER as i32,
+    /// [`ServerSocket`]
+    Server,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Client = zmq_sys_crate::ZMQ_CLIENT as i32,
+    /// [`ClientSocket`]
+    Client,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Radio = zmq_sys_crate::ZMQ_RADIO as i32,
+    /// [`RadioSocket`]
+    Radio,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Dish = zmq_sys_crate::ZMQ_DISH as i32,
+    /// [`DishSocket`]
+    Dish,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Gather = zmq_sys_crate::ZMQ_GATHER as i32,
+    /// [`GatherSocket`]
+    Gather,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Scatter = zmq_sys_crate::ZMQ_SCATTER as i32,
+    /// [`ScatterSocket`]
+    Scatter,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Datagram = zmq_sys_crate::ZMQ_DGRAM as i32,
+    /// DGRAM sockets
+    Datagram,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Peer = zmq_sys_crate::ZMQ_PEER as i32,
+    /// [`PeerSocket`]
+    Peer,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Channel = zmq_sys_crate::ZMQ_CHANNEL as i32,
+    /// [`ChannelSocket`]
+    Channel,
+}
+
+impl From<SocketType> for i32 {
+    fn from(value: SocketType) -> Self {
+        match value {
+            SocketType::Pair => zmq_sys_crate::ZMQ_PAIR as i32,
+            SocketType::Publish => zmq_sys_crate::ZMQ_PUB as i32,
+            SocketType::Subscribe => zmq_sys_crate::ZMQ_SUB as i32,
+            SocketType::Request => zmq_sys_crate::ZMQ_REQ as i32,
+            SocketType::Reply => zmq_sys_crate::ZMQ_REP as i32,
+            SocketType::Dealer => zmq_sys_crate::ZMQ_DEALER as i32,
+            SocketType::Router => zmq_sys_crate::ZMQ_ROUTER as i32,
+            SocketType::Pull => zmq_sys_crate::ZMQ_PULL as i32,
+            SocketType::Push => zmq_sys_crate::ZMQ_PUSH as i32,
+            SocketType::XPublish => zmq_sys_crate::ZMQ_XPUB as i32,
+            SocketType::XSubscribe => zmq_sys_crate::ZMQ_XSUB as i32,
+            SocketType::Stream => zmq_sys_crate::ZMQ_STREAM as i32,
+            #[cfg(feature = "draft-api")]
+            SocketType::Server => zmq_sys_crate::ZMQ_SERVER as i32,
+            #[cfg(feature = "draft-api")]
+            SocketType::Client => zmq_sys_crate::ZMQ_CLIENT as i32,
+            #[cfg(feature = "draft-api")]
+            SocketType::Radio => zmq_sys_crate::ZMQ_RADIO as i32,
+            #[cfg(feature = "draft-api")]
+            SocketType::Dish => zmq_sys_crate::ZMQ_DISH as i32,
+            #[cfg(feature = "draft-api")]
+            SocketType::Gather => zmq_sys_crate::ZMQ_GATHER as i32,
+            #[cfg(feature = "draft-api")]
+            SocketType::Scatter => zmq_sys_crate::ZMQ_SCATTER as i32,
+            #[cfg(feature = "draft-api")]
+            SocketType::Datagram => zmq_sys_crate::ZMQ_DGRAM as i32,
+            #[cfg(feature = "draft-api")]
+            SocketType::Peer => zmq_sys_crate::ZMQ_PEER as i32,
+            #[cfg(feature = "draft-api")]
+            SocketType::Channel => zmq_sys_crate::ZMQ_CHANNEL as i32,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-#[repr(i32)]
 #[non_exhaustive]
+/// Options that can be set or retrieved on a 0MQ socket
 pub enum SocketOption {
-    Affinity = zmq_sys_crate::ZMQ_AFFINITY as i32,
-    RoutingId = zmq_sys_crate::ZMQ_ROUTING_ID as i32,
-    Subscribe = zmq_sys_crate::ZMQ_SUBSCRIBE as i32,
-    Unsubscribe = zmq_sys_crate::ZMQ_UNSUBSCRIBE as i32,
-    Rate = zmq_sys_crate::ZMQ_RATE as i32,
-    RecoveryInterval = zmq_sys_crate::ZMQ_RECOVERY_IVL as i32,
-    SendBuffer = zmq_sys_crate::ZMQ_SNDBUF as i32,
-    ReceiveBuffer = zmq_sys_crate::ZMQ_RCVBUF as i32,
-    ReceiveMore = zmq_sys_crate::ZMQ_RCVMORE as i32,
-    FileDescriptor = zmq_sys_crate::ZMQ_FD as i32,
-    Events = zmq_sys_crate::ZMQ_EVENTS as i32,
-    Type = zmq_sys_crate::ZMQ_TYPE as i32,
-    Linger = zmq_sys_crate::ZMQ_LINGER as i32,
-    ReconnectInterval = zmq_sys_crate::ZMQ_RECONNECT_IVL as i32,
-    Backlog = zmq_sys_crate::ZMQ_BACKLOG as i32,
-    ReconnectIntervalMax = zmq_sys_crate::ZMQ_RECONNECT_IVL_MAX as i32,
-    MaxMessageSize = zmq_sys_crate::ZMQ_MAXMSGSIZE as i32,
-    SendHighWatermark = zmq_sys_crate::ZMQ_SNDHWM as i32,
-    ReceiveHighWatermark = zmq_sys_crate::ZMQ_RCVHWM as i32,
-    MulticastHops = zmq_sys_crate::ZMQ_MULTICAST_HOPS as i32,
-    ReceiveTimeout = zmq_sys_crate::ZMQ_RCVTIMEO as i32,
-    SendTimeout = zmq_sys_crate::ZMQ_SNDTIMEO as i32,
-    LastEndpoint = zmq_sys_crate::ZMQ_LAST_ENDPOINT as i32,
-    RouterMandatory = zmq_sys_crate::ZMQ_ROUTER_MANDATORY as i32,
-    TcpKeepalive = zmq_sys_crate::ZMQ_TCP_KEEPALIVE as i32,
-    TcpKeepaliveCount = zmq_sys_crate::ZMQ_TCP_KEEPALIVE_CNT as i32,
-    TcpKeepaliveIdle = zmq_sys_crate::ZMQ_TCP_KEEPALIVE_IDLE as i32,
-    TcpKeepaliveInterval = zmq_sys_crate::ZMQ_TCP_KEEPALIVE_INTVL as i32,
-    TcpAcceptFilter = zmq_sys_crate::ZMQ_TCP_ACCEPT_FILTER as i32,
-    Immediate = zmq_sys_crate::ZMQ_IMMEDIATE as i32,
-    XpubVerbose = zmq_sys_crate::ZMQ_XPUB_VERBOSE as i32,
-    RouterRaw = zmq_sys_crate::ZMQ_ROUTER_RAW as i32,
-    IPv6 = zmq_sys_crate::ZMQ_IPV6 as i32,
-    Mechanism = zmq_sys_crate::ZMQ_MECHANISM as i32,
-    PlainServer = zmq_sys_crate::ZMQ_PLAIN_SERVER as i32,
-    PlainUsername = zmq_sys_crate::ZMQ_PLAIN_USERNAME as i32,
-    PlainPassword = zmq_sys_crate::ZMQ_PLAIN_PASSWORD as i32,
+    /// I/O thread affinity
+    Affinity,
+    /// Socket routing id
+    RoutingId,
+    /// Establish message filter
+    Subscribe,
+    /// Remove message filter
+    Unsubscribe,
+    /// Multicast data rate
+    Rate,
+    /// Multicast recovery interval
+    RecoveryInterval,
+    /// Kernel transmit buffer size
+    SendBuffer,
+    /// Kernel receive buffer size
+    ReceiveBuffer,
+    /// more message data to follow
+    ReceiveMore,
+    /// File descriptor associated with the socket
+    FileDescriptor,
+    /// Socket event state
+    Events,
+    /// Socket type
+    Type,
+    /// Linger period for socket shutdown
+    Linger,
+    /// Reconnection interval
+    ReconnectInterval,
+    /// Maximum length of the queue of outstanding connections
+    Backlog,
+    /// Maximum reconnection interval
+    ReconnectIntervalMax,
+    /// Maximum acceptable inbound message size
+    MaxMessageSize,
+    /// High water mark for outbound messages
+    SendHighWatermark,
+    /// High water mark for inbound messages
+    ReceiveHighWatermark,
+    /// Maximum network hops for multicast packets
+    MulticastHops,
+    /// Maximum time before a socket operation returns with [`Again`](crate::ZmqError::Again)
+    ReceiveTimeout,
+    /// Maximum time before a socket operation returns with [`Again`](crate::ZmqError::Again)
+    SendTimeout,
+    /// Last endpoint set
+    LastEndpoint,
+    /// Accept only routable messages on [`Rocker`](RouterSocket) sockets
+    RouterMandatory,
+    /// Overrides SO_KEEPALIVE socket option
+    TcpKeepalive,
+    /// Override TCP_KEEPCNT sockt option
+    TcpKeepaliveCount,
+    /// Override TCP_KEEPIDLE sockt option
+    TcpKeepaliveIdle,
+    /// Override TCP_KEEPINTVL sockt option
+    TcpKeepaliveInterval,
+    /// Assign filters to allow new TCP connections
+    TcpAcceptFilter,
+    /// Queue messages only to completed connections
+    Immediate,
+    /// Pass duplicate subscribe messages on [`XPublish`](XPublishSocket) sockets
+    XpubVerbose,
+    /// IPv6 setting
+    IPv6,
+    /// Current security mechanism
+    Mechanism,
+    /// Current PLAIN server role
+    PlainServer,
+    /// Current PLAIN username
+    PlainUsername,
+    /// Current PLAIN password
+    PlainPassword,
     #[cfg(feature = "curve")]
     #[doc(cfg(all(feature = "curve", not(windows))))]
-    CurvePublicKey = zmq_sys_crate::ZMQ_CURVE_PUBLICKEY as i32,
+    /// Current CURVE public key
+    CurvePublicKey,
     #[cfg(feature = "curve")]
     #[doc(cfg(all(feature = "curve", not(windows))))]
-    CurveSecretKey = zmq_sys_crate::ZMQ_CURVE_SECRETKEY as i32,
+    /// Current CURVE secret key
+    CurveSecretKey,
     #[cfg(feature = "curve")]
     #[doc(cfg(all(feature = "curve", not(windows))))]
-    CurveServer = zmq_sys_crate::ZMQ_CURVE_SERVER as i32,
+    /// Current CURVE server role
+    CurveServer,
     #[cfg(feature = "curve")]
     #[doc(cfg(all(feature = "curve", not(windows))))]
-    CurveServerKey = zmq_sys_crate::ZMQ_CURVE_SERVERKEY as i32,
-    ProbeRouter = zmq_sys_crate::ZMQ_PROBE_ROUTER as i32,
-    RequestCorrelate = zmq_sys_crate::ZMQ_REQ_CORRELATE as i32,
-    RequestRelaxed = zmq_sys_crate::ZMQ_REQ_RELAXED as i32,
-    Conflate = zmq_sys_crate::ZMQ_CONFLATE as i32,
-    ZapDomain = zmq_sys_crate::ZMQ_ZAP_DOMAIN as i32,
-    RouterHandover = zmq_sys_crate::ZMQ_ROUTER_HANDOVER as i32,
-    TypeOfService = zmq_sys_crate::ZMQ_TOS as i32,
+    /// Current CURVE server key
+    CurveServerKey,
+    /// Bootstrap connections to [`Router`](RouterSocket) sockets
+    ProbeRouter,
+    /// Match replies with requests on [`Request`](RequestSocket) sockets
+    RequestCorrelate,
+    /// Relax strict alternation between reques and reply
+    RequestRelaxed,
+    /// Keep only last message
+    Conflate,
+    /// RFC27 authentifcation domain
+    ZapDomain,
+    /// Handle duplicate client routing ids on [`Router`](RouterSocket) sockets
+    RouterHandover,
+    /// Type-of-service on the underlying socket
+    TypeOfService,
     #[doc(cfg(zmq_have_ipc))]
-    IpcFilterProcessId = zmq_sys_crate::ZMQ_IPC_FILTER_PID as i32,
+    /// Process ID filters to allow new IPC connections
+    IpcFilterProcessId,
     #[doc(cfg(zmq_have_ipc))]
-    IpcFilterUserId = zmq_sys_crate::ZMQ_IPC_FILTER_UID as i32,
+    /// User ID filters to allow new IPC connections
+    IpcFilterUserId,
     #[doc(cfg(zmq_have_ipc))]
-    IpcFilterGroupId = zmq_sys_crate::ZMQ_IPC_FILTER_GID as i32,
-    ConnectRoutingId = zmq_sys_crate::ZMQ_CONNECT_ROUTING_ID as i32,
+    /// Group ID filters to allow new IPC connections
+    IpcFilterGroupId,
+    /// Next outbound routing id
+    ConnectRoutingId,
     #[doc(cfg(zmq_have_gssapi))]
-    GssApiServer = zmq_sys_crate::ZMQ_GSSAPI_SERVER as i32,
+    /// GSSAPI server role
+    GssApiServer,
     #[doc(cfg(zmq_have_gssapi))]
-    GssApiPrincipal = zmq_sys_crate::ZMQ_GSSAPI_PRINCIPAL as i32,
+    /// Name of GSSAPI principal
+    GssApiPrincipal,
     #[doc(cfg(zmq_have_gssapi))]
-    GssApiServicePrincipal = zmq_sys_crate::ZMQ_GSSAPI_SERVICE_PRINCIPAL as i32,
+    /// Name of GSSAPI service principal
+    GssApiServicePrincipal,
     #[doc(cfg(zmq_have_gssapi))]
-    GssApiPlainText = zmq_sys_crate::ZMQ_GSSAPI_PLAINTEXT as i32,
-    HandshakeInterval = zmq_sys_crate::ZMQ_HANDSHAKE_IVL as i32,
-    SocksProxy = zmq_sys_crate::ZMQ_SOCKS_PROXY as i32,
-    XpubNoDrop = zmq_sys_crate::ZMQ_XPUB_NODROP as i32,
-    XpubManual = zmq_sys_crate::ZMQ_XPUB_MANUAL as i32,
-    XpubWelcomeMessage = zmq_sys_crate::ZMQ_XPUB_WELCOME_MSG as i32,
-    StreamNotify = zmq_sys_crate::ZMQ_STREAM_NOTIFY as i32,
-    InvertMatching = zmq_sys_crate::ZMQ_INVERT_MATCHING as i32,
-    HeartbeatInterval = zmq_sys_crate::ZMQ_HEARTBEAT_IVL as i32,
-    HeartbeatTimeToLive = zmq_sys_crate::ZMQ_HEARTBEAT_TTL as i32,
-    HeartbeatTimeout = zmq_sys_crate::ZMQ_HEARTBEAT_TIMEOUT as i32,
-    XpubVerboser = zmq_sys_crate::ZMQ_XPUB_VERBOSER as i32,
-    ConnectTimeout = zmq_sys_crate::ZMQ_CONNECT_TIMEOUT as i32,
-    MaxTcpTransmitTimeout = zmq_sys_crate::ZMQ_TCP_MAXRT as i32,
-    ThreadSafe = zmq_sys_crate::ZMQ_THREAD_SAFE as i32,
-    MulticastMaxTransportDataUnitSize = zmq_sys_crate::ZMQ_MULTICAST_MAXTPDU as i32,
+    /// Enable/disable GSSAPI encryption
+    GssApiPlainText,
+    /// Maximum handshake interval
+    HandshakeInterval,
+    /// SOCKS5 proxy address
+    SocksProxy,
+    /// Do not silently drop message if SendHighWatermark is reached on [`XPublish`](XPublishSocket)
+    /// sockets
+    XpubNoDrop,
+    /// Change the subscription handling to manual
+    XpubManual,
+    /// Welcome message that will be received by [`Subscribe`](SubscribeSocket) when connecting to a
+    /// [`XPublish`](XPublishSocket) socket.
+    XpubWelcomeMessage,
+    /// Send connect and disconnect notifications
+    StreamNotify,
+    /// Invert message filtering
+    InvertMatching,
+    /// Interval between sending ZMTP heartbeats
+    HeartbeatInterval,
+    /// Time-to-live for ZMTP heartbeats
+    HeartbeatTimeToLive,
+    /// Timeout for ZMTP heartbeats
+    HeartbeatTimeout,
+    /// Pass duplicate subscribe and unsubscribe message on [`XPublish`](XPublishSocket) sockets
+    XpubVerboser,
+    /// Connect timeout
+    ConnectTimeout,
+    /// TCP maximum retransmit timeout
+    MaxTcpRetransmitTimeout,
+    /// Retrieve socket thread-safety
+    ThreadSafe,
+    /// Maximum transport data unit size for multicast packets
+    MulticastMaxTransportDataUnitSize,
     #[doc(cfg(zmq_have_vmci))]
-    VmciBufferSize = zmq_sys_crate::ZMQ_VMCI_BUFFER_SIZE as i32,
+    /// Buffer size of the VMCI socket
+    VmciBufferSize,
     #[doc(cfg(zmq_have_vmci))]
-    VmciBufferMinSize = zmq_sys_crate::ZMQ_VMCI_BUFFER_MIN_SIZE as i32,
+    /// Minimum buffer size of the VMCI socket
+    VmciBufferMinSize,
     #[doc(cfg(zmq_have_vmci))]
-    VmciBufferMaxSize = zmq_sys_crate::ZMQ_VMCI_BUFFER_MAX_SIZE as i32,
+    /// Maximum buffer size of the VMCI socket
+    VmciBufferMaxSize,
     #[doc(cfg(zmq_have_vmci))]
-    VmciConntectTimeout = zmq_sys_crate::ZMQ_VMCI_CONNECT_TIMEOUT as i32,
-    UseFd = zmq_sys_crate::ZMQ_USE_FD as i32,
+    /// Connection timeout of the VMCI socket
+    VmciConntectTimeout,
+    /// Retrive the pre-allocated socket file descriptor
+    UseFd,
     #[doc(cfg(zmq_have_gssapi))]
-    GssApiPrincipalNametype = zmq_sys_crate::ZMQ_GSSAPI_PRINCIPAL_NAMETYPE as i32,
+    /// Nametype for GSSAPI principal
+    GssApiPrincipalNametype,
     #[doc(cfg(zmq_have_gssapi))]
-    GssApiServicePrincipalNametype = zmq_sys_crate::ZMQ_GSSAPI_SERVICE_PRINCIPAL_NAMETYPE as i32,
-    BindToDevice = zmq_sys_crate::ZMQ_BINDTODEVICE as i32,
+    /// Nametype for GSSAPI service principal
+    GssApiServicePrincipalNametype,
+    /// Name of the devive to bind the socket to
+    BindToDevice,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    ZapEnforceDomain = zmq_sys_crate::ZMQ_ZAP_ENFORCE_DOMAIN as i32,
+    /// Strict ZAP domain handling
+    ZapEnforceDomain,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Metadata = zmq_sys_crate::ZMQ_METADATA as i32,
+    /// Application metadata properties on the socket
+    Metadata,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    MulticastLoop = zmq_sys_crate::ZMQ_MULTICAST_LOOP as i32,
+    /// Control multicast local loopback
+    MulticastLoop,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    RouterNotify = zmq_sys_crate::ZMQ_ROUTER_NOTIFY as i32,
+    /// Send connect and disconnect notifications
+    RouterNotify,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    XpubManualLastValue = zmq_sys_crate::ZMQ_XPUB_MANUAL_LAST_VALUE as i32,
+    /// Change the subscription handling to manual
+    XpubManualLastValue,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    SocksUsername = zmq_sys_crate::ZMQ_SOCKS_USERNAME as i32,
+    /// SOCKS username and select basic authentification
+    SocksUsername,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    SocksPassword = zmq_sys_crate::ZMQ_SOCKS_PASSWORD as i32,
+    /// SOCKS basic authentification password
+    SocksPassword,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    InBatchSize = zmq_sys_crate::ZMQ_IN_BATCH_SIZE as i32,
+    /// Maximum receive batch size
+    InBatchSize,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    OutBatchSize = zmq_sys_crate::ZMQ_OUT_BATCH_SIZE as i32,
+    /// Maximum send batch size
+    OutBatchSize,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    OnlyFirstSubscribe = zmq_sys_crate::ZMQ_ONLY_FIRST_SUBSCRIBE as i32,
+    /// Process only first subscribe/unsubscribe in a multipart message
+    OnlyFirstSubscribe,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    ReconnectStop = zmq_sys_crate::ZMQ_RECONNECT_STOP as i32,
+    /// Set condition when reconnection will stop
+    ReconnectStop,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    HelloMessage = zmq_sys_crate::ZMQ_HELLO_MSG as i32,
+    /// Set a hello message that will be sent when a new peer connects
+    HelloMessage,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    DisconnectMessage = zmq_sys_crate::ZMQ_DISCONNECT_MSG as i32,
+    /// Set a disconnect message that the socket will generate when accepted peer disconnect
+    DisconnectMessage,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    Priority = zmq_sys_crate::ZMQ_PRIORITY as i32,
+    /// Set the priority on the socket
+    Priority,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    BusyPoll = zmq_sys_crate::ZMQ_BUSY_POLL as i32,
+    /// This removes delays caused by the interrupt and the resultant context switch
+    BusyPoll,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    HiccupMessage = zmq_sys_crate::ZMQ_HICCUP_MSG as i32,
+    /// Set a hiccup message that the socket will generate when connected peer temprarily
+    /// disconnects
+    HiccupMessage,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    XsubVerboseUnsubscribe = zmq_sys_crate::ZMQ_XSUB_VERBOSE_UNSUBSCRIBE as i32,
+    /// Pass duplicate unsubscribe messages on [`XSubscribe`](XSubscribeSocket) sockets
+    XsubVerboseUnsubscribe,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    TopicsCount = zmq_sys_crate::ZMQ_TOPICS_COUNT as i32,
+    /// Number of topic subscriptions received
+    TopicsCount,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
-    NormMode = zmq_sys_crate::ZMQ_NORM_MODE as i32,
+    /// NORM sender mode
+    NormMode,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
-    NormUnicastNack = zmq_sys_crate::ZMQ_NORM_UNICAST_NACK as i32,
+    /// NORM unicast NACK mode
+    NormUnicastNack,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
-    NormBufferSize = zmq_sys_crate::ZMQ_NORM_BUFFER_SIZE as i32,
+    /// NORM buffer size
+    NormBufferSize,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
-    NormSegmentSize = zmq_sys_crate::ZMQ_NORM_SEGMENT_SIZE as i32,
+    /// NORM segment size
+    NormSegmentSize,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
-    NormBlockSize = zmq_sys_crate::ZMQ_NORM_BLOCK_SIZE as i32,
+    /// NORM block size
+    NormBlockSize,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
-    NormNumnParity = zmq_sys_crate::ZMQ_NORM_NUM_PARITY as i32,
+    /// NORM parity segment setting
+    NormNumnParity,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
-    NormNumnAutoParity = zmq_sys_crate::ZMQ_NORM_NUM_AUTOPARITY as i32,
+    /// Proactive NORM parity segment setting
+    NormNumnAutoParity,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(all(feature = "draft-api", zmq_have_norm)))]
-    NormPush = zmq_sys_crate::ZMQ_NORM_PUSH as i32,
+    /// NORM push mode
+    NormPush,
 }
 
 impl From<SocketOption> for i32 {
     fn from(value: SocketOption) -> Self {
-        value as i32
+        match value {
+            SocketOption::Affinity => zmq_sys_crate::ZMQ_AFFINITY as i32,
+            SocketOption::RoutingId => zmq_sys_crate::ZMQ_ROUTING_ID as i32,
+            SocketOption::Subscribe => zmq_sys_crate::ZMQ_SUBSCRIBE as i32,
+            SocketOption::Unsubscribe => zmq_sys_crate::ZMQ_UNSUBSCRIBE as i32,
+            SocketOption::Rate => zmq_sys_crate::ZMQ_RATE as i32,
+            SocketOption::RecoveryInterval => zmq_sys_crate::ZMQ_RECOVERY_IVL as i32,
+            SocketOption::SendBuffer => zmq_sys_crate::ZMQ_SNDBUF as i32,
+            SocketOption::ReceiveBuffer => zmq_sys_crate::ZMQ_RCVBUF as i32,
+            SocketOption::ReceiveMore => zmq_sys_crate::ZMQ_RCVMORE as i32,
+            SocketOption::FileDescriptor => zmq_sys_crate::ZMQ_FD as i32,
+            SocketOption::Events => zmq_sys_crate::ZMQ_EVENTS as i32,
+            SocketOption::Type => zmq_sys_crate::ZMQ_TYPE as i32,
+            SocketOption::Linger => zmq_sys_crate::ZMQ_LINGER as i32,
+            SocketOption::ReconnectInterval => zmq_sys_crate::ZMQ_RECONNECT_IVL as i32,
+            SocketOption::Backlog => zmq_sys_crate::ZMQ_BACKLOG as i32,
+            SocketOption::ReconnectIntervalMax => zmq_sys_crate::ZMQ_RECONNECT_IVL_MAX as i32,
+            SocketOption::MaxMessageSize => zmq_sys_crate::ZMQ_MAXMSGSIZE as i32,
+            SocketOption::SendHighWatermark => zmq_sys_crate::ZMQ_SNDHWM as i32,
+            SocketOption::ReceiveHighWatermark => zmq_sys_crate::ZMQ_RCVHWM as i32,
+            SocketOption::MulticastHops => zmq_sys_crate::ZMQ_MULTICAST_HOPS as i32,
+            SocketOption::ReceiveTimeout => zmq_sys_crate::ZMQ_RCVTIMEO as i32,
+            SocketOption::SendTimeout => zmq_sys_crate::ZMQ_SNDTIMEO as i32,
+            SocketOption::LastEndpoint => zmq_sys_crate::ZMQ_LAST_ENDPOINT as i32,
+            SocketOption::RouterMandatory => zmq_sys_crate::ZMQ_ROUTER_MANDATORY as i32,
+            SocketOption::TcpKeepalive => zmq_sys_crate::ZMQ_TCP_KEEPALIVE as i32,
+            SocketOption::TcpKeepaliveCount => zmq_sys_crate::ZMQ_TCP_KEEPALIVE_CNT as i32,
+            SocketOption::TcpKeepaliveIdle => zmq_sys_crate::ZMQ_TCP_KEEPALIVE_IDLE as i32,
+            SocketOption::TcpKeepaliveInterval => zmq_sys_crate::ZMQ_TCP_KEEPALIVE_INTVL as i32,
+            SocketOption::TcpAcceptFilter => zmq_sys_crate::ZMQ_TCP_ACCEPT_FILTER as i32,
+            SocketOption::Immediate => zmq_sys_crate::ZMQ_IMMEDIATE as i32,
+            SocketOption::XpubVerbose => zmq_sys_crate::ZMQ_XPUB_VERBOSE as i32,
+            SocketOption::IPv6 => zmq_sys_crate::ZMQ_IPV6 as i32,
+            SocketOption::Mechanism => zmq_sys_crate::ZMQ_MECHANISM as i32,
+            SocketOption::PlainServer => zmq_sys_crate::ZMQ_PLAIN_SERVER as i32,
+            SocketOption::PlainUsername => zmq_sys_crate::ZMQ_PLAIN_USERNAME as i32,
+            SocketOption::PlainPassword => zmq_sys_crate::ZMQ_PLAIN_PASSWORD as i32,
+            #[cfg(feature = "curve")]
+            SocketOption::CurvePublicKey => zmq_sys_crate::ZMQ_CURVE_PUBLICKEY as i32,
+            #[cfg(feature = "curve")]
+            SocketOption::CurveSecretKey => zmq_sys_crate::ZMQ_CURVE_SECRETKEY as i32,
+            #[cfg(feature = "curve")]
+            SocketOption::CurveServer => zmq_sys_crate::ZMQ_CURVE_SERVER as i32,
+            #[cfg(feature = "curve")]
+            SocketOption::CurveServerKey => zmq_sys_crate::ZMQ_CURVE_SERVERKEY as i32,
+            SocketOption::ProbeRouter => zmq_sys_crate::ZMQ_PROBE_ROUTER as i32,
+            SocketOption::RequestCorrelate => zmq_sys_crate::ZMQ_REQ_CORRELATE as i32,
+            SocketOption::RequestRelaxed => zmq_sys_crate::ZMQ_REQ_RELAXED as i32,
+            SocketOption::Conflate => zmq_sys_crate::ZMQ_CONFLATE as i32,
+            SocketOption::ZapDomain => zmq_sys_crate::ZMQ_ZAP_DOMAIN as i32,
+            SocketOption::RouterHandover => zmq_sys_crate::ZMQ_ROUTER_HANDOVER as i32,
+            SocketOption::TypeOfService => zmq_sys_crate::ZMQ_TOS as i32,
+            SocketOption::IpcFilterProcessId => zmq_sys_crate::ZMQ_IPC_FILTER_PID as i32,
+            SocketOption::IpcFilterUserId => zmq_sys_crate::ZMQ_IPC_FILTER_UID as i32,
+            SocketOption::IpcFilterGroupId => zmq_sys_crate::ZMQ_IPC_FILTER_GID as i32,
+            SocketOption::ConnectRoutingId => zmq_sys_crate::ZMQ_CONNECT_ROUTING_ID as i32,
+            SocketOption::GssApiServer => zmq_sys_crate::ZMQ_GSSAPI_SERVER as i32,
+            SocketOption::GssApiPrincipal => zmq_sys_crate::ZMQ_GSSAPI_PRINCIPAL as i32,
+            SocketOption::GssApiServicePrincipal => {
+                zmq_sys_crate::ZMQ_GSSAPI_SERVICE_PRINCIPAL as i32
+            }
+            SocketOption::GssApiPlainText => zmq_sys_crate::ZMQ_GSSAPI_PLAINTEXT as i32,
+            SocketOption::HandshakeInterval => zmq_sys_crate::ZMQ_HANDSHAKE_IVL as i32,
+            SocketOption::SocksProxy => zmq_sys_crate::ZMQ_SOCKS_PROXY as i32,
+            SocketOption::XpubNoDrop => zmq_sys_crate::ZMQ_XPUB_NODROP as i32,
+            SocketOption::XpubManual => zmq_sys_crate::ZMQ_XPUB_MANUAL as i32,
+            SocketOption::XpubWelcomeMessage => zmq_sys_crate::ZMQ_XPUB_WELCOME_MSG as i32,
+            SocketOption::StreamNotify => zmq_sys_crate::ZMQ_STREAM_NOTIFY as i32,
+            SocketOption::InvertMatching => zmq_sys_crate::ZMQ_INVERT_MATCHING as i32,
+            SocketOption::HeartbeatInterval => zmq_sys_crate::ZMQ_HEARTBEAT_IVL as i32,
+            SocketOption::HeartbeatTimeToLive => zmq_sys_crate::ZMQ_HEARTBEAT_TTL as i32,
+            SocketOption::HeartbeatTimeout => zmq_sys_crate::ZMQ_HEARTBEAT_TIMEOUT as i32,
+            SocketOption::XpubVerboser => zmq_sys_crate::ZMQ_XPUB_VERBOSER as i32,
+            SocketOption::ConnectTimeout => zmq_sys_crate::ZMQ_CONNECT_TIMEOUT as i32,
+            SocketOption::MaxTcpRetransmitTimeout => zmq_sys_crate::ZMQ_TCP_MAXRT as i32,
+            SocketOption::MulticastMaxTransportDataUnitSize => {
+                zmq_sys_crate::ZMQ_MULTICAST_MAXTPDU as i32
+            }
+            SocketOption::ThreadSafe => zmq_sys_crate::ZMQ_THREAD_SAFE as i32,
+            SocketOption::VmciBufferSize => zmq_sys_crate::ZMQ_VMCI_BUFFER_SIZE as i32,
+            SocketOption::VmciBufferMinSize => zmq_sys_crate::ZMQ_VMCI_BUFFER_MIN_SIZE as i32,
+            SocketOption::VmciBufferMaxSize => zmq_sys_crate::ZMQ_VMCI_BUFFER_MAX_SIZE as i32,
+            SocketOption::VmciConntectTimeout => zmq_sys_crate::ZMQ_VMCI_CONNECT_TIMEOUT as i32,
+            SocketOption::UseFd => zmq_sys_crate::ZMQ_USE_FD as i32,
+            SocketOption::GssApiPrincipalNametype => {
+                zmq_sys_crate::ZMQ_GSSAPI_PRINCIPAL_NAMETYPE as i32
+            }
+            SocketOption::GssApiServicePrincipalNametype => {
+                zmq_sys_crate::ZMQ_GSSAPI_SERVICE_PRINCIPAL_NAMETYPE as i32
+            }
+            SocketOption::BindToDevice => zmq_sys_crate::ZMQ_BINDTODEVICE as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::ZapEnforceDomain => zmq_sys_crate::ZMQ_ZAP_ENFORCE_DOMAIN as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::Metadata => zmq_sys_crate::ZMQ_METADATA as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::MulticastLoop => zmq_sys_crate::ZMQ_MULTICAST_LOOP as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::RouterNotify => zmq_sys_crate::ZMQ_ROUTER_NOTIFY as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::XpubManualLastValue => zmq_sys_crate::ZMQ_XPUB_MANUAL_LAST_VALUE as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::SocksUsername => zmq_sys_crate::ZMQ_SOCKS_USERNAME as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::SocksPassword => zmq_sys_crate::ZMQ_SOCKS_PASSWORD as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::InBatchSize => zmq_sys_crate::ZMQ_IN_BATCH_SIZE as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::OutBatchSize => zmq_sys_crate::ZMQ_OUT_BATCH_SIZE as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::OnlyFirstSubscribe => zmq_sys_crate::ZMQ_ONLY_FIRST_SUBSCRIBE as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::ReconnectStop => zmq_sys_crate::ZMQ_RECONNECT_STOP as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::HelloMessage => zmq_sys_crate::ZMQ_HELLO_MSG as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::DisconnectMessage => zmq_sys_crate::ZMQ_DISCONNECT_MSG as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::Priority => zmq_sys_crate::ZMQ_PRIORITY as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::BusyPoll => zmq_sys_crate::ZMQ_BUSY_POLL as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::HiccupMessage => zmq_sys_crate::ZMQ_HICCUP_MSG as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::XsubVerboseUnsubscribe => {
+                zmq_sys_crate::ZMQ_XSUB_VERBOSE_UNSUBSCRIBE as i32
+            }
+            #[cfg(feature = "draft-api")]
+            SocketOption::TopicsCount => zmq_sys_crate::ZMQ_TOPICS_COUNT as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::NormMode => zmq_sys_crate::ZMQ_NORM_MODE as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::NormUnicastNack => zmq_sys_crate::ZMQ_NORM_UNICAST_NACK as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::NormBufferSize => zmq_sys_crate::ZMQ_NORM_BUFFER_SIZE as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::NormSegmentSize => zmq_sys_crate::ZMQ_NORM_SEGMENT_SIZE as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::NormBlockSize => zmq_sys_crate::ZMQ_NORM_BLOCK_SIZE as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::NormNumnParity => zmq_sys_crate::ZMQ_NORM_NUM_PARITY as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::NormNumnAutoParity => zmq_sys_crate::ZMQ_NORM_NUM_AUTOPARITY as i32,
+            #[cfg(feature = "draft-api")]
+            SocketOption::NormPush => zmq_sys_crate::ZMQ_NORM_PUSH as i32,
+        }
     }
 }
 
+/// generic 0MQ socket
 pub struct Socket<T: sealed::SocketType> {
     context: Context,
     pub(crate) socket: Arc<RawSocket>,
@@ -1415,6 +1725,7 @@ pub struct Socket<T: sealed::SocketType> {
 }
 
 impl<T: sealed::SocketType> Socket<T> {
+    /// General constructor
     pub fn from_context(context: &Context) -> ZmqResult<Self> {
         let socket = RawSocket::from_ctx(&context.inner, T::raw_socket_type() as i32)?;
         Ok(Self {
@@ -2112,7 +2423,7 @@ impl<T: sealed::SocketType> Socket<T> {
     /// # Maximum network hops for multicast packets `ZMQ_MULTICAST_HOPS`
     ///
     /// The option shall retrieve time-to-live used for outbound multicast packets. The default of
-    /// `1?  means that the multicast packets don’t leave the local network.
+    /// `1` means that the multicast packets don’t leave the local network.
     ///
     /// | Default value | Applicable socket types              |
     /// | :-----------: | :----------------------------------: |
@@ -2152,7 +2463,7 @@ impl<T: sealed::SocketType> Socket<T> {
     /// # Set kernel receive buffer size `ZMQ_RCVBUF`
     /// The [`ReceiveBuffer`] option shall set the underlying kernel receive buffer size for the
     /// `Socket` to the specified size in bytes. A value of `-1` means leave the OS default
-    /// unchanged. For details refer to your operating system documentation for the  SO_RCVBUF`
+    /// unchanged. For details refer to your operating system documentation for the `SO_RCVBUF`
     /// socket option.
     ///
     /// | Default value | Applicable socket types |
@@ -2258,7 +2569,7 @@ impl<T: sealed::SocketType> Socket<T> {
     /// # Set reconnection interval `ZMQ_RECONNECT_IVL`
     /// The [`ReconnectInterval`] option shall set the initial reconnection interval for the
     /// `Socket`. The reconnection interval is the period 0MQ shall wait between attempts to
-    /// reconnect disconnected peers when using connection-oriented transports. The value `-1?
+    /// reconnect disconnected peers when using connection-oriented transports. The value `-1`
     /// means no reconnection.
     ///
     /// | Default value | Applicable socket types                      |
@@ -2684,7 +2995,7 @@ impl<T: sealed::SocketType> Socket<T> {
     /// | :---------------------: | :-----------------------------: |
     /// | 0 ms                    | all, when using TCP transports. |
     pub fn set_tcp_max_retransmit_timeout(&self, value: i32) -> ZmqResult<()> {
-        self.set_sockopt_int(SocketOption::MaxTcpTransmitTimeout, value)
+        self.set_sockopt_int(SocketOption::MaxTcpRetransmitTimeout, value)
     }
 
     /// # Retrieve Max TCP Retransmit Timeout `ZMQ_TCP_MAXRT`
@@ -2699,7 +3010,7 @@ impl<T: sealed::SocketType> Socket<T> {
     /// | :---------------------: | :-----------------------------: |
     /// | 0 ms                    | all, when using TCP transports. |
     pub fn tcp_max_retransmit_timeout(&self) -> ZmqResult<i32> {
-        self.get_sockopt_int(SocketOption::MaxTcpTransmitTimeout)
+        self.get_sockopt_int(SocketOption::MaxTcpRetransmitTimeout)
     }
 
     /// # Set the Type-of-Service on socket `ZMQ_TOS`
@@ -2928,39 +3239,108 @@ impl<T: sealed::SocketType> Socket<T> {
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[from(u16)]
+/// Flags for setting up monitor sockets
 pub struct MonitorFlags(u16);
 
 bitflags! {
     impl MonitorFlags: u16 {
+        /// The socket has successfully connected to a remote peer. The event value is the file
+        /// descriptor (FD) of the underlying network socket.
+        ///
+        /// <div class="warning">
+        ///
+        /// Warning:
+        ///
+        /// There is no guarantee that the FD is still valid by the time your code receives this
+        /// event.
+        ///
+        /// </div>
         const Connected                 = 0b0000_0000_0000_0001;
+        /// A connect request on the socket is pending. The event value is unspecified.
         const ConnectDelayed            = 0b0000_0000_0000_0010;
+        /// A connect request failed, and is now being retried. The event value is the reconnect
+        /// interval in milliseconds.
+        ///
+        /// Note that the reconnect interval is recalculated at each retry.
         const ConnectRetried            = 0b0000_0000_0000_0100;
+        /// The socket was successfully bound to a network interface. The event value is the FD of
+        /// the underlying network socket.
+        ///
+        /// <div class="warning">
+        ///
+        /// Warning:
+        ///
+        /// There is no guarantee that the FD is still valid by the time your code receives this
+        /// event.
+        ///
+        /// </div>
         const Listening                 = 0b0000_0000_0000_1000;
+        /// The socket could not bind to a given interface. The event value is the errno generated
+        /// by the system bind call.
         const BindFailed                = 0b0000_0000_0001_0000;
+        /// The socket has accepted a connection from a remote peer. The event value is the FD of
+        /// the underlying network socket.
+        ///
+        /// <div class="warning">
+        ///
+        /// Warning:
+        ///
+        /// There is no guarantee that the FD is still valid by the time your code receives this
+        /// event.
+        ///
+        /// </div>
         const Accepted                  = 0b0000_0000_0010_0000;
+        /// The socket has rejected a connection from a remote peer. The event value is the errno
+        /// generated by the accept call.
         const AcceptFailed              = 0b0000_0000_0100_0000;
+        /// The socket was closed. The event value is the FD of the (now closed) network socket.
         const Closed                    = 0b0000_0000_1000_0000;
+        /// The socket close failed. The event value is the errno returned by the system call.
+        ///
+        /// Note that this event occurs only on IPC transports.
         const CloseFailed               = 0b0000_0001_0000_0000;
+        /// The socket was disconnected unexpectedly. The event value is the FD of the underlying
+        /// network socket.
+        ///
+        /// <div class="warning">
+        ///
+        /// Warning:
+        ///
+        /// This socket will be closed.
+        ///
+        /// </div>
         const Disconnected              = 0b0000_0010_0000_0000;
+        /// Monitoring on this socket ended.
         const MonitorStopped            = 0b0000_0100_0000_0000;
+        /// Unspecified error during handshake. The event value is an errno.
         const HandshakeFailedNoDetail   = 0b0000_1000_0000_0000;
+        /// The ZMTP security mechanism handshake succeeded. The event value is unspecified.
         const HandshakeSucceeded        = 0b0001_0000_0000_0000;
+        /// The ZMTP security mechanism handshake failed due to some mechanism protocol error,
+        /// either between the ZMTP mechanism peers, or between the mechanism server and the ZAP
+        /// handler. This indicates a configuration or implementation error in either peer resp.
+        /// the ZAP handler.
         const HandshakeFailedProtocol   = 0b0010_0000_0000_0000;
+        /// The ZMTP security mechanism handshake failed due to an authentication failure. The
+        /// event value is the status code returned by the ZAP handler (i.e. `300`, `400` or `500`).
         const HandshakeFailedAuth       = 0b0100_0000_0000_0000;
     }
 }
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+/// Flag options for receive operations
 pub struct RecvFlags(i32);
 
 bitflags! {
     impl RecvFlags: i32 {
+        /// Specifies that the operation should be performed in non-blocking mode.
         const DONT_WAIT = 0b00000001;
     }
 }
 
 #[cfg_attr(feature = "futures", async_trait)]
+/// Trait for receiving single part messages
 pub trait Receiver {
     fn recv_msg<F>(&self, flags: F) -> ZmqResult<Message>
     where
@@ -2993,6 +3373,7 @@ where
 }
 
 #[cfg_attr(feature = "futures", async_trait)]
+/// Trait for receiving multipart messages
 pub trait MultipartReceiver: Receiver {
     fn recv_multipart<F>(&self, flags: F) -> ZmqResult<MultipartMessage>
     where
@@ -3039,16 +3420,27 @@ pub trait MultipartReceiver: Receiver {
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+/// Flag options for send operations
 pub struct SendFlags(i32);
 
 bitflags! {
     impl SendFlags: i32 {
+        /// For socket types ([`Dealer`], [`Push`]) that block (either with [`Immediate`] option
+        /// set and no peer available, or all peers having full high-water mark), specifies that
+        /// the operation should be performed in non-blocking mode.
+        ///
+        /// [`Dealer`]: DealerSocket
+        /// [`Push`]: PushSocket
+        /// [`Immediate`]: SocketOption::Immediate
         const DONT_WAIT = 0b00000001;
+        /// Specifies that the message being sent is a multi-part message, and that further message
+        /// parts are to follow.
         const SEND_MORE = 0b00000010;
     }
 }
 
 #[cfg_attr(feature = "futures", async_trait)]
+/// Trait for sending single part messages
 pub trait Sender {
     fn send_msg<M, F>(&self, msg: M, flags: F) -> ZmqResult<()>
     where
@@ -3094,6 +3486,7 @@ where
 }
 
 #[cfg_attr(feature = "futures", async_trait)]
+/// Trait for sending multipart messages
 pub trait MultipartSender: Sender {
     fn send_multipart<M, F>(&self, iter: M, flags: F) -> ZmqResult<()>
     where
@@ -3200,6 +3593,7 @@ mod futures {
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+/// Flags for poll operations on sockets
 pub struct PollEvents(i16);
 
 bitflags! {
@@ -3227,6 +3621,9 @@ bitflags! {
 #[doc(cfg(feature = "draft-api"))]
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, From, Default, PartialEq, Eq, PartialOrd, Ord)]
+/// Flags for the [`ReconnectStop`] socket option
+///
+/// [`ReconnectStop`]: SocketOption::ReconnectStop
 pub struct ReconnectStop(i32);
 
 #[cfg(feature = "draft-api")]

@@ -67,12 +67,15 @@ impl MultipartReceiver for Socket<Router> {}
 #[doc(cfg(feature = "draft-api"))]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "builder", derive(serde::Serialize, serde::Deserialize))]
+/// Connect and disconnect router notifications
 pub struct RouterNotify(i32);
 
 #[cfg(feature = "draft-api")]
 bitflags! {
     impl RouterNotify: i32 {
+        /// A peer connected to the router
         const NotifyConnect    = 0b0000_0000_0000_0001;
+        /// A peer disconnect from the router
         const NotifyDisconnect = 0b0000_0000_0000_0010;
     }
 }

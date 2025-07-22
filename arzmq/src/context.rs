@@ -1,3 +1,32 @@
+//! # 0MQ context
+//!
+//! The 0MQ [`Context`] keeps the list of sockets and manages the async I/O thread and internal
+//! queries.
+//!
+//! Before using any 0MQ library functions you must create a 0MQ [`Context`].
+//!
+//! ## Multiple contexts
+//! Multiple [`Context`] may coexist within a single application. Thus, an application can use 0MQ
+//! directly and at the same time make use of any number of additional libraries or components
+//! which themselves make use of 0MQ:
+//!
+//! ## Example
+//! ```
+//! # use arzmq::{ZmqResult, context::Context, socket::SubscribeSocket};
+//! # fn main() -> ZmqResult<()> {
+//! #
+//! let context = Context::new()?;
+//! context.set_blocky(false)?;
+//!
+//! let socket = SubscribeSocket::from_context(&context)?;
+//!
+//! # Ok(())
+//! # }
+//!
+//! ```
+//!
+//! [`Context`]: Context
+
 use alloc::sync::Arc;
 
 #[cfg(feature = "builder")]
@@ -9,21 +38,34 @@ use num_traits::PrimInt;
 use crate::{ZmqResult, ffi::RawContext, zmq_sys_crate};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(i32)]
+#[non_exhaustive]
+/// Options that can be set and/or retrieved on a 0MQ [`Context`]
 pub enum ContextOption {
-    IoThreads = zmq_sys_crate::ZMQ_IO_THREADS as i32,
-    MaxSockets = zmq_sys_crate::ZMQ_MAX_SOCKETS as i32,
-    ThreadPriority = zmq_sys_crate::ZMQ_THREAD_PRIORITY as i32,
-    ThreadSchedulingPolicy = zmq_sys_crate::ZMQ_THREAD_SCHED_POLICY as i32,
-    MaxMessageSize = zmq_sys_crate::ZMQ_MAX_MSGSZ as i32,
-    ThreadAffinityCPUAdd = zmq_sys_crate::ZMQ_THREAD_AFFINITY_CPU_ADD as i32,
-    ThreadAffinityCPURemove = zmq_sys_crate::ZMQ_THREAD_AFFINITY_CPU_REMOVE as i32,
-    ThreadNamePrefix = zmq_sys_crate::ZMQ_THREAD_NAME_PREFIX as i32,
+    /// Number of I/O threads on this context
+    IoThreads,
+    /// Maximum number of sockets on this context
+    MaxSockets,
+    /// Scheduling priority for I/O threads
+    ThreadPriority,
+    /// Scheduling policy for I/O threads
+    ThreadSchedulingPolicy,
+    /// Maximum message size
+    MaxMessageSize,
+    /// Add a CPI to list of affinity for I/O threads
+    ThreadAffinityCPUAdd,
+    /// Remove a CPI from list of affinity for I/O threads
+    ThreadAffinityCPURemove,
+    /// Name prefix for I/O threads
+    ThreadNamePrefix,
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
-    ZeroCopyReceiving = zmq_sys_crate::ZMQ_ZERO_COPY_RECV as i32,
-    IPv6 = zmq_sys_crate::ZMQ_IPV6 as i32,
-    Blocky = zmq_sys_crate::ZMQ_BLOCKY as i32,
+    /// Specify message decoding strategy
+    ZeroCopyReceiving,
+    /// Enable IPv6 support
+    IPv6,
+    /// Fix blocky behavior
+    Blocky,
+    /// Get maximum number of sockets
     SocketLimit,
 }
 
@@ -54,6 +96,10 @@ impl From<ContextOption> for i32 {
 #[derive(DebugDeriveMore, DisplayDeriveMore)]
 #[debug("ZmqContext {{ ... }}")]
 #[display("ZmqContext")]
+/// # 0MQ context
+///
+/// The 0MQ [`Context`] keeps the list of sockets and manages the async I/O thread and internal
+/// queries.
 pub struct Context {
     pub(crate) inner: Arc<RawContext>,
 }

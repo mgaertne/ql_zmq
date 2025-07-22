@@ -1,3 +1,5 @@
+//! 0MQ messages
+
 use alloc::collections::{
     VecDeque,
     vec_deque::{Drain, IntoIter, Iter, IterMut},
@@ -17,6 +19,7 @@ use crate::{
 #[derive(DebugDeriveMore, DisplayDeriveMore)]
 #[debug("Message {{ {:?} }}", inner.lock())]
 #[display("{}", inner.lock())]
+/// 0MQ single-part message
 pub struct Message {
     inner: FairMutex<RawMessage>,
 }
@@ -29,6 +32,7 @@ impl Message {
         Self::default()
     }
 
+    /// initialise 0MQ message of a specified size
     pub fn with_size(len: usize) -> ZmqResult<Self> {
         Ok(Self::from_raw_msg(RawMessage::with_size(len)))
     }
@@ -39,20 +43,24 @@ impl Message {
         }
     }
 
+    /// returns the message underlying byte representation
     pub fn bytes(&self) -> Vec<u8> {
         let msg_guard = self.inner.lock();
         (*msg_guard).as_ref().to_vec()
     }
 
+    /// returns the message length
     pub fn len(&self) -> usize {
         let msg_guard = self.inner.lock();
         msg_guard.len()
     }
 
+    /// returns whether this message is empty
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// returns whether there are more parts to this message that can be received
     pub fn get_more(&self) -> bool {
         let msg_guard = self.inner.lock();
         msg_guard.get_more()
@@ -60,6 +68,10 @@ impl Message {
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
+    /// Set the routing id of the message. Used for interactions on [`Server`] and [`Peer`] sockets.
+    ///
+    /// [`Server`]: crate::socket::ServerSocket
+    /// [`Peer`]: crate::socket::PeerSocket
     pub fn set_routing_id(&self, value: u32) -> ZmqResult<()> {
         let mut msg_guard = self.inner.lock();
         msg_guard.set_routing_id(value)
@@ -67,6 +79,11 @@ impl Message {
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
+    /// Retrieve the routing id of the message. Used for interactions on [`Server`] and [`Peer`]
+    /// sockets.
+    ///
+    /// [`Server`]: crate::socket::ServerSocket
+    /// [`Peer`]: crate::socket::PeerSocket
     pub fn routing_id(&self) -> Option<u32> {
         let msg_guard = self.inner.lock();
         msg_guard.routing_id()
@@ -74,6 +91,9 @@ impl Message {
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
+    /// Sets the group for the message. Used by [`Radio`] sockets.
+    ///
+    /// [`Radio`]: crate::socket::RadioSocket
     pub fn set_group<V: AsRef<str>>(&self, value: V) -> ZmqResult<()> {
         let mut msg_guard = self.inner.lock();
         msg_guard.set_group(value.as_ref())
@@ -81,6 +101,9 @@ impl Message {
 
     #[cfg(feature = "draft-api")]
     #[doc(cfg(feature = "draft-api"))]
+    /// Retrieves the group for the message. Used by [`Dish`] sockets.
+    ///
+    /// [`Dish`]: crate::socket::DishSocket
     pub fn group(&self) -> Option<String> {
         let msg_guard = self.inner.lock();
         msg_guard.group()
@@ -111,7 +134,9 @@ impl<T: Into<RawMessage>> From<T> for Message {
     }
 }
 
+/// convenicen trait for sendable messages, including single- and multipart ones.
 pub trait Sendable<S: sealed::SocketType + sealed::SenderFlag> {
+    /// send the message on the provided socket
     fn send(self, socket: &Socket<S>, flags: i32) -> ZmqResult<()>;
 }
 
@@ -131,6 +156,7 @@ where
 #[derive(Default, DebugDeriveMore, DisplayDeriveMore)]
 #[debug("MultipartMessage {{ {inner:?} }}")]
 #[display("MultipartMessage {{ {inner:?} }}")]
+/// 0MQ multipart message
 pub struct MultipartMessage {
     inner: VecDeque<Message>,
 }
@@ -147,42 +173,52 @@ impl MultipartMessage {
         self.inner
     }
 
+    /// get the message part at `index`
     pub fn get(&self, index: usize) -> Option<&Message> {
         self.inner.get(index)
     }
 
+    /// removes the first part of this multipart message and returns it.
     pub fn pop_front(&mut self) -> Option<Message> {
         self.inner.pop_front()
     }
 
+    /// removes the last part of this multipart message and returns it.
     pub fn pop_back(&mut self) -> Option<Message> {
         self.inner.pop_back()
     }
 
+    /// inserts a new part at the front of this multipart message.
     pub fn push_front(&mut self, msg: Message) {
         self.inner.push_front(msg)
     }
 
+    /// inserts a new part at the back of this multipart message.
     pub fn push_back(&mut self, msg: Message) {
         self.inner.push_back(msg)
     }
 
+    /// returns whether this multipart message is empty.
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
+    /// returns an iterator over the parts of this multipart message
     pub fn iter(&self) -> Iter<'_, Message> {
         self.inner.iter()
     }
 
+    /// returns a mutable iterator over the parts of this multipart message
     pub fn iter_mut(&mut self) -> IterMut<'_, Message> {
         self.inner.iter_mut()
     }
 
+    /// returns the number of parts in this multipart message
     pub fn len(&self) -> usize {
         self.inner.len()
     }
 
+    /// clears this multipart message in the given range
     pub fn drain<R>(&mut self, range: R) -> Drain<'_, Message>
     where
         R: RangeBounds<usize>,

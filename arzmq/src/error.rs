@@ -7,6 +7,7 @@ use crate::zmq_sys_crate;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
+/// 0MQ error codes
 pub enum ZmqError {
     /// EAGAIN
     #[error("Again")]
@@ -168,4 +169,5 @@ impl From<ParseIntError> for ZmqError {
     }
 }
 
+/// 0MQ specific result type
 pub type ZmqResult<T, E = ZmqError> = Result<T, E>;

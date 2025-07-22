@@ -1,3 +1,15 @@
+//! 0MQ security mechanisms
+//!
+//! Currently only support [`Null`] and [`Plain`] across different platforms. [`Curve`] is
+//! available with the <span class="stab portability"><code>curve</code></span> feature on Linux
+//! and MacOS, but not on Windows. [`GSSAPI`] values are available across the crate, but are not
+//! compiled in.
+//!
+//! [`Null`]: SecurityMechanism::Null
+//! [`Plain`]: SecurityMechanism::PlainServer
+//! [`Curve`]: SecurityMechanism::CurveServer
+//! [`GSSAPI`]: SecurityMechanism::GssApiServer
+
 #[cfg(feature = "curve")]
 use core::{ffi::c_char, hint::cold_path};
 
@@ -13,16 +25,23 @@ use crate::{
 #[cfg_attr(feature = "builder", derive(serde::Deserialize, serde::Serialize))]
 #[repr(i32)]
 #[non_exhaustive]
+/// # 0MQ security mechanisms
+///
+/// A 0MQ socket can select a security mechanism. Both peers must use the same security mechanism.
 pub enum SecurityMechanism {
     #[default]
-    Null = zmq_sys_crate::ZMQ_NULL as i32,
+    /// Null security
+    Null,
     #[display("PlainClient {{ username = {username}, password = {password} }}")]
+    /// Plain-text client authentication using username and password
     PlainClient { username: String, password: String },
     #[display("PlainServer {{ username = {username}, password = {password} }}")]
+    /// Plain-text server authentication using username and password
     PlainServer { username: String, password: String },
     #[cfg(feature = "curve")]
     #[doc(cfg(all(feature = "curve", not(windows))))]
     #[display("CurveClient {{ ... }}")]
+    /// Elliptic curve client authentication and encryption
     CurveClient {
         server_key: Vec<u8>,
         public_key: Vec<u8>,
@@ -31,16 +50,20 @@ pub enum SecurityMechanism {
     #[cfg(feature = "curve")]
     #[doc(cfg(all(feature = "curve", not(windows))))]
     #[display("CurveServer {{ ... }}")]
+    /// Elliptic curve server authentication and encryption
     CurveServer { secret_key: Vec<u8> },
     #[doc(cfg(zmq_have_gssapi))]
     #[display("GssApiClient {{ ... }}")]
+    /// GSSAPI client authentication and encryption
     GssApiClient { service_principal: String },
     #[doc(cfg(zmq_have_gssapi))]
     #[display("GssApiServer {{ ... }}")]
+    /// GSSAPI server authentication and encryption
     GssApiServer,
 }
 
 impl SecurityMechanism {
+    /// Applies the security mechanism to the provided socket
     pub fn apply<T: sealed::SocketType>(&self, socket: &Socket<T>) -> ZmqResult<()> {
         match self {
             SecurityMechanism::Null => socket.set_sockopt_bool(SocketOption::PlainServer, false)?,
@@ -131,7 +154,11 @@ impl<T: sealed::SocketType> TryFrom<&Socket<T>> for SecurityMechanism {
 
 #[cfg(feature = "curve")]
 #[doc(cfg(all(feature = "curve", not(windows))))]
-pub use z85::{DecodeError as Z85DecodeError, decode as z85_decode, encode as z85_encode};
+/// Z85 decoding error
+pub use z85::DecodeError as Z85DecodeError;
+#[cfg(feature = "curve")]
+#[doc(cfg(all(feature = "curve", not(windows))))]
+pub use z85::{decode as z85_decode, encode as z85_encode};
 
 /// # generate a new CURVE keypair
 ///
@@ -192,10 +219,15 @@ where
 #[doc(cfg(zmq_have_gssapi))]
 #[derive(Debug, Display, PartialEq, Eq, Clone, Hash)]
 #[repr(i32)]
+/// # name types for GSSAPI
 pub enum GssApiNametype {
-    NtHostbased = zmq_sys_crate::ZMQ_GSSAPI_NT_HOSTBASED as i32,
-    NtUsername = zmq_sys_crate::ZMQ_GSSAPI_NT_USER_NAME as i32,
-    NtKrb5Principal = zmq_sys_crate::ZMQ_GSSAPI_NT_KRB5_PRINCIPAL as i32,
+    /// the name is interpreted as a host based name
+    NtHostbased,
+    /// the name is interpreted as a local user name
+    NtUsername,
+    /// the name is interpreted as an unparsed principal name string (valid only with the krb5
+    /// GSSAPI mechanism).
+    NtKrb5Principal,
 }
 
 #[doc(cfg(zmq_have_gssapi))]
