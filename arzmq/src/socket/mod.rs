@@ -3203,8 +3203,7 @@ impl<T: sealed::SocketType> Socket<T> {
         F: Into<MonitorFlags>,
     {
         let fd = self
-            .socket
-            .get_sockopt_int::<usize>(SocketOption::FileDescriptor as i32)?;
+            .get_sockopt_int::<usize>(SocketOption::FileDescriptor)?;
         let monitor_endpoint = format!("inproc://monitor.s-{fd}");
 
         self.socket
